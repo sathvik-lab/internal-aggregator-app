@@ -336,22 +336,10 @@ const SignupScreen = ({ navigation }) => {
         return;
       }
 
-      // Success - show success message and navigate
-      Alert.alert(
-        'Account Created',
-        'Your account has been created successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // TODO: Navigate to Dashboard when navigation is set up
-              // navigation.navigate('Dashboard');
-              console.log('User signed up and profile created:', user);
-            },
-          },
-        ]
-      );
-
+      // Success - account created
+      // Auth state will be updated automatically via onAuthStateChanged
+      // AppNavigator will automatically navigate to MainNavigator
+      console.log('User signed up and profile created:', user);
       setLoading(false);
     } catch (error) {
       // Handle unexpected errors

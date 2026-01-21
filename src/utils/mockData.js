@@ -154,128 +154,142 @@ export const MOCK_DOCUMENTS = [
  * @property {string|null} notes - Additional notes about the checklist item
  */
 
-export const MOCK_CHECKLIST_ITEMS = [
-  {
-    id: 'checklist-001',
-    userId: MOCK_USER.uid,
-    title: 'Daily Temperature Log - Walk-in Freezer',
-    description: 'Record temperature readings from walk-in freezer at 8 AM, 12 PM, and 6 PM',
-    dueDate: new Date().toISOString(), // Today
-    completed: false,
-    priority: 'high',
-    category: 'Food Safety',
-    createdAt: '2024-01-15T08:00:00.000Z',
-    status: CHECKLIST_STATUS.PENDING,
-    frequency: 'daily',
-    completedAt: null,
-    notes: null,
-  },
-  {
-    id: 'checklist-002',
-    userId: MOCK_USER.uid,
-    title: 'Sanitize Food Preparation Surfaces',
-    description: 'Clean and sanitize all food preparation surfaces before start of service',
-    dueDate: new Date().toISOString(), // Today
-    completed: true,
-    priority: 'critical',
-    category: 'Food Safety',
-    createdAt: '2024-01-15T08:00:00.000Z',
-    status: CHECKLIST_STATUS.COMPLETED,
-    frequency: 'daily',
-    completedAt: '2024-01-21T07:30:00.000Z',
-    notes: 'All surfaces sanitized with approved food-safe sanitizer',
-  },
-  {
-    id: 'checklist-003',
-    userId: MOCK_USER.uid,
-    title: 'Check Fire Extinguisher Pressure Gauges',
-    description: 'Verify all fire extinguishers show pressure in the green zone',
-    dueDate: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
-    completed: false,
-    priority: 'high',
-    category: 'Fire Safety',
-    createdAt: '2024-01-15T08:00:00.000Z',
-    status: CHECKLIST_STATUS.PENDING,
-    frequency: 'weekly',
-    completedAt: null,
-    notes: null,
-  },
-  {
-    id: 'checklist-004',
-    userId: MOCK_USER.uid,
-    title: 'Review Employee Training Records',
-    description: 'Ensure all employees have completed required compliance training',
-    dueDate: '2024-01-25T17:00:00.000Z',
-    completed: false,
-    priority: 'medium',
-    category: 'Compliance',
-    createdAt: '2024-01-15T08:00:00.000Z',
-    status: CHECKLIST_STATUS.IN_PROGRESS,
-    frequency: 'monthly',
-    completedAt: null,
-    notes: '3 employees need to complete HIPAA training',
-  },
-  {
-    id: 'checklist-005',
-    userId: MOCK_USER.uid,
-    title: 'Inspect Emergency Exit Signs',
-    description: 'Verify all emergency exit signs are illuminated and clearly visible',
-    dueDate: new Date().toISOString(), // Today
-    completed: false,
-    priority: 'high',
-    category: 'Safety',
-    createdAt: '2024-01-15T08:00:00.000Z',
-    status: CHECKLIST_STATUS.PENDING,
-    frequency: 'weekly',
-    completedAt: null,
-    notes: null,
-  },
-  {
-    id: 'checklist-006',
-    userId: MOCK_USER.uid,
-    title: 'Update Data Privacy Policy Documentation',
-    description: 'Review and update GDPR data privacy policy documentation',
-    dueDate: '2024-02-01T17:00:00.000Z',
-    completed: false,
-    priority: 'medium',
-    category: 'Compliance',
-    createdAt: '2024-01-15T08:00:00.000Z',
-    status: CHECKLIST_STATUS.PENDING,
-    frequency: 'quarterly',
-    completedAt: null,
-    notes: null,
-  },
-  {
-    id: 'checklist-007',
-    userId: MOCK_USER.uid,
-    title: 'Verify First Aid Kit Supplies',
-    description: 'Check first aid kit for expired items and restock as needed',
-    dueDate: new Date(Date.now() + 7 * 86400000).toISOString(), // 7 days from now
-    completed: false,
-    priority: 'medium',
-    category: 'Safety',
-    createdAt: '2024-01-15T08:00:00.000Z',
-    status: CHECKLIST_STATUS.PENDING,
-    frequency: 'monthly',
-    completedAt: null,
-    notes: null,
-  },
-  {
-    id: 'checklist-008',
-    userId: MOCK_USER.uid,
-    title: 'Conduct Equipment Safety Inspection',
-    description: 'Inspect all kitchen equipment for safety compliance and proper operation',
-    dueDate: '2024-01-22T17:00:00.000Z',
-    completed: false,
-    priority: 'high',
-    category: 'Safety',
-    createdAt: '2024-01-15T08:00:00.000Z',
-    status: CHECKLIST_STATUS.IN_PROGRESS,
-    frequency: 'monthly',
-    completedAt: null,
-    notes: 'Scheduled for next Monday morning',
-  },
-];
+/**
+ * Get mock checklist items with dynamically calculated dates
+ * This function ensures dates are calculated fresh each time, preventing stale timestamps
+ * @returns {Array<MockChecklistItem>} Array of mock checklist items
+ */
+export const getMockChecklistItems = () => {
+  const now = Date.now();
+  const oneDay = 86400000; // milliseconds in a day
+  const sevenDays = 7 * oneDay;
+
+  return [
+    {
+      id: 'checklist-001',
+      userId: MOCK_USER.uid,
+      title: 'Daily Temperature Log - Walk-in Freezer',
+      description: 'Record temperature readings from walk-in freezer at 8 AM, 12 PM, and 6 PM',
+      dueDate: new Date().toISOString(), // Today - calculated fresh each time
+      completed: false,
+      priority: 'high',
+      category: 'Food Safety',
+      createdAt: '2024-01-15T08:00:00.000Z',
+      status: CHECKLIST_STATUS.PENDING,
+      frequency: 'daily',
+      completedAt: null,
+      notes: null,
+    },
+    {
+      id: 'checklist-002',
+      userId: MOCK_USER.uid,
+      title: 'Sanitize Food Preparation Surfaces',
+      description: 'Clean and sanitize all food preparation surfaces before start of service',
+      dueDate: new Date().toISOString(), // Today - calculated fresh each time
+      completed: true,
+      priority: 'critical',
+      category: 'Food Safety',
+      createdAt: '2024-01-15T08:00:00.000Z',
+      status: CHECKLIST_STATUS.COMPLETED,
+      frequency: 'daily',
+      completedAt: '2024-01-21T07:30:00.000Z',
+      notes: 'All surfaces sanitized with approved food-safe sanitizer',
+    },
+    {
+      id: 'checklist-003',
+      userId: MOCK_USER.uid,
+      title: 'Check Fire Extinguisher Pressure Gauges',
+      description: 'Verify all fire extinguishers show pressure in the green zone',
+      dueDate: new Date(now + oneDay).toISOString(), // Tomorrow - calculated fresh each time
+      completed: false,
+      priority: 'high',
+      category: 'Fire Safety',
+      createdAt: '2024-01-15T08:00:00.000Z',
+      status: CHECKLIST_STATUS.PENDING,
+      frequency: 'weekly',
+      completedAt: null,
+      notes: null,
+    },
+    {
+      id: 'checklist-004',
+      userId: MOCK_USER.uid,
+      title: 'Review Employee Training Records',
+      description: 'Ensure all employees have completed required compliance training',
+      dueDate: '2024-01-25T17:00:00.000Z',
+      completed: false,
+      priority: 'medium',
+      category: 'Compliance',
+      createdAt: '2024-01-15T08:00:00.000Z',
+      status: CHECKLIST_STATUS.IN_PROGRESS,
+      frequency: 'monthly',
+      completedAt: null,
+      notes: '3 employees need to complete HIPAA training',
+    },
+    {
+      id: 'checklist-005',
+      userId: MOCK_USER.uid,
+      title: 'Inspect Emergency Exit Signs',
+      description: 'Verify all emergency exit signs are illuminated and clearly visible',
+      dueDate: new Date().toISOString(), // Today - calculated fresh each time
+      completed: false,
+      priority: 'high',
+      category: 'Safety',
+      createdAt: '2024-01-15T08:00:00.000Z',
+      status: CHECKLIST_STATUS.PENDING,
+      frequency: 'weekly',
+      completedAt: null,
+      notes: null,
+    },
+    {
+      id: 'checklist-006',
+      userId: MOCK_USER.uid,
+      title: 'Update Data Privacy Policy Documentation',
+      description: 'Review and update GDPR data privacy policy documentation',
+      dueDate: '2024-02-01T17:00:00.000Z',
+      completed: false,
+      priority: 'medium',
+      category: 'Compliance',
+      createdAt: '2024-01-15T08:00:00.000Z',
+      status: CHECKLIST_STATUS.PENDING,
+      frequency: 'quarterly',
+      completedAt: null,
+      notes: null,
+    },
+    {
+      id: 'checklist-007',
+      userId: MOCK_USER.uid,
+      title: 'Verify First Aid Kit Supplies',
+      description: 'Check first aid kit for expired items and restock as needed',
+      dueDate: new Date(now + sevenDays).toISOString(), // 7 days from now - calculated fresh each time
+      completed: false,
+      priority: 'medium',
+      category: 'Safety',
+      createdAt: '2024-01-15T08:00:00.000Z',
+      status: CHECKLIST_STATUS.PENDING,
+      frequency: 'monthly',
+      completedAt: null,
+      notes: null,
+    },
+    {
+      id: 'checklist-008',
+      userId: MOCK_USER.uid,
+      title: 'Conduct Equipment Safety Inspection',
+      description: 'Inspect all kitchen equipment for safety compliance and proper operation',
+      dueDate: '2024-01-22T17:00:00.000Z',
+      completed: false,
+      priority: 'high',
+      category: 'Safety',
+      createdAt: '2024-01-15T08:00:00.000Z',
+      status: CHECKLIST_STATUS.IN_PROGRESS,
+      frequency: 'monthly',
+      completedAt: null,
+      notes: 'Scheduled for next Monday morning',
+    },
+  ];
+};
+
+// NOTE: Do NOT export MOCK_CHECKLIST_ITEMS as a constant - it would have stale dates.
+// Always use getMockChecklistItems() to get fresh dates each time.
 
 /**
  * Mock Document Categories
@@ -334,7 +348,7 @@ export const getMockDocumentsByUserId = (userId) => {
  * @returns {MockChecklistItem[]} Array of mock checklist items
  */
 export const getMockChecklistItemsByUserId = (userId) => {
-  return MOCK_CHECKLIST_ITEMS.filter((item) => item.userId === userId);
+  return getMockChecklistItems().filter((item) => item.userId === userId);
 };
 
 /**
@@ -352,16 +366,35 @@ export const getMockDocumentById = (docId) => {
  * @returns {MockChecklistItem|undefined} Mock checklist item or undefined if not found
  */
 export const getMockChecklistItemById = (itemId) => {
-  return MOCK_CHECKLIST_ITEMS.find((item) => item.id === itemId);
+  return getMockChecklistItems().find((item) => item.id === itemId);
 };
 
-// Export all mock data as a single object for convenience
+/**
+ * Get all mock data as a single object
+ * NOTE: This function returns fresh data each time, ensuring checklist items have current dates.
+ * Use this instead of a constant to avoid stale timestamps.
+ * @returns {Object} Object containing all mock data
+ */
+export const getMockData = () => {
+  return {
+    user: MOCK_USER,
+    documents: MOCK_DOCUMENTS,
+    checklistItems: getMockChecklistItems(), // Fresh dates each time
+    documentCategories: MOCK_DOCUMENT_CATEGORIES,
+    checklistCategories: MOCK_CHECKLIST_CATEGORIES,
+  };
+};
+
+// Export as constant for backward compatibility (but checklistItems will have stale dates)
+// Prefer using getMockData() for fresh dates
 export const MOCK_DATA = {
   user: MOCK_USER,
   documents: MOCK_DOCUMENTS,
-  checklistItems: MOCK_CHECKLIST_ITEMS,
+  // checklistItems intentionally omitted - use getMockChecklistItems() for fresh dates
   documentCategories: MOCK_DOCUMENT_CATEGORIES,
   checklistCategories: MOCK_CHECKLIST_CATEGORIES,
 };
 
+// Default export - same as MOCK_DATA (without checklistItems to avoid stale dates)
+// For fresh checklist items, use getMockChecklistItems() or getMockData()
 export default MOCK_DATA;

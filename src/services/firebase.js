@@ -20,6 +20,7 @@ import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 // Firebase configuration from environment variables
 // These are exposed via expo-constants from app.json
@@ -57,17 +58,29 @@ try {
 // Initialize Firestore
 const db = getFirestore(app);
 
-// Enable offline persistence for Firestore
-// This allows the app to work offline and sync when connection is restored
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === 'failed-precondition') {
-    // Multiple tabs open, persistence can only be enabled in one tab at a time
-    console.warn('Firestore persistence failed: Multiple tabs may be open');
-  } else if (err.code === 'unimplemented') {
-    // The current browser does not support all of the features required
-    console.warn('Firestore persistence is not available in this environment');
-  }
-});
+// Enable offline persistence for Firestore (Web only)
+// NOTE: enableIndexedDbPersistence() is only available in browser environments with IndexedDB support.
+// React Native/Expo does not support IndexedDB, so this will fail with 'unimplemented' error.
+// For React Native offline persistence, use @react-native-firebase with native builds instead.
+// We only enable it on web platform to avoid runtime errors in React Native.
+if (Platform.OS === 'web') {
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      // Multiple tabs open, persistence can only be enabled in one tab at a time
+      console.warn('Firestore persistence failed: Multiple tabs may be open');
+    } else if (err.code === 'unimplemented') {
+      // The current browser does not support all of the features required
+      console.warn('Firestore persistence is not available in this browser');
+    } else {
+      console.warn('Firestore persistence error:', err);
+    }
+  });
+} else {
+  // For React Native/Expo, offline persistence is not available with Firebase JS SDK
+  // To enable offline persistence in React Native, use @react-native-firebase instead
+  // This is expected behavior and not an error
+  console.log('Firestore offline persistence: Not available in React Native with Firebase JS SDK. Use @react-native-firebase for native offline support.');
+}
 
 // Initialize Firebase Storage
 const storage = getStorage(app);

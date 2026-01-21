@@ -13,7 +13,7 @@
 
 import {
   MOCK_DOCUMENTS,
-  MOCK_CHECKLIST_ITEMS,
+  getMockChecklistItems,
   getMockDocumentById,
   getMockChecklistItemsByUserId,
   getMockDocumentsByUserId,
@@ -242,7 +242,8 @@ export const queryDocuments = async (collectionName, conditions = [], options = 
     if (collectionName === 'documents') {
       mockData = [...MOCK_DOCUMENTS];
     } else if (collectionName === 'checklistItems') {
-      mockData = [...MOCK_CHECKLIST_ITEMS];
+      // Call function to get fresh dates each time
+      mockData = [...getMockChecklistItems()];
     }
 
     // Apply conditions (mock filtering)
@@ -305,7 +306,9 @@ export const queryDocuments = async (collectionName, conditions = [], options = 
  * This function subscribes to changes and calls the callback whenever data changes
  * @param {string} collectionName - Name of the Firestore collection
  * @param {Array<Object>} [conditions] - Array of condition objects: { field, operator, value }
- * @param {Function} callback - Callback function that receives the documents array
+ * @param {Function} callback - Callback function with signature:
+ *   - Success: callback(documents) - receives array of documents
+ *   - Error: callback([], error) - receives empty array and error object
  * @param {Object} [options] - Query options: { orderBy, limit }
  * @returns {Function} Unsubscribe function to stop listening
  */
@@ -345,7 +348,17 @@ export const setupRealtimeListener = (collectionName, conditions = [], callback,
 
     // Immediately call callback with mock data
     queryDocuments(collectionName, conditions, options).then((result) => {
-      callback(result.data, result.error);
+      if (result.error) {
+        // Error case: pass empty array and error (consistent with Firebase pattern)
+        callback([], result.error);
+      } else {
+        // Success case: pass only documents (consistent with Firebase pattern)
+        callback(result.data);
+      }
+    }).catch((error) => {
+      // Handle promise rejection
+      console.error('Error querying documents for realtime listener:', error);
+      callback([], error);
     });
 
     // Return unsubscribe function

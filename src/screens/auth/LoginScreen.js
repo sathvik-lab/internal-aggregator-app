@@ -70,6 +70,7 @@ const LoginScreen = ({ navigation }) => {
 
   /**
    * Validate password
+   * Must match signup requirements for consistency
    * @param {string} passwordValue - Password to validate
    * @returns {boolean} True if valid
    */
@@ -78,8 +79,17 @@ const LoginScreen = ({ navigation }) => {
       setPasswordError('Password is required');
       return false;
     }
-    if (passwordValue.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
+    // Match signup validation requirements: min 8 chars, number, and special character
+    if (passwordValue.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
+      return false;
+    }
+    if (!/\d/.test(passwordValue)) {
+      setPasswordError('Password must include at least one number');
+      return false;
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(passwordValue)) {
+      setPasswordError('Password must include at least one special character');
       return false;
     }
     setPasswordError('');
@@ -165,20 +175,9 @@ const LoginScreen = ({ navigation }) => {
       }
 
       // Success - user is logged in
-      // TODO: Navigate to Dashboard when navigation is set up
-      // navigation.navigate('Dashboard');
-      
-      // For now, show success alert
-      Alert.alert('Success', 'Login successful!', [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Navigation will be handled when navigation is configured
-            console.log('User logged in:', result.user);
-          },
-        },
-      ]);
-
+      // Auth state will be updated automatically via onAuthStateChanged
+      // AppNavigator will automatically navigate to MainNavigator
+      console.log('User logged in:', result.user);
       setLoading(false);
     } catch (error) {
       // Handle unexpected errors
