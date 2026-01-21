@@ -79,6 +79,7 @@ export const STORAGE_PATHS = {
 };
 
 // File upload limits
+// NOTE: Must be defined before ERROR_MESSAGES since ERROR_MESSAGES references it
 export const FILE_LIMITS = {
   MAX_SIZE_MB: 10,                    // Maximum file size in MB
   MAX_SIZE_BYTES: 10 * 1024 * 1024,  // 10MB in bytes
@@ -108,6 +109,7 @@ export const APP_CONFIG = {
 };
 
 // Error messages (user-friendly)
+// NOTE: FILE_LIMITS must be defined before this since FILE_TOO_LARGE references it
 export const ERROR_MESSAGES = {
   NETWORK_ERROR: 'Network error. Please check your connection.',
   AUTH_REQUIRED: 'Please sign in to continue.',
