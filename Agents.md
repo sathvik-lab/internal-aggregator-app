@@ -1,4 +1,3 @@
-cat > /Users/sathvik/Documents/internal-aggregator-app/Agents.md <<'EOF'
 # Cursor AI Agent — Guidelines (Concise)
 
 Project: Mobile document management + daily compliance checklists.
@@ -48,4 +47,3 @@ Next priorities
 1. Auth screens
 2. Main navigation
 3. Dashboard with mock data
-EOF

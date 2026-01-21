@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../constants/colors';
@@ -14,10 +15,12 @@ import { COLORS } from '../constants/colors';
 // Import screens
 import DashboardScreen from '../screens/DashboardScreen';
 import DocumentsScreen from '../screens/DocumentsScreen';
+import DocumentDetailScreen from '../screens/DocumentDetailScreen';
 import ChecklistScreen from '../screens/ChecklistScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator();
 
 /**
  * Badge Component
@@ -31,6 +34,43 @@ const TabBarBadge = ({ count }) => {
     <View style={styles.badge}>
       <Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Text>
     </View>
+  );
+};
+
+/**
+ * Documents Stack Navigator
+ * 
+ * Stack navigator for Documents tab to support detail screen navigation
+ */
+const DocumentsStack = () => {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: COLORS.primary,
+        },
+        headerTintColor: COLORS.textInverse,
+        headerTitleStyle: {
+          fontWeight: 'bold',
+          fontSize: 18,
+        },
+      }}
+    >
+      <Stack.Screen
+        name="DocumentsList"
+        component={DocumentsScreen}
+        options={{
+          title: 'My Documents',
+        }}
+      />
+      <Stack.Screen
+        name="DocumentDetail"
+        component={DocumentDetailScreen}
+        options={{
+          title: 'Document Details',
+        }}
+      />
+    </Stack.Navigator>
   );
 };
 
@@ -133,10 +173,10 @@ const MainNavigator = () => {
 
       <Tab.Screen
         name="Documents"
-        component={DocumentsScreen}
+        component={DocumentsStack}
         options={{
           title: 'Documents',
-          headerTitle: 'My Documents',
+          headerShown: false, // Header handled by stack navigator
         }}
       />
 

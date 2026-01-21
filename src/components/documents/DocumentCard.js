@@ -1,0 +1,251 @@
+/**
+ * DocumentCard Component
+ * 
+ * Displays a document in a card format with icon, name, metadata, and action menu.
+ * Used in grid/list views of the Documents screen.
+ */
+
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { COLORS } from '../../constants/colors';
+
+/**
+ * Get file type icon based on MIME type
+ * @param {string} mimeType - MIME type of the file
+ * @returns {string} Icon name
+ */
+const getFileIcon = (mimeType) => {
+    if (!mimeType) return 'file-document-outline';
+    
+    if (mimeType.includes('pdf')) return 'file-pdf-box';
+    if (mimeType.includes('word') || mimeType.includes('document')) return 'file-word-box';
+    if (mimeType.includes('image')) return 'file-image-outline';
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'file-excel-box';
+    if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return 'file-powerpoint-box';
+    if (mimeType.includes('text')) return 'file-document-outline';
+    
+    return 'file-document-outline';
+};
+
+/**
+ * Get file type color based on MIME type
+ * @param {string} mimeType - MIME type of the file
+ * @returns {string} Color code
+ */
+const getFileIconColor = (mimeType) => {
+    if (!mimeType) return COLORS.primary;
+    
+    if (mimeType.includes('pdf')) return '#DC2626'; // Red for PDF
+    if (mimeType.includes('word') || mimeType.includes('document')) return '#2563EB'; // Blue for Word
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return '#16A34A'; // Green for Excel
+    if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return '#DC2626'; // Red for PowerPoint
+    if (mimeType.includes('image')) return COLORS.accent;
+    
+    return COLORS.primary;
+};
+
+/**
+ * Format file size
+ * @param {number} bytes - File size in bytes
+ * @returns {string} Formatted file size
+ */
+const formatFileSize = (bytes) => {
+    if (!bytes) return 'Unknown size';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+/**
+ * Format date for display
+ * @param {string} dateString - ISO date string
+ * @returns {string} Formatted date
+ */
+const formatDate = (dateString) => {
+    if (!dateString) return 'Unknown date';
+    
+    const date = new Date(dateString);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dateOnly = new Date(date);
+    dateOnly.setHours(0, 0, 0, 0);
+    
+    const diffTime = today - dateOnly;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays <= 7) return `${diffDays} days ago`;
+    
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+/**
+ * DocumentCard Component
+ * 
+ * @param {Object} props
+ * @param {Object} props.document - Document object with name, size, uploadDate, category, mimeType
+ * @param {Function} props.onPress - Callback when card is pressed (for viewing details)
+ * @param {Function} props.onMenuPress - Callback when menu button is pressed (for actions)
+ */
+const DocumentCard = ({ document, onPress, onMenuPress }) => {
+    const fileIcon = getFileIcon(document.mimeType);
+    const fileIconColor = getFileIconColor(document.mimeType);
+
+    const handleMenuPress = (e) => {
+        e.stopPropagation(); // Prevent triggering card press
+        if (onMenuPress) {
+            onMenuPress(document);
+        }
+    };
+
+    return (
+        <TouchableOpacity
+            style={styles.container}
+            onPress={() => onPress && onPress(document)}
+            activeOpacity={0.7}
+        >
+            {/* Header with Menu Button */}
+            <View style={styles.header}>
+                <View style={styles.iconContainer}>
+                    <MaterialCommunityIcons
+                        name={fileIcon}
+                        size={40}
+                        color={fileIconColor}
+                    />
+                </View>
+                <TouchableOpacity
+                    style={styles.menuButton}
+                    onPress={handleMenuPress}
+                    activeOpacity={0.7}
+                >
+                    <MaterialCommunityIcons
+                        name="dots-vertical"
+                        size={20}
+                        color={COLORS.textSecondary}
+                    />
+                </TouchableOpacity>
+            </View>
+
+            {/* Content */}
+            <View style={styles.content}>
+                {/* Document Name */}
+                <Text style={styles.name} numberOfLines={2}>
+                    {document.name}
+                </Text>
+
+                {/* Category Badge */}
+                {document.category && (
+                    <View style={styles.categoryBadge}>
+                        <Text style={styles.categoryText}>{document.category}</Text>
+                    </View>
+                )}
+
+                {/* Metadata */}
+                <View style={styles.metadata}>
+                    <View style={styles.metaItem}>
+                        <MaterialCommunityIcons
+                            name="file-outline"
+                            size={14}
+                            color={COLORS.textLight}
+                        />
+                        <Text style={styles.metaText}>{formatFileSize(document.size)}</Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                        <MaterialCommunityIcons
+                            name="calendar-outline"
+                            size={14}
+                            color={COLORS.textLight}
+                        />
+                        <Text style={styles.metaText}>{formatDate(document.uploadDate)}</Text>
+                    </View>
+                </View>
+            </View>
+        </TouchableOpacity>
+    );
+};
+
+const styles = StyleSheet.create({
+    container: {
+        backgroundColor: COLORS.surface,
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        // Shadow for depth
+        ...Platform.select({
+            ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.08,
+                shadowRadius: 4,
+            },
+            android: {
+                elevation: 2,
+            },
+        }),
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: 12,
+    },
+    iconContainer: {
+        width: 64,
+        height: 64,
+        borderRadius: 12,
+        backgroundColor: COLORS.backgroundSecondary,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    menuButton: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: COLORS.backgroundSecondary,
+    },
+    content: {
+        flex: 1,
+    },
+    name: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: COLORS.text,
+        marginBottom: 8,
+        lineHeight: 22,
+        minHeight: 44, // Ensure consistent height for 2 lines
+    },
+    categoryBadge: {
+        alignSelf: 'flex-start',
+        backgroundColor: `${COLORS.primary}15`,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+        marginBottom: 12,
+    },
+    categoryText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: COLORS.primary,
+    },
+    metadata: {
+        marginTop: 'auto',
+        gap: 8,
+    },
+    metaItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    metaText: {
+        fontSize: 12,
+        color: COLORS.textSecondary,
+    },
+});
+
+export default DocumentCard;
