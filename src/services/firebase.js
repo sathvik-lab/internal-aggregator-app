@@ -14,7 +14,7 @@
  * you'll need to switch to @react-native-firebase and use Development Builds.
  */
 
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
@@ -24,46 +24,173 @@ import { Platform } from 'react-native';
 
 // Firebase configuration from environment variables
 // These are exposed via expo-constants from app.json
+const firebaseApiKey = Constants.expoConfig?.extra?.firebaseApiKey;
+const firebaseAuthDomain = Constants.expoConfig?.extra?.firebaseAuthDomain;
+const firebaseProjectId = Constants.expoConfig?.extra?.firebaseProjectId;
+const firebaseStorageBucket = Constants.expoConfig?.extra?.firebaseStorageBucket;
+const firebaseMessagingSenderId = Constants.expoConfig?.extra?.firebaseMessagingSenderId;
+const firebaseAppId = Constants.expoConfig?.extra?.firebaseAppId;
+
+// Debug: Log config values (without exposing sensitive data)
+console.log('Firebase config check:', {
+  hasApiKey: !!firebaseApiKey,
+  hasAuthDomain: !!firebaseAuthDomain,
+  hasProjectId: !!firebaseProjectId,
+  hasStorageBucket: !!firebaseStorageBucket,
+  hasMessagingSenderId: !!firebaseMessagingSenderId,
+  hasAppId: !!firebaseAppId,
+  projectId: firebaseProjectId ? `${firebaseProjectId.substring(0, 10)}...` : 'missing',
+});
+
+// Check if Firebase configuration is missing
+const isConfigMissing = !firebaseApiKey || !firebaseAuthDomain || !firebaseProjectId || 
+                        !firebaseStorageBucket || !firebaseMessagingSenderId || !firebaseAppId;
+
+if (isConfigMissing) {
+  const setupError = `
+╔════════════════════════════════════════════════════════════════╗
+║  FIREBASE NOT CONFIGURED                                     ║
+╠════════════════════════════════════════════════════════════════╣
+║  Firebase configuration is missing. The app will use mock    ║
+║  services for development, but Firebase features will not     ║
+║  work until configured.                                       ║
+║                                                                ║
+║  To configure Firebase:                                        ║
+║  1. Create a .env file from .env.example                      ║
+║  2. Add your Firebase project credentials                     ║
+║  3. Restart the Expo development server                        ║
+║                                                                ║
+║  See FIREBASE_SETUP.md for detailed instructions.            ║
+╚════════════════════════════════════════════════════════════════╝
+  `;
+  console.warn(setupError);
+  // Don't throw - allow app to run with mock services in development
+  // This allows developers to test the UI before setting up Firebase
+}
+
 const firebaseConfig = {
-  apiKey: Constants.expoConfig?.extra?.firebaseApiKey || 'placeholder-api-key',
-  authDomain: Constants.expoConfig?.extra?.firebaseAuthDomain || 'placeholder-project.firebaseapp.com',
-  projectId: Constants.expoConfig?.extra?.firebaseProjectId || 'placeholder-project-id',
-  storageBucket: Constants.expoConfig?.extra?.firebaseStorageBucket || 'placeholder-project.appspot.com',
-  messagingSenderId: Constants.expoConfig?.extra?.firebaseMessagingSenderId || 'placeholder-sender-id',
-  appId: Constants.expoConfig?.extra?.firebaseAppId || 'placeholder-app-id',
+  apiKey: firebaseApiKey || 'placeholder-api-key',
+  authDomain: firebaseAuthDomain || 'placeholder-project.firebaseapp.com',
+  projectId: firebaseProjectId || 'placeholder-project-id',
+  storageBucket: firebaseStorageBucket || 'placeholder-project.appspot.com',
+  messagingSenderId: firebaseMessagingSenderId || 'placeholder-sender-id',
+  appId: firebaseAppId || 'placeholder-app-id',
 };
 
 // Initialize Firebase app
 let app;
+let _authInstance = null; // Internal variable to store auth instance (lazy initialization)
+let db;
+let storage;
+
 try {
-  app = initializeApp(firebaseConfig);
+  if (isConfigMissing) {
+    console.warn('⚠️  Firebase configuration is missing. Cannot initialize Firebase.');
+    console.warn('⚠️  Please configure your .env file with valid Firebase credentials.');
+    
+    // In production, throw error to prevent deployment with missing config
+    // In development, allow app to run with mock services (as stated in comment on lines 67-68)
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Firebase configuration is missing. Please configure your .env file.');
+    }
+    
+    // In development, set app to null and let services handle mock behavior
+    // The service files (auth.js, firestore.js, storage.js) will use mock implementations
+    app = null;
+    db = null;
+    storage = null;
+    console.warn('⚠️  App will run with mock services. Firebase features will not work until configured.');
+  } else {
+    // Validate config values are not just placeholder strings
+    if (
+      firebaseApiKey === 'placeholder-api-key' ||
+      firebaseProjectId === 'placeholder-project-id' ||
+      firebaseAppId === 'placeholder-app-id'
+    ) {
+      // In production, throw error
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Firebase configuration contains placeholder values. Please update your .env file with real Firebase credentials.');
+      }
+      
+      // In development, allow placeholder values (for testing)
+      console.warn('⚠️  Firebase configuration contains placeholder values. App will run with mock services.');
+      app = null;
+      db = null;
+      storage = null;
+    } else {
+      // Initialize Firebase app first
+      // Check if app is already initialized (for hot reload scenarios)
+      const existingApps = getApps();
+      if (existingApps.length > 0) {
+        // Use existing app instance (default app)
+        try {
+          app = getApp(); // Get default app
+          console.log('✅ Using existing Firebase app instance (hot reload)');
+        } catch (e) {
+          app = existingApps[0];
+          console.log('✅ Using existing Firebase app instance');
+        }
+      } else {
+        // Initialize new app instance (this creates the default app)
+        app = initializeApp(firebaseConfig);
+        console.log('✅ Firebase app initialized successfully');
+      }
+      console.log(`   Project: ${firebaseProjectId}`);
+      console.log(`   App name: ${app.name}`);
+      
+      // Ensure app is fully initialized before accessing services
+      // Verify app instance is valid
+      if (!app || !app.name) {
+        throw new Error('Firebase app instance is invalid. Please check your Firebase configuration.');
+      }
+      
+      // Firebase Auth will be initialized lazily on first access
+      // This prevents "component not registered" errors that occur when
+      // trying to initialize auth immediately after app initialization
+      // Auth initialization happens via getAuthInstance() when first accessed
+      console.log('⚠️  Firebase Auth will be initialized on first access (lazy initialization)');
+      
+      // Initialize Firestore
+      db = getFirestore(app);
+      console.log('✅ Firestore initialized successfully');
+      
+      // Initialize Firebase Storage
+      storage = getStorage(app);
+      console.log('✅ Firebase Storage initialized successfully');
+    }
+  }
 } catch (error) {
   console.error('Firebase initialization error:', error);
-  // In development, you might want to throw here to catch config issues early
-  throw error;
-}
-
-// Initialize Firebase Auth with AsyncStorage persistence
-// This allows auth state to persist across app restarts
-let auth;
-try {
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
+  console.error('Error details:', {
+    hasApiKey: !!firebaseApiKey,
+    hasAuthDomain: !!firebaseAuthDomain,
+    hasProjectId: !!firebaseProjectId,
+    hasStorageBucket: !!firebaseStorageBucket,
+    hasMessagingSenderId: !!firebaseMessagingSenderId,
+    hasAppId: !!firebaseAppId,
+    errorCode: error.code,
+    errorMessage: error.message,
   });
-} catch (error) {
-  // If auth is already initialized (e.g., hot reload), get the existing instance
-  auth = getAuth(app);
+  
+  // In production, re-throw to prevent deployment
+  // In development, allow app to continue with mock services
+  if (process.env.NODE_ENV === 'production') {
+    throw error;
+  }
+  
+  // In development, set services to null and let mock services handle it
+  console.warn('⚠️  Firebase initialization failed. App will run with mock services.');
+  app = null;
+  db = null;
+  storage = null;
 }
-
-// Initialize Firestore
-const db = getFirestore(app);
 
 // Enable offline persistence for Firestore (Web only)
 // NOTE: enableIndexedDbPersistence() is only available in browser environments with IndexedDB support.
 // React Native/Expo does not support IndexedDB, so this will fail with 'unimplemented' error.
 // For React Native offline persistence, use @react-native-firebase with native builds instead.
 // We only enable it on web platform to avoid runtime errors in React Native.
-if (Platform.OS === 'web') {
+if (db && Platform.OS === 'web') {
   enableIndexedDbPersistence(db).catch((err) => {
     if (err.code === 'failed-precondition') {
       // Multiple tabs open, persistence can only be enabled in one tab at a time
@@ -75,6 +202,9 @@ if (Platform.OS === 'web') {
       console.warn('Firestore persistence error:', err);
     }
   });
+} else if (!db) {
+  // db is null (Firebase not configured) - skip persistence setup
+  // Mock services will handle data persistence
 } else {
   // For React Native/Expo, offline persistence is not available with Firebase JS SDK
   // To enable offline persistence in React Native, use @react-native-firebase instead
@@ -82,9 +212,85 @@ if (Platform.OS === 'web') {
   console.log('Firestore offline persistence: Not available in React Native with Firebase JS SDK. Use @react-native-firebase for native offline support.');
 }
 
-// Initialize Firebase Storage
-const storage = getStorage(app);
+// Lazy initialization function for auth with retry mechanism
+// This handles the "component not registered" error by retrying after a short delay
+const getAuthInstance = () => {
+  if (_authInstance) {
+    return _authInstance;
+  }
+  
+  if (!app) {
+    // In development, allow app to run without Firebase (mock services will handle it)
+    // In production, this should not happen (config should be validated)
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Firebase app must be initialized before accessing auth');
+    }
+    // In development, throw a specific error that mock services can catch
+    throw new Error('Firebase app is not initialized. Using mock services in development.');
+  }
+  
+  // Use initializeAuth() with AsyncStorage - REQUIRED for React Native
+  // getAuth() doesn't work reliably in React Native because it doesn't register the component
+  try {
+    _authInstance = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
+    console.log('✅ Firebase Auth initialized with AsyncStorage persistence (lazy)');
+    return _authInstance;
+  } catch (error) {
+    // If auth is already initialized, get the existing instance
+    if (error.code === 'auth/already-initialized' || 
+        error.message?.includes('already-initialized') ||
+        error.message?.includes('already been initialized')) {
+      console.log('Auth already initialized, retrieving existing instance...');
+      _authInstance = getAuth(app);
+      console.log('✅ Firebase Auth retrieved (already initialized)');
+      return _authInstance;
+    } else if (error.message?.includes('has not been registered yet') ||
+               error.message?.includes('component has not been registered')) {
+      // Component not ready - throw to let AuthContext retry
+      // Don't log error here - AuthContext will handle retry logging to avoid spam
+      throw new Error('Firebase Auth component is not ready yet. AuthContext will retry automatically.');
+    } else {
+      // Other errors
+      console.error('Failed to initialize Firebase Auth:', error);
+      throw new Error(`Failed to initialize Firebase Auth: ${error.message}. Please check your Firebase configuration and ensure Authentication is enabled in Firebase Console.`);
+    }
+  }
+};
 
-// Export Firebase services
-export { auth, db, storage };
+// Export auth as a getter that initializes on first access
+// Uses a Proxy to intercept property access and initialize auth lazily
+// This allows the module to load even if Firebase components aren't ready yet
+export const auth = new Proxy({}, {
+  get(target, prop) {
+    try {
+      const authInstance = getAuthInstance();
+      const value = authInstance[prop];
+      // If it's a function, bind it to the auth instance
+      if (typeof value === 'function') {
+        return value.bind(authInstance);
+      }
+      return value;
+    } catch (error) {
+      // If auth initialization fails, log and re-throw
+      // This will cause the calling code to handle the error
+      console.error('Error accessing Firebase Auth:', error.message);
+      throw error;
+    }
+  },
+  set(target, prop, value) {
+    try {
+      const authInstance = getAuthInstance();
+      authInstance[prop] = value;
+      return true;
+    } catch (error) {
+      console.error('Error setting Firebase Auth property:', error.message);
+      throw error;
+    }
+  }
+});
+
+// Export other services
+export { db, storage };
 export default app;

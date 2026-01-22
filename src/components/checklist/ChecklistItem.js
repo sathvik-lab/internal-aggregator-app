@@ -1,14 +1,27 @@
 /**
- * ChecklistItem Component
+ * Enhanced ChecklistItem Component
  * 
- * Displays a single checklist item with title, due date, priority, and completion checkbox.
- * Used in dashboard and checklist screens.
+ * Displays a single checklist item with expandable card design, swipeable actions,
+ * and smooth animations. Supports collapsed and expanded views.
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import React, { useState, useRef } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    TouchableOpacity,
+    Platform,
+    Animated,
+    PanResponder,
+    Dimensions,
+} from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const SWIPE_THRESHOLD = 100; // Minimum swipe distance to trigger action
+const ACTION_WIDTH = 80; // Width of action buttons
 
 /**
  * Get due date color based on date
@@ -100,111 +113,458 @@ const getPriorityLabel = (priority) => {
 };
 
 /**
- * ChecklistItem Component
+ * Get regulatory reference based on category
+ * @param {string} category - Checklist category
+ * @returns {string} Regulatory reference
+ */
+const getRegulatoryReference = (category) => {
+    const references = {
+        'Food Safety': 'FDA CFR 21, HACCP Guidelines',
+        'Fire Safety': 'NFPA 101, OSHA 29 CFR 1910',
+        'Safety': 'OSHA 29 CFR 1910',
+        'Compliance': 'Industry Standards',
+        'Health & Hygiene': 'FDA CFR 21, Local Health Codes',
+        'Equipment Maintenance': 'OSHA 29 CFR 1910',
+        'Training': 'OSHA 29 CFR 1926',
+        'Documentation': 'ISO 9001, Industry Standards',
+    };
+    return references[category] || 'Industry Standards';
+};
+
+/**
+ * Enhanced ChecklistItem Component
  * 
  * @param {Object} props
  * @param {Object} props.item - Checklist item object
- * @param {Function} props.onPress - Callback when item is pressed
- * @param {Function} props.onToggleComplete - Callback when checkbox is toggled
+ * @param {Function} props.onPress - Callback when item is pressed (for details)
+ * @param {Function} props.onToggleComplete - Callback when item is marked complete
+ * @param {Function} props.onSnooze - Callback when item is snoozed
  */
-const ChecklistItem = ({ item, onPress, onToggleComplete }) => {
+const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
+    const [expanded, setExpanded] = useState(false);
+    const [swipeOffset, setSwipeOffset] = useState(0);
+    const [isSwiping, setIsSwiping] = useState(false);
+    
+    const expandAnimation = useRef(new Animated.Value(0)).current;
+    const swipeAnimation = useRef(new Animated.Value(0)).current;
+    const opacityAnimation = useRef(new Animated.Value(item.completed ? 0.6 : 1)).current;
+
     const dueDateColor = getDueDateColor(item.dueDate, item.completed);
     const priorityColor = getPriorityColor(item.priority);
+    const regulatoryReference = getRegulatoryReference(item.category);
+
+    // Expand/collapse animation
+    React.useEffect(() => {
+        Animated.spring(expandAnimation, {
+            toValue: expanded ? 1 : 0,
+            useNativeDriver: false,
+            tension: 100,
+            friction: 8,
+        }).start();
+    }, [expanded]);
+
+    // Opacity animation for completed items
+    React.useEffect(() => {
+        Animated.timing(opacityAnimation, {
+            toValue: item.completed ? 0.6 : 1,
+            duration: 300,
+            useNativeDriver: true,
+        }).start();
+    }, [item.completed]);
+
+    // Pan responder for swipe gestures
+    const panResponder = useRef(
+        PanResponder.create({
+            onStartShouldSetPanResponder: () => !expanded,
+            onMoveShouldSetPanResponder: (_, gestureState) => {
+                return !expanded && Math.abs(gestureState.dx) > 10;
+            },
+            onPanResponderGrant: () => {
+                setIsSwiping(true);
+            },
+            onPanResponderMove: (_, gestureState) => {
+                const dx = gestureState.dx;
+                // Limit swipe to left (complete) or right (snooze)
+                if (dx < 0 && dx > -ACTION_WIDTH) {
+                    swipeAnimation.setValue(dx);
+                    setSwipeOffset(dx);
+                } else if (dx > 0 && dx < ACTION_WIDTH) {
+                    swipeAnimation.setValue(dx);
+                    setSwipeOffset(dx);
+                }
+            },
+            onPanResponderRelease: (_, gestureState) => {
+                setIsSwiping(false);
+                const dx = gestureState.dx;
+
+                // Swipe left to complete
+                if (dx < -SWIPE_THRESHOLD && onToggleComplete) {
+                    Animated.spring(swipeAnimation, {
+                        toValue: -SCREEN_WIDTH,
+                        useNativeDriver: true,
+                    }).start(() => {
+                        onToggleComplete(item);
+                        swipeAnimation.setValue(0);
+                        setSwipeOffset(0);
+                    });
+                }
+                // Swipe right to snooze
+                else if (dx > SWIPE_THRESHOLD && onSnooze) {
+                    Animated.spring(swipeAnimation, {
+                        toValue: SCREEN_WIDTH,
+                        useNativeDriver: true,
+                    }).start(() => {
+                        onSnooze(item);
+                        swipeAnimation.setValue(0);
+                        setSwipeOffset(0);
+                    });
+                }
+                // Snap back
+                else {
+                    Animated.spring(swipeAnimation, {
+                        toValue: 0,
+                        useNativeDriver: true,
+                    }).start();
+                    setSwipeOffset(0);
+                }
+            },
+        })
+    ).current;
 
     const handleCheckboxPress = (e) => {
-        e.stopPropagation(); // Prevent triggering onPress
+        e.stopPropagation();
         if (onToggleComplete) {
             onToggleComplete(item);
         }
     };
 
+    const handleCardPress = () => {
+        setExpanded(!expanded);
+    };
+
+    const handleMarkComplete = () => {
+        if (onToggleComplete) {
+            onToggleComplete(item);
+        }
+        setExpanded(false);
+    };
+
+    const handleSnooze = () => {
+        if (onSnooze) {
+            onSnooze(item);
+        }
+        setExpanded(false);
+    };
+
+    const handleViewDetails = () => {
+        if (onPress) {
+            onPress(item);
+        }
+        setExpanded(false);
+    };
+
+    // Calculate expanded height
+    const expandedHeight = expandAnimation.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 200], // Approximate height for expanded content
+    });
+
+    // Swipe action buttons opacity
+    const completeActionOpacity = swipeAnimation.interpolate({
+        inputRange: [-ACTION_WIDTH, 0],
+        outputRange: [1, 0],
+        extrapolate: 'clamp',
+    });
+
+    const snoozeActionOpacity = swipeAnimation.interpolate({
+        inputRange: [0, ACTION_WIDTH],
+        outputRange: [0, 1],
+        extrapolate: 'clamp',
+    });
+
     return (
-        <TouchableOpacity
-            style={styles.container}
-            onPress={() => onPress && onPress(item)}
-            activeOpacity={0.7}
-        >
-            {/* Checkbox */}
-            <TouchableOpacity
-                style={styles.checkboxContainer}
-                onPress={handleCheckboxPress}
-                activeOpacity={0.7}
+        <View style={styles.wrapper}>
+            {/* Swipe Action: Complete (left) */}
+            <Animated.View
+                style={[
+                    styles.swipeAction,
+                    styles.completeAction,
+                    {
+                        opacity: completeActionOpacity,
+                        transform: [{ translateX: swipeAnimation }],
+                    },
+                ]}
             >
-                <View style={[styles.checkbox, item.completed && styles.checkboxChecked]}>
-                    {item.completed && (
-                        <MaterialCommunityIcons
-                            name="check"
-                            size={16}
-                            color={COLORS.textInverse}
-                        />
-                    )}
-                </View>
-            </TouchableOpacity>
+                <MaterialCommunityIcons name="check-circle" size={32} color={COLORS.textInverse} />
+                <Text style={styles.actionText}>Complete</Text>
+            </Animated.View>
 
-            {/* Content */}
-            <View style={styles.content}>
-                {/* Title and Priority */}
-                <View style={styles.headerRow}>
-                    <Text
-                        style={[styles.title, item.completed && styles.titleCompleted]}
-                        numberOfLines={2}
-                    >
-                        {item.title}
-                    </Text>
-                    {item.priority && (
-                        <View style={[styles.priorityBadge, { backgroundColor: `${priorityColor}20` }]}>
-                            <Text style={[styles.priorityText, { color: priorityColor }]}>
-                                {getPriorityLabel(item.priority)}
-                            </Text>
+            {/* Swipe Action: Snooze (right) */}
+            <Animated.View
+                style={[
+                    styles.swipeAction,
+                    styles.snoozeAction,
+                    {
+                        opacity: snoozeActionOpacity,
+                        transform: [{ translateX: swipeAnimation }],
+                    },
+                ]}
+            >
+                <MaterialCommunityIcons name="clock-outline" size={32} color={COLORS.textInverse} />
+                <Text style={styles.actionText}>Snooze</Text>
+            </Animated.View>
+
+            {/* Main Card */}
+            <Animated.View
+                style={[
+                    styles.container,
+                    item.completed && styles.containerCompleted,
+                    {
+                        opacity: opacityAnimation,
+                        transform: [{ translateX: swipeAnimation }],
+                    },
+                ]}
+                {...panResponder.panHandlers}
+            >
+                <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={handleCardPress}
+                    style={styles.cardContent}
+                >
+                    {/* Collapsed View */}
+                    <View style={styles.collapsedContent}>
+                        {/* Checkbox */}
+                        <TouchableOpacity
+                            style={styles.checkboxContainer}
+                            onPress={handleCheckboxPress}
+                            activeOpacity={0.7}
+                        >
+                            <View style={[styles.checkbox, item.completed && styles.checkboxChecked]}>
+                                {item.completed && (
+                                    <MaterialCommunityIcons
+                                        name="check"
+                                        size={16}
+                                        color={COLORS.textInverse}
+                                    />
+                                )}
+                            </View>
+                        </TouchableOpacity>
+
+                        {/* Main Content */}
+                        <View style={styles.content}>
+                            {/* Header Row */}
+                            <View style={styles.headerRow}>
+                                <Text
+                                    style={[styles.title, item.completed && styles.titleCompleted]}
+                                    numberOfLines={expanded ? 0 : 2}
+                                >
+                                    {item.title}
+                                </Text>
+                                {item.priority && (
+                                    <View style={[styles.priorityBadge, { backgroundColor: `${priorityColor}20` }]}>
+                                        <Text style={[styles.priorityText, { color: priorityColor }]}>
+                                            {getPriorityLabel(item.priority)}
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
+
+                            {/* Meta Row */}
+                            <View style={styles.metaRow}>
+                                {/* Category Tag */}
+                                {item.category && (
+                                    <View style={styles.categoryTag}>
+                                        <Text style={styles.categoryText}>{item.category}</Text>
+                                    </View>
+                                )}
+
+                                {/* Due Date */}
+                                <View style={styles.dueDateRow}>
+                                    <MaterialCommunityIcons
+                                        name="calendar-clock"
+                                        size={14}
+                                        color={dueDateColor}
+                                    />
+                                    <Text style={[styles.dueDate, { color: dueDateColor }]}>
+                                        {formatDueDate(item.dueDate)}
+                                    </Text>
+                                </View>
+                            </View>
                         </View>
-                    )}
-                </View>
 
-                {/* Due Date */}
-                <View style={styles.metaRow}>
-                    <MaterialCommunityIcons
-                        name="calendar-clock"
-                        size={14}
-                        color={dueDateColor}
-                    />
-                    <Text style={[styles.dueDate, { color: dueDateColor }]}>
-                        {formatDueDate(item.dueDate)}
-                    </Text>
-                </View>
-            </View>
+                        {/* Expand/Collapse Icon */}
+                        <Animated.View
+                            style={{
+                                transform: [
+                                    {
+                                        rotate: expandAnimation.interpolate({
+                                            inputRange: [0, 1],
+                                            outputRange: ['0deg', '180deg'],
+                                        }),
+                                    },
+                                ],
+                            }}
+                        >
+                            <MaterialCommunityIcons
+                                name="chevron-down"
+                                size={24}
+                                color={COLORS.textLight}
+                            />
+                        </Animated.View>
+                    </View>
 
-            {/* Arrow Icon */}
-            <MaterialCommunityIcons
-                name="chevron-right"
-                size={24}
-                color={COLORS.textLight}
-            />
-        </TouchableOpacity>
+                    {/* Expanded View */}
+                    <Animated.View
+                        style={[
+                            styles.expandedContent,
+                            {
+                                maxHeight: expandedHeight,
+                                opacity: expandAnimation,
+                            },
+                        ]}
+                    >
+                        {/* Description */}
+                        {item.description && (
+                            <View style={styles.descriptionContainer}>
+                                <Text style={styles.descriptionLabel}>Description:</Text>
+                                <Text style={styles.description}>{item.description}</Text>
+                            </View>
+                        )}
+
+                        {/* Regulatory Reference */}
+                        <View style={styles.referenceContainer}>
+                            <MaterialCommunityIcons
+                                name="file-document-outline"
+                                size={16}
+                                color={COLORS.textSecondary}
+                            />
+                            <Text style={styles.referenceText}>{regulatoryReference}</Text>
+                        </View>
+
+                        {/* Notes */}
+                        {item.notes && (
+                            <View style={styles.notesContainer}>
+                                <Text style={styles.notesLabel}>Notes:</Text>
+                                <Text style={styles.notes}>{item.notes}</Text>
+                            </View>
+                        )}
+
+                        {/* Action Buttons */}
+                        <View style={styles.actionButtons}>
+                            {!item.completed && (
+                                <TouchableOpacity
+                                    style={[styles.actionButton, styles.completeButton]}
+                                    onPress={handleMarkComplete}
+                                    activeOpacity={0.7}
+                                >
+                                    <MaterialCommunityIcons
+                                        name="check-circle"
+                                        size={20}
+                                        color={COLORS.textInverse}
+                                    />
+                                    <Text style={styles.actionButtonText}>Mark Complete</Text>
+                                </TouchableOpacity>
+                            )}
+
+                            {!item.completed && (
+                                <TouchableOpacity
+                                    style={[styles.actionButton, styles.snoozeButton]}
+                                    onPress={handleSnooze}
+                                    activeOpacity={0.7}
+                                >
+                                    <MaterialCommunityIcons
+                                        name="clock-outline"
+                                        size={20}
+                                        color={COLORS.textInverse}
+                                    />
+                                    <Text style={styles.actionButtonText}>Snooze</Text>
+                                </TouchableOpacity>
+                            )}
+
+                            <TouchableOpacity
+                                style={[styles.actionButton, styles.detailsButton]}
+                                onPress={handleViewDetails}
+                                activeOpacity={0.7}
+                            >
+                                <MaterialCommunityIcons
+                                    name="information-outline"
+                                    size={20}
+                                    color={COLORS.primary}
+                                />
+                                <Text style={[styles.actionButtonText, styles.detailsButtonText]}>
+                                    View Details
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </Animated.View>
+                </TouchableOpacity>
+            </Animated.View>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: COLORS.surface,
-        padding: 16,
-        borderRadius: 12,
+    wrapper: {
         marginBottom: 12,
+        position: 'relative',
+    },
+    swipeAction: {
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        width: ACTION_WIDTH,
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1,
+    },
+    completeAction: {
+        left: 0,
+        backgroundColor: COLORS.success,
+        borderTopLeftRadius: 12,
+        borderBottomLeftRadius: 12,
+    },
+    snoozeAction: {
+        right: 0,
+        backgroundColor: COLORS.warning,
+        borderTopRightRadius: 12,
+        borderBottomRightRadius: 12,
+    },
+    actionText: {
+        color: COLORS.textInverse,
+        fontSize: 12,
+        fontWeight: '600',
+        marginTop: 4,
+    },
+    container: {
+        backgroundColor: COLORS.surface,
+        borderRadius: 12,
         borderWidth: 1,
         borderColor: COLORS.border,
+        overflow: 'hidden',
+        zIndex: 2,
         // Shadow for depth
         ...Platform.select({
             ios: {
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 2,
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
             },
             android: {
-                elevation: 1,
+                elevation: 2,
             },
         }),
+    },
+    containerCompleted: {
+        borderColor: COLORS.success + '40',
+        backgroundColor: COLORS.surface,
+    },
+    cardContent: {
+        padding: 16,
+    },
+    collapsedContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     checkboxContainer: {
         marginRight: 12,
@@ -256,11 +616,109 @@ const styles = StyleSheet.create({
     metaRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    categoryTag: {
+        backgroundColor: COLORS.backgroundSecondary,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    categoryText: {
+        fontSize: 12,
+        color: COLORS.textSecondary,
+        fontWeight: '500',
+    },
+    dueDateRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
     },
     dueDate: {
         fontSize: 13,
         fontWeight: '500',
+    },
+    expandedContent: {
+        marginTop: 16,
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.border,
+        overflow: 'hidden',
+    },
+    descriptionContainer: {
+        marginBottom: 12,
+    },
+    descriptionLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: COLORS.textSecondary,
+        marginBottom: 4,
+    },
+    description: {
+        fontSize: 14,
+        color: COLORS.text,
+        lineHeight: 20,
+    },
+    referenceContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+        gap: 6,
+    },
+    referenceText: {
+        fontSize: 12,
+        color: COLORS.textSecondary,
+        fontStyle: 'italic',
+    },
+    notesContainer: {
+        marginBottom: 12,
+        padding: 12,
+        backgroundColor: COLORS.backgroundSecondary,
+        borderRadius: 8,
+    },
+    notesLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: COLORS.textSecondary,
+        marginBottom: 4,
+    },
+    notes: {
+        fontSize: 13,
+        color: COLORS.text,
+        lineHeight: 18,
+    },
+    actionButtons: {
+        flexDirection: 'row',
+        gap: 8,
+        flexWrap: 'wrap',
+    },
+    actionButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 8,
+        gap: 6,
+    },
+    completeButton: {
+        backgroundColor: COLORS.success,
+    },
+    snoozeButton: {
+        backgroundColor: COLORS.warning,
+    },
+    detailsButton: {
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.primary,
+    },
+    actionButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: COLORS.textInverse,
+    },
+    detailsButtonText: {
+        color: COLORS.primary,
     },
 });
 

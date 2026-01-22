@@ -2,28 +2,29 @@
  * Firebase Storage Service
  * 
  * This service provides file upload/download operations for Firebase Storage.
- * Currently returns mock data, but structured to easily swap with real Firebase Storage calls.
- * 
- * To switch to real Firebase Storage:
- * 1. Import storage from './firebase'
- * 2. Import Storage functions: ref, uploadBytes, getDownloadURL, deleteObject, getBytes, etc.
- * 3. Replace mock returns with actual Firebase Storage API calls
- * 4. Update error handling to use Storage error codes
  */
 
+import { storage } from './firebase';
+import {
+  ref,
+  uploadBytes,
+  uploadBytesResumable,
+  getDownloadURL,
+  deleteObject,
+  getBytes,
+  getMetadata,
+} from 'firebase/storage';
 import { FILE_LIMITS, STORAGE_PATHS } from '../constants/constants';
 
-// Uncomment when ready to use real Firebase Storage:
-// import { storage } from './firebase';
-// import {
-//   ref,
-//   uploadBytes,
-//   uploadBytesResumable,
-//   getDownloadURL,
-//   deleteObject,
-//   getBytes,
-//   getMetadata,
-// } from 'firebase/storage';
+/**
+ * Convert a file URI to a Blob (for React Native/Expo)
+ * @param {string} uri - File URI
+ * @returns {Promise<Blob>} File blob
+ */
+const uriToBlob = async (uri) => {
+  const response = await fetch(uri);
+  return await response.blob();
+};
 
 /**
  * Upload a file to Firebase Storage
@@ -38,43 +39,6 @@ import { FILE_LIMITS, STORAGE_PATHS } from '../constants/constants';
  */
 export const uploadFile = async (file, path, onProgress = null) => {
   try {
-    // TODO: Replace with real Firebase Storage call
-    // // Validate file size
-    // if (file.size > FILE_LIMITS.MAX_SIZE_BYTES) {
-    //   throw { code: 'storage/file-too-large', message: FILE_LIMITS.FILE_TOO_LARGE };
-    // }
-    //
-    // // Validate file type
-    // const allowedTypes = [...FILE_LIMITS.ALLOWED_IMAGE_TYPES, ...FILE_LIMITS.ALLOWED_DOCUMENT_TYPES];
-    // if (!allowedTypes.includes(file.type)) {
-    //   throw { code: 'storage/invalid-file-type', message: FILE_LIMITS.INVALID_FILE_TYPE };
-    // }
-    //
-    // const storageRef = ref(storage, path);
-    //
-    // // If progress callback provided, use resumable upload
-    // if (onProgress) {
-    //   const uploadTask = uploadBytesResumable(storageRef, file);
-    //   uploadTask.on('state_changed',
-    //     (snapshot) => {
-    //       const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-    //       onProgress(progress);
-    //     },
-    //     (error) => {
-    //       throw error;
-    //     },
-    //     async () => {
-    //       const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-    //       return { url: downloadURL, path, error: null };
-    //     }
-    //   );
-    // } else {
-    //   await uploadBytes(storageRef, file);
-    //   const downloadURL = await getDownloadURL(storageRef);
-    //   return { url: downloadURL, path, error: null };
-    // }
-
-    // Mock implementation
     if (!file || !path) {
       throw { code: 'invalid-argument', message: 'File and path are required' };
     }
@@ -93,22 +57,45 @@ export const uploadFile = async (file, path, onProgress = null) => {
       throw { code: 'storage/invalid-file-type', message: 'Invalid file type' };
     }
 
-    // Simulate upload progress if callback provided
+    const storageRef = ref(storage, path);
+
+    // Convert URI to Blob for React Native/Expo
+    const blob = await uriToBlob(file.uri);
+
+    // If progress callback provided, use resumable upload
     if (onProgress) {
-      const steps = [0, 25, 50, 75, 100];
-      for (const progress of steps) {
-        await new Promise((resolve) => setTimeout(resolve, 200));
-        onProgress(progress);
-      }
+      return new Promise((resolve, reject) => {
+        const uploadTask = uploadBytesResumable(storageRef, blob, {
+          contentType: file.type || 'application/octet-stream',
+        });
+
+        uploadTask.on(
+          'state_changed',
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            onProgress(progress);
+          },
+          (error) => {
+            reject(error);
+          },
+          async () => {
+            try {
+              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+              resolve({ url: downloadURL, path, error: null });
+            } catch (error) {
+              reject(error);
+            }
+          }
+        );
+      });
     } else {
-      // Simulate async operation
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Simple upload without progress tracking
+      await uploadBytes(storageRef, blob, {
+        contentType: file.type || 'application/octet-stream',
+      });
+      const downloadURL = await getDownloadURL(storageRef);
+      return { url: downloadURL, path, error: null };
     }
-
-    // Generate mock download URL
-    const mockUrl = `https://firebasestorage.googleapis.com/v0/b/mock-project.appspot.com/o/${encodeURIComponent(path)}?alt=media&token=mock-token-${Date.now()}`;
-
-    return { url: mockUrl, path, error: null };
   } catch (error) {
     // Map Storage error codes to user-friendly messages
     const errorMessages = {
@@ -139,23 +126,13 @@ export const uploadFile = async (file, path, onProgress = null) => {
  */
 export const downloadFile = async (path) => {
   try {
-    // TODO: Replace with real Firebase Storage call
-    // const storageRef = ref(storage, path);
-    // const bytes = await getBytes(storageRef);
-    // return { blob: new Blob([bytes]), error: null };
-
-    // Mock implementation
     if (!path) {
       throw { code: 'invalid-argument', message: 'Path is required' };
     }
 
-    // Simulate async operation
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Create mock blob
-    const mockBlob = new Blob(['Mock file content'], { type: 'application/octet-stream' });
-
-    return { blob: mockBlob, error: null };
+    const storageRef = ref(storage, path);
+    const bytes = await getBytes(storageRef);
+    return { blob: new Blob([bytes]), error: null };
   } catch (error) {
     // Map Storage error codes to user-friendly messages
     const errorMessages = {
@@ -182,19 +159,12 @@ export const downloadFile = async (path) => {
  */
 export const deleteFile = async (path) => {
   try {
-    // TODO: Replace with real Firebase Storage call
-    // const storageRef = ref(storage, path);
-    // await deleteObject(storageRef);
-    // return { error: null };
-
-    // Mock implementation
     if (!path) {
       throw { code: 'invalid-argument', message: 'Path is required' };
     }
 
-    // Simulate async operation
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
+    const storageRef = ref(storage, path);
+    await deleteObject(storageRef);
     return { error: null };
   } catch (error) {
     // Map Storage error codes to user-friendly messages
@@ -221,23 +191,13 @@ export const deleteFile = async (path) => {
  */
 export const getFileURL = async (path) => {
   try {
-    // TODO: Replace with real Firebase Storage call
-    // const storageRef = ref(storage, path);
-    // const downloadURL = await getDownloadURL(storageRef);
-    // return { url: downloadURL, error: null };
-
-    // Mock implementation
     if (!path) {
       throw { code: 'invalid-argument', message: 'Path is required' };
     }
 
-    // Simulate async operation
-    await new Promise((resolve) => setTimeout(resolve, 200));
-
-    // Generate mock download URL
-    const mockUrl = `https://firebasestorage.googleapis.com/v0/b/mock-project.appspot.com/o/${encodeURIComponent(path)}?alt=media&token=mock-token-${Date.now()}`;
-
-    return { url: mockUrl, error: null };
+    const storageRef = ref(storage, path);
+    const downloadURL = await getDownloadURL(storageRef);
+    return { url: downloadURL, error: null };
   } catch (error) {
     // Map Storage error codes to user-friendly messages
     const errorMessages = {
@@ -264,28 +224,13 @@ export const getFileURL = async (path) => {
  */
 export const getFileMetadata = async (path) => {
   try {
-    // TODO: Replace with real Firebase Storage call
-    // const storageRef = ref(storage, path);
-    // const metadata = await getMetadata(storageRef);
-    // return { metadata, error: null };
-
-    // Mock implementation
     if (!path) {
       throw { code: 'invalid-argument', message: 'Path is required' };
     }
 
-    // Simulate async operation
-    await new Promise((resolve) => setTimeout(resolve, 200));
-
-    const mockMetadata = {
-      name: path.split('/').pop(),
-      size: 1024000, // 1 MB
-      contentType: 'application/pdf',
-      timeCreated: new Date().toISOString(),
-      updated: new Date().toISOString(),
-    };
-
-    return { metadata: mockMetadata, error: null };
+    const storageRef = ref(storage, path);
+    const metadata = await getMetadata(storageRef);
+    return { metadata, error: null };
   } catch (error) {
     return {
       metadata: null,

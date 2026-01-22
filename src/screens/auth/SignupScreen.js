@@ -325,9 +325,8 @@ const SignupScreen = ({ navigation }) => {
             {
               text: 'OK',
               onPress: () => {
-                // TODO: Navigate to Login screen when navigation is set up
-                // navigation.navigate('Login');
-                console.log('User created but profile failed:', user);
+                // Navigate to Login screen so user can sign in
+                navigation.navigate('Login');
               },
             },
           ]

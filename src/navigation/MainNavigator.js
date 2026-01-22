@@ -186,7 +186,7 @@ const MainNavigator = () => {
         options={{
           title: 'Checklist',
           headerTitle: 'Compliance Checklist',
-          tabBarBadge: incompleteChecklistCount > 0 ? incompleteChecklistCount : undefined,
+          // Badge is handled by custom TabBarBadge component in tabBarIcon
         }}
       />
 

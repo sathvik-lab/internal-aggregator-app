@@ -33,14 +33,67 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up Firebase Auth state observer
-    const unsubscribe = onAuthStateChanged((currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
+    let unsubscribe = null;
+    let retryTimeout = null;
+    let retryCount = 0;
+    const maxRetries = 15; // Try up to 15 times
+    const initialDelay = 500; // Wait 500ms before first attempt (gives Firebase time to register components)
+    const baseRetryDelay = 500; // Base delay of 500ms, will increase with exponential backoff
 
-    // Cleanup listener on unmount
+    // Function to set up the auth observer with retry logic
+    const setupAuthObserver = () => {
+      try {
+        // Try to set up Firebase Auth state observer
+        unsubscribe = onAuthStateChanged((currentUser) => {
+          setUser(currentUser);
+          setLoading(false);
+        });
+        // Success - no need to retry
+        console.log('✅ Firebase Auth observer set up successfully');
+        return;
+      } catch (error) {
+        // If auth component isn't ready yet, retry after a delay
+        if (
+          error.message?.includes('not ready yet') ||
+          error.message?.includes('has not been registered') ||
+          error.message?.includes('component has not been registered')
+        ) {
+          retryCount++;
+          if (retryCount < maxRetries) {
+            // Exponential backoff: delay increases with each retry (500ms, 1000ms, 2000ms, etc.)
+            const delay = baseRetryDelay * Math.pow(2, Math.min(retryCount - 1, 3)); // Cap at 4 seconds
+            console.log(`⚠️  Auth not ready, retrying in ${delay}ms (attempt ${retryCount}/${maxRetries})...`);
+            retryTimeout = setTimeout(() => {
+              setupAuthObserver();
+            }, delay);
+          } else {
+            // Max retries reached - set loading to false and show error
+            console.error('❌ Failed to initialize Firebase Auth after multiple retries');
+            console.error('This is a known issue with Firebase JS SDK in React Native.');
+            console.error('The app will continue, but authentication features may not work.');
+            console.error('If this persists, try: npx expo start --clear');
+            setLoading(false);
+            // Don't throw - allow app to continue (user will see login screen)
+          }
+        } else {
+          // Other errors - don't retry, just fail
+          console.error('Failed to set up auth observer:', error);
+          setLoading(false);
+        }
+      }
+    };
+
+    // Start setting up the observer after initial delay
+    // This gives Firebase time to register all components after app initialization
+    retryTimeout = setTimeout(() => {
+      setupAuthObserver();
+    }, initialDelay);
+
+    // Cleanup listener and timeout on unmount
     return () => {
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
       if (unsubscribe) {
         unsubscribe();
       }

@@ -1,52 +1,18 @@
 /**
  * Firebase Authentication Service
  * 
- * This service provides authentication functions for user management.
- * Currently returns mock data, but structured to easily swap with real Firebase Auth calls.
- * 
- * To switch to real Firebase Auth:
- * 1. Import auth from './firebase'
- * 2. Replace mock returns with actual Firebase Auth API calls
- * 3. Update error handling to use Firebase error codes
+ * This service provides authentication functions for user management using Firebase Auth.
  */
 
-import { MOCK_USER } from '../utils/mockData';
-
-// Uncomment when ready to use real Firebase Auth:
-// import { auth } from './firebase';
-// import {
-//   createUserWithEmailAndPassword,
-//   signInWithEmailAndPassword,
-//   signOut,
-//   sendPasswordResetEmail,
-//   updateProfile,
-//   onAuthStateChanged,
-// } from 'firebase/auth';
-
-// Mock auth state management
-// In real Firebase, this is handled automatically
-let currentUser = null;
-const authStateListeners = new Set();
-
-// Mock user storage - stores registered users for login validation
-// In real Firebase, this is handled by Firebase Auth
-// Format: Map<email, { password, user }>
-const mockUserStorage = new Map();
-
-/**
- * Notify all auth state listeners of a state change
- * @param {Object|null} user - Current user or null
- */
-const notifyAuthStateListeners = (user) => {
-  currentUser = user;
-  authStateListeners.forEach((callback) => {
-    try {
-      callback(user);
-    } catch (error) {
-      console.error('Error in auth state listener:', error);
-    }
-  });
-};
+import { auth } from './firebase';
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail,
+  updateProfile,
+  onAuthStateChanged as firebaseOnAuthStateChanged,
+} from 'firebase/auth';
 
 /**
  * Sign up a new user with email and password
@@ -58,57 +24,21 @@ const notifyAuthStateListeners = (user) => {
  */
 export const signUpUser = async (email, password, displayName) => {
   try {
-    // TODO: Replace with real Firebase Auth call
-    // const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    // await updateProfile(userCredential.user, { displayName });
-    // return { user: userCredential.user, error: null };
-
-    // Mock implementation
-    if (!email || !password) {
-      throw { code: 'auth/invalid-email', message: 'Email and password are required' };
+    // Create user with email and password
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    
+    // Update profile with display name if provided
+    if (displayName) {
+      await updateProfile(userCredential.user, { displayName });
     }
-    // Password validation - must match frontend requirements
-    if (password.length < 8) {
-      throw { code: 'auth/weak-password', message: 'Password must be at least 8 characters' };
-    }
-    if (!/\d/.test(password)) {
-      throw { code: 'auth/weak-password', message: 'Password must include at least one number' };
-    }
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-      throw { code: 'auth/weak-password', message: 'Password must include at least one special character' };
-    }
-
-    // Check if email is already registered
-    if (mockUserStorage.has(email.toLowerCase())) {
-      throw { code: 'auth/email-already-in-use', message: 'This email is already registered' };
-    }
-
-    // Simulate async operation
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const mockUser = {
-      ...MOCK_USER,
-      email,
-      displayName: displayName || email.split('@')[0],
-      uid: `mock-user-${Date.now()}`,
-    };
-
-    // Store user credentials for login validation
-    mockUserStorage.set(email.toLowerCase(), {
-      password, // Store password for mock login validation
-      user: mockUser,
-    });
-
-    // Update auth state and notify listeners
-    notifyAuthStateListeners(mockUser);
-
-    return { user: mockUser, error: null };
+    
+    return { user: userCredential.user, error: null };
   } catch (error) {
     // Map Firebase error codes to user-friendly messages
     const errorMessages = {
       'auth/email-already-in-use': 'This email is already registered',
       'auth/invalid-email': 'Invalid email address',
-      'auth/weak-password': 'Password must be at least 8 characters with a number and special character',
+      'auth/weak-password': 'Password must be at least 6 characters',
       'auth/operation-not-allowed': 'Email/password accounts are not enabled',
     };
 
@@ -131,38 +61,8 @@ export const signUpUser = async (email, password, displayName) => {
  */
 export const signInUser = async (email, password) => {
   try {
-    // TODO: Replace with real Firebase Auth call
-    // const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    // return { user: userCredential.user, error: null };
-
-    // Mock implementation
-    if (!email || !password) {
-      throw { code: 'auth/invalid-email', message: 'Email and password are required' };
-    }
-
-    // Simulate async operation
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Mock validation - check against stored users from signup
-    const emailLower = email.toLowerCase();
-    const storedUser = mockUserStorage.get(emailLower);
-    
-    if (storedUser && storedUser.password === password) {
-      // Valid credentials - update auth state and notify listeners
-      notifyAuthStateListeners(storedUser.user);
-      return { user: storedUser.user, error: null };
-    }
-
-    // Also support legacy test credentials for backward compatibility
-    // NOTE: Password must satisfy signup requirements: min 8 chars, number, and special character
-    if (email === 'test@example.com' && password === 'Test@123') {
-      const user = { ...MOCK_USER, email };
-      // Update auth state and notify listeners
-      notifyAuthStateListeners(user);
-      return { user, error: null };
-    }
-
-    throw { code: 'auth/user-not-found', message: 'Invalid email or password' };
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return { user: userCredential.user, error: null };
   } catch (error) {
     // Map Firebase error codes to user-friendly messages
     const errorMessages = {
@@ -190,16 +90,7 @@ export const signInUser = async (email, password) => {
  */
 export const signOutUser = async () => {
   try {
-    // TODO: Replace with real Firebase Auth call
-    // await signOut(auth);
-    // return { error: null };
-
-    // Mock implementation
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    
-    // Clear auth state and notify listeners
-    notifyAuthStateListeners(null);
-    
+    await signOut(auth);
     return { error: null };
   } catch (error) {
     return {
@@ -219,18 +110,7 @@ export const signOutUser = async () => {
  */
 export const resetPassword = async (email) => {
   try {
-    // TODO: Replace with real Firebase Auth call
-    // await sendPasswordResetEmail(auth, email);
-    // return { error: null };
-
-    // Mock implementation
-    if (!email) {
-      throw { code: 'auth/invalid-email', message: 'Email is required' };
-    }
-
-    // Simulate async operation
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
+    await sendPasswordResetEmail(auth, email);
     return { error: null };
   } catch (error) {
     // Map Firebase error codes to user-friendly messages
@@ -253,11 +133,7 @@ export const resetPassword = async (email) => {
  * @returns {Object|null} Current user object or null if not authenticated
  */
 export const getCurrentUser = () => {
-  // TODO: Replace with real Firebase Auth call
-  // return auth.currentUser;
-
-  // Mock implementation - return stored current user
-  return currentUser;
+  return auth.currentUser;
 };
 
 /**
@@ -269,33 +145,26 @@ export const getCurrentUser = () => {
  */
 export const updateUserProfile = async (displayName, photoURL) => {
   try {
-    // TODO: Replace with real Firebase Auth call
-    // const user = auth.currentUser;
-    // if (!user) {
-    //   throw { code: 'auth/no-current-user', message: 'No user is currently signed in' };
-    // }
-    // await updateProfile(user, { displayName, photoURL });
-    // return { user: { ...user, displayName, photoURL }, error: null };
-
-    // Mock implementation
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
+    const user = auth.currentUser;
+    if (!user) {
       throw { code: 'auth/no-current-user', message: 'No user is currently signed in' };
     }
-
-    // Simulate async operation
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    const updatedUser = {
-      ...currentUser,
-      ...(displayName && { displayName }),
-      ...(photoURL && { photoURL }),
+    
+    const updateData = {};
+    if (displayName !== undefined) updateData.displayName = displayName;
+    if (photoURL !== undefined) updateData.photoURL = photoURL;
+    
+    await updateProfile(user, updateData);
+    
+    // Return updated user object
+    return { 
+      user: { 
+        ...user, 
+        displayName: user.displayName, 
+        photoURL: user.photoURL 
+      }, 
+      error: null 
     };
-
-    // Update auth state and notify listeners so AuthContext receives the updated user
-    notifyAuthStateListeners(updatedUser);
-
-    return { user: updatedUser, error: null };
   } catch (error) {
     return {
       user: null,
@@ -314,20 +183,5 @@ export const updateUserProfile = async (displayName, photoURL) => {
  * @returns {Function} Unsubscribe function to stop listening
  */
 export const onAuthStateChanged = (callback) => {
-  // TODO: Replace with real Firebase Auth observer
-  // return onAuthStateChanged(auth, callback);
-
-  // Mock implementation
-  // Add callback to listeners
-  authStateListeners.add(callback);
-  
-  // Immediately call with current user
-  callback(getCurrentUser());
-
-  // Return unsubscribe function
-  return () => {
-    // Remove callback from listeners
-    authStateListeners.delete(callback);
-    console.log('Auth state listener unsubscribed');
-  };
+  return firebaseOnAuthStateChanged(auth, callback);
 };
