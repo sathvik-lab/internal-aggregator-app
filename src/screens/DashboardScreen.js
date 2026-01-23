@@ -20,6 +20,7 @@ import {
     RefreshControl,
     TouchableOpacity,
     Alert,
+    Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
@@ -373,7 +374,7 @@ const DashboardScreen = () => {
                 },
             ]
         );
-    };
+    }, []);
 
     const handleViewAllChecklist = useCallback(() => {
         navigation.navigate(ROUTES.MAIN.CHECKLIST);
