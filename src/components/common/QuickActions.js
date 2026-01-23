@@ -5,10 +5,11 @@
  * Provides quick access to common actions like upload, checklist, documents, and reports.
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import QuickActionButton from './QuickActionButton';
 import { COLORS } from '../../constants/colors';
+import { SPACING, moderateScale, PADDING } from '../../utils/responsive';
 
 /**
  * QuickActions Component
@@ -26,8 +27,14 @@ const QuickActions = ({
     onReportsPress,
 }) => {
     return (
-        <View style={styles.container}>
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <View style={styles.container} accessibilityRole="region" accessibilityLabel="Quick Actions section">
+            <Text 
+                style={styles.sectionTitle}
+                accessibilityRole="header"
+                accessibilityLevel={2}
+            >
+                Quick Actions
+            </Text>
             <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -64,19 +71,20 @@ const QuickActions = ({
 
 const styles = StyleSheet.create({
     container: {
-        marginTop: 24,
-        marginBottom: 8,
+        marginTop: SPACING.LG,
+        marginBottom: SPACING.SM,
     },
     sectionTitle: {
-        fontSize: 18,
+        fontSize: moderateScale(18),
         fontWeight: 'bold',
         color: COLORS.text,
-        marginBottom: 16,
-        paddingHorizontal: 4,
+        marginBottom: SPACING.MD,
+        paddingHorizontal: SPACING.XS,
     },
     scrollContent: {
-        paddingRight: 20,
+        paddingRight: PADDING.SCREEN_HORIZONTAL,
     },
 });
 
-export default QuickActions;
+// Memoize component to prevent unnecessary re-renders
+export default memo(QuickActions);

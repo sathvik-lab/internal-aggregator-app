@@ -4,7 +4,7 @@
  * Search input component for filtering documents by name.
  */
 
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import { View, TextInput, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
@@ -19,6 +19,12 @@ import { COLORS } from '../../constants/colors';
  * @param {string} props.placeholder - Placeholder text
  */
 const SearchBar = ({ value, onChangeText, onClear, placeholder = 'Search documents...' }) => {
+    const handleClear = useCallback(() => {
+        if (onClear) {
+            onClear();
+        }
+    }, [onClear]);
+
     return (
         <View style={styles.container}>
             <MaterialCommunityIcons
@@ -26,6 +32,8 @@ const SearchBar = ({ value, onChangeText, onClear, placeholder = 'Search documen
                 size={20}
                 color={COLORS.textLight}
                 style={styles.searchIcon}
+                accessibilityElementsHidden={true}
+                importantForAccessibility="no-hide-descendants"
             />
             <TextInput
                 style={styles.input}
@@ -35,17 +43,25 @@ const SearchBar = ({ value, onChangeText, onClear, placeholder = 'Search documen
                 onChangeText={onChangeText}
                 autoCapitalize="none"
                 autoCorrect={false}
+                accessibilityLabel="Search input"
+                accessibilityHint={`Type to search. ${value ? `Current search: ${value}` : ''}`}
+                accessibilityRole="searchbox"
             />
             {value.length > 0 && (
                 <TouchableOpacity
                     style={styles.clearButton}
-                    onPress={onClear}
+                    onPress={handleClear}
                     activeOpacity={0.7}
+                    accessibilityLabel="Clear search"
+                    accessibilityHint="Double tap to clear the search text"
+                    accessibilityRole="button"
                 >
                     <MaterialCommunityIcons
                         name="close-circle"
                         size={20}
                         color={COLORS.textLight}
+                        accessibilityElementsHidden={true}
+                        importantForAccessibility="no-hide-descendants"
                     />
                 </TouchableOpacity>
             )}
@@ -90,4 +106,5 @@ const styles = StyleSheet.create({
     },
 });
 
-export default SearchBar;
+// Memoize component to prevent unnecessary re-renders
+export default memo(SearchBar);

@@ -5,7 +5,7 @@
  * Features user greeting, profile picture, notification bell, and date display.
  */
 
-import React from 'react';
+import React, { memo, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -67,23 +67,71 @@ const Header = ({
 }) => {
     const { user } = useAuth();
 
-    // Get user's display name or email
-    const userName = user?.displayName || user?.email?.split('@')[0] || 'User';
-    const userInitials = getInitials(userName);
+    // Memoize user data calculations
+    const userName = useMemo(() => {
+        return user?.displayName || user?.email?.split('@')[0] || 'User';
+    }, [user?.displayName, user?.email]);
 
-    // Determine greeting text
-    const greetingText = title || `${getGreeting()}, ${userName}!`;
+    const userInitials = useMemo(() => getInitials(userName), [userName]);
 
-    // Current date
-    const currentDate = formatDate(new Date());
+    // Memoize greeting text
+    const greetingText = useMemo(() => {
+        return title || `${getGreeting()}, ${userName}!`;
+    }, [title, userName]);
+
+    // Memoize current date
+    const currentDate = useMemo(() => formatDate(new Date()), []);
+
+    // Memoize notification badge text
+    const notificationBadgeText = useMemo(() => {
+        return notificationCount > 99 ? '99+' : notificationCount.toString();
+    }, [notificationCount]);
+
+    // Memoize accessibility labels
+    const notificationLabel = useMemo(() => {
+        if (notificationCount === 0) {
+            return 'Notifications. No unread notifications';
+        }
+        return `Notifications. ${notificationCount} unread notification${notificationCount === 1 ? '' : 's'}`;
+    }, [notificationCount]);
+
+    const profileLabel = useMemo(() => {
+        return `Profile. ${userName}'s profile picture`;
+    }, [userName]);
+
+    // Callbacks for button presses
+    const handleNotificationPress = useCallback(() => {
+        if (onNotificationPress) {
+            onNotificationPress();
+        }
+    }, [onNotificationPress]);
+
+    const handleProfilePress = useCallback(() => {
+        if (onProfilePress) {
+            onProfilePress();
+        }
+    }, [onProfilePress]);
 
     return (
         <View style={styles.container}>
             <View style={styles.headerContent}>
                 {/* Left section - Greeting and Date */}
                 <View style={styles.leftSection}>
-                    <Text style={styles.greeting}>{greetingText}</Text>
-                    {showDate && <Text style={styles.date}>{currentDate}</Text>}
+                    <Text 
+                        style={styles.greeting}
+                        accessibilityRole="header"
+                        accessibilityLevel={1}
+                    >
+                        {greetingText}
+                    </Text>
+                    {showDate && (
+                        <Text 
+                            style={styles.date}
+                            accessibilityLabel={`Today is ${currentDate}`}
+                        >
+                            {currentDate}
+                        </Text>
+                    )}
                 </View>
 
                 {/* Right section - Notifications and Profile */}
@@ -92,18 +140,28 @@ const Header = ({
                     {showNotifications && (
                         <TouchableOpacity
                             style={styles.iconButton}
-                            onPress={onNotificationPress}
+                            onPress={handleNotificationPress}
                             activeOpacity={0.7}
+                            accessibilityLabel={notificationLabel}
+                            accessibilityHint="Double tap to view notifications"
+                            accessibilityRole="button"
+                            accessibilityState={{ disabled: false }}
                         >
                             <MaterialCommunityIcons
                                 name="bell-outline"
                                 size={24}
                                 color={COLORS.text}
+                                accessibilityElementsHidden={true}
+                                importantForAccessibility="no-hide-descendants"
                             />
                             {notificationCount > 0 && (
-                                <View style={styles.notificationBadge}>
+                                <View 
+                                    style={styles.notificationBadge}
+                                    accessibilityElementsHidden={true}
+                                    importantForAccessibility="no-hide-descendants"
+                                >
                                     <Text style={styles.notificationBadgeText}>
-                                        {notificationCount > 99 ? '99+' : notificationCount}
+                                        {notificationBadgeText}
                                     </Text>
                                 </View>
                             )}
@@ -114,11 +172,20 @@ const Header = ({
                     {showProfile && (
                         <TouchableOpacity
                             style={styles.profileButton}
-                            onPress={onProfilePress}
+                            onPress={handleProfilePress}
                             activeOpacity={0.7}
+                            accessibilityLabel={profileLabel}
+                            accessibilityHint="Double tap to view your profile"
+                            accessibilityRole="button"
                         >
                             <View style={styles.avatar}>
-                                <Text style={styles.avatarText}>{userInitials}</Text>
+                                <Text 
+                                    style={styles.avatarText}
+                                    accessibilityElementsHidden={true}
+                                    importantForAccessibility="no-hide-descendants"
+                                >
+                                    {userInitials}
+                                </Text>
                             </View>
                         </TouchableOpacity>
                     )}
@@ -234,4 +301,5 @@ const styles = StyleSheet.create({
     },
 });
 
-export default Header;
+// Memoize component to prevent unnecessary re-renders
+export default memo(Header);

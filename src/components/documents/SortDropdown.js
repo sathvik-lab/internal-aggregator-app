@@ -4,7 +4,7 @@
  * Dropdown component for sorting documents.
  */
 
-import React, { useState } from 'react';
+import React, { useState, memo, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
@@ -28,30 +28,50 @@ const SORT_OPTIONS = [
  */
 const SortDropdown = ({ value, onChange }) => {
     const [modalVisible, setModalVisible] = useState(false);
-    const selectedOption = SORT_OPTIONS.find(opt => opt.value === value) || SORT_OPTIONS[0];
+    
+    // Memoize selected option
+    const selectedOption = useMemo(() => {
+        return SORT_OPTIONS.find(opt => opt.value === value) || SORT_OPTIONS[0];
+    }, [value]);
 
-    const handleSelect = (optionValue) => {
+    const handleSelect = useCallback((optionValue) => {
         onChange(optionValue);
         setModalVisible(false);
-    };
+    }, [onChange]);
+
+    const handleOpen = useCallback(() => {
+        setModalVisible(true);
+    }, []);
+
+    const handleClose = useCallback(() => {
+        setModalVisible(false);
+    }, []);
 
     return (
         <>
             <TouchableOpacity
                 style={styles.container}
-                onPress={() => setModalVisible(true)}
+                onPress={handleOpen}
                 activeOpacity={0.7}
+                accessibilityLabel={`Sort by ${selectedOption.label}`}
+                accessibilityHint="Double tap to change sort order"
+                accessibilityRole="button"
+                accessibilityState={{ expanded: modalVisible }}
             >
                 <MaterialCommunityIcons
                     name={selectedOption.icon}
                     size={18}
                     color={COLORS.textSecondary}
+                    accessibilityElementsHidden={true}
+                    importantForAccessibility="no-hide-descendants"
                 />
                 <Text style={styles.label}>{selectedOption.label}</Text>
                 <MaterialCommunityIcons
                     name="chevron-down"
                     size={18}
                     color={COLORS.textSecondary}
+                    accessibilityElementsHidden={true}
+                    importantForAccessibility="no-hide-descendants"
                 />
             </TouchableOpacity>
 
@@ -59,15 +79,28 @@ const SortDropdown = ({ value, onChange }) => {
                 visible={modalVisible}
                 transparent
                 animationType="fade"
-                onRequestClose={() => setModalVisible(false)}
+                onRequestClose={handleClose}
+                accessibilityViewIsModal={true}
             >
                 <TouchableOpacity
                     style={styles.modalOverlay}
                     activeOpacity={1}
-                    onPress={() => setModalVisible(false)}
+                    onPress={handleClose}
+                    accessibilityLabel="Close sort options"
+                    accessibilityRole="button"
                 >
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Sort By</Text>
+                    <View 
+                        style={styles.modalContent}
+                        accessibilityRole="dialog"
+                        accessibilityLabel="Sort options"
+                    >
+                        <Text 
+                            style={styles.modalTitle}
+                            accessibilityRole="header"
+                            accessibilityLevel={2}
+                        >
+                            Sort By
+                        </Text>
                         {SORT_OPTIONS.map((option) => (
                             <TouchableOpacity
                                 key={option.value}
@@ -77,11 +110,17 @@ const SortDropdown = ({ value, onChange }) => {
                                 ]}
                                 onPress={() => handleSelect(option.value)}
                                 activeOpacity={0.7}
+                                accessibilityLabel={`Sort by ${option.label}`}
+                                accessibilityHint={value === option.value ? 'Currently selected. Double tap to apply.' : 'Double tap to sort by this option'}
+                                accessibilityRole="button"
+                                accessibilityState={{ selected: value === option.value }}
                             >
                                 <MaterialCommunityIcons
                                     name={option.icon}
                                     size={20}
                                     color={value === option.value ? COLORS.primary : COLORS.textSecondary}
+                                    accessibilityElementsHidden={true}
+                                    importantForAccessibility="no-hide-descendants"
                                 />
                                 <Text
                                     style={[
@@ -96,6 +135,8 @@ const SortDropdown = ({ value, onChange }) => {
                                         name="check"
                                         size={20}
                                         color={COLORS.primary}
+                                        accessibilityElementsHidden={true}
+                                        importantForAccessibility="no-hide-descendants"
                                     />
                                 )}
                             </TouchableOpacity>
@@ -176,4 +217,5 @@ const styles = StyleSheet.create({
     },
 });
 
-export default SortDropdown;
+// Memoize component to prevent unnecessary re-renders
+export default memo(SortDropdown);
