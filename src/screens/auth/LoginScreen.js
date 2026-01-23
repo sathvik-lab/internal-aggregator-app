@@ -5,7 +5,7 @@
  * Integrates with Firebase Authentication service.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -14,6 +14,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import {
   TextInput,
@@ -23,9 +25,11 @@ import {
   ActivityIndicator,
   Surface,
 } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { signInUser } from '../../services/auth';
-import { COLORS } from '../../constants/colors';
+import { useTheme } from '../../context/ThemeContext';
 import { ROUTES } from '../../navigation/navigationConfig';
+import ButtonComponent from '../../components/common/Button';
 
 /**
  * Email validation regex pattern
@@ -37,6 +41,8 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * @param {Object} navigation - Navigation object from React Navigation
  */
 const LoginScreen = ({ navigation }) => {
+  const { colors, typography, spacing, shadows } = useTheme();
+  
   // Form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -45,11 +51,41 @@ const LoginScreen = ({ navigation }) => {
   // UI state
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
   
   // Validation errors
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [authError, setAuthError] = useState('');
+  
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const logoScaleAnim = useRef(new Animated.Value(0.8)).current;
+  
+  // Entrance animation
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+      Animated.spring(logoScaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   /**
    * Validate email format

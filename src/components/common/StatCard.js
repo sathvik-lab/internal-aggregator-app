@@ -8,7 +8,7 @@
 import React, { memo, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { useTheme } from '../../context/ThemeContext';
 import { moderateScale, PADDING, SPACING, isTablet, getCardWidth } from '../../utils/responsive';
 
 /**
@@ -29,11 +29,16 @@ const StatCard = ({
     label,
     subtitle,
     onPress,
-    color = COLORS.primary,
+    color,
     style,
+    trend, // 'up', 'down', or undefined
+    trendValue, // e.g., '+12%'
 }) => {
+    const { colors, typography, spacing, shadows } = useTheme();
+    const cardColor = color || colors.primary;
     const CardComponent = onPress ? TouchableOpacity : View;
     const scaleAnim = useRef(new Animated.Value(1)).current;
+    const iconPulseAnim = useRef(new Animated.Value(1)).current;
 
     // Memoize accessibility label
     const accessibilityLabel = useMemo(() => {
@@ -64,6 +69,26 @@ const StatCard = ({
         }
     };
 
+    // Subtle icon pulse animation
+    React.useEffect(() => {
+        const pulseAnimation = Animated.loop(
+            Animated.sequence([
+                Animated.timing(iconPulseAnim, {
+                    toValue: 1.1,
+                    duration: 2000,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(iconPulseAnim, {
+                    toValue: 1,
+                    duration: 2000,
+                    useNativeDriver: true,
+                }),
+            ])
+        );
+        pulseAnimation.start();
+        return () => pulseAnimation.stop();
+    }, []);
+
     return (
         <Animated.View
             style={[
@@ -71,7 +96,15 @@ const StatCard = ({
             ]}
         >
             <CardComponent
-                style={[styles.card, style]}
+                style={[
+                    styles.card,
+                    { 
+                        backgroundColor: colors.surface.surface,
+                        borderColor: colors.border.default,
+                        ...shadows.shadows[2],
+                    },
+                    style
+                ]}
                 onPress={onPress}
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
@@ -82,25 +115,82 @@ const StatCard = ({
                 accessibilityRole={onPress ? "button" : "text"}
                 accessibilityState={{ disabled: !onPress }}
             >
-            {/* Icon Container */}
-            <View style={[styles.iconContainer, { backgroundColor: `${color}15` }]}>
+            {/* Icon Container with gradient effect */}
+            <Animated.View 
+                style={[
+                    styles.iconContainer, 
+                    { 
+                        backgroundColor: `${cardColor}20`,
+                        transform: [{ scale: iconPulseAnim }],
+                    }
+                ]}
+            >
                 <MaterialCommunityIcons
                     name={icon}
-                    size={28}
-                    color={color}
+                    size={isTablet ? 32 : 28}
+                    color={cardColor}
                 />
-            </View>
+            </Animated.View>
 
-            {/* Value */}
-            <Text style={styles.value}>{value}</Text>
+            {/* Value with better typography */}
+            <Text style={[
+                styles.value,
+                { 
+                    color: colors.text.primary,
+                    ...typography.textStyles.h2,
+                }
+            ]}>
+                {value}
+            </Text>
 
             {/* Label */}
-            <Text style={styles.label}>{label}</Text>
+            <Text style={[
+                styles.label,
+                { 
+                    color: colors.text.secondary,
+                    ...typography.textStyles.bodySmall,
+                }
+            ]}>
+                {label}
+            </Text>
 
-            {/* Subtitle (optional) */}
-            {subtitle && (
-                    <Text style={styles.subtitle}>{subtitle}</Text>
-                )}
+            {/* Trend indicator or subtitle */}
+            {(trend || subtitle) && (
+                <View style={styles.trendContainer}>
+                    {trend && trendValue && (
+                        <View style={[
+                            styles.trendBadge,
+                            { 
+                                backgroundColor: trend === 'up' 
+                                    ? `${colors.success}20` 
+                                    : `${colors.error}20`,
+                            }
+                        ]}>
+                            <MaterialCommunityIcons
+                                name={trend === 'up' ? 'trending-up' : 'trending-down'}
+                                size={12}
+                                color={trend === 'up' ? colors.success : colors.error}
+                            />
+                            <Text style={[
+                                styles.trendText,
+                                { 
+                                    color: trend === 'up' ? colors.success : colors.error,
+                                }
+                            ]}>
+                                {trendValue}
+                            </Text>
+                        </View>
+                    )}
+                    {subtitle && (
+                        <Text style={[
+                            styles.subtitle,
+                            { color: colors.text.tertiary }
+                        ]}>
+                            {subtitle}
+                        </Text>
+                    )}
+                </View>
+            )}
         </CardComponent>
         </Animated.View>
     );
@@ -108,26 +198,14 @@ const StatCard = ({
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: COLORS.surface,
-        borderRadius: moderateScale(12),
-        padding: PADDING.CARD,
+        borderRadius: 16,
+        padding: SPACING.BASE,
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: isTablet ? moderateScale(180) : moderateScale(160),
-        // Shadow for depth
-        ...Platform.select({
-            ios: {
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
-            },
-            android: {
-                elevation: 3,
-            },
-        }),
         borderWidth: 1,
-        borderColor: COLORS.border,
+        position: 'relative',
+        overflow: 'hidden',
     },
     iconContainer: {
         width: isTablet ? moderateScale(64) : moderateScale(56),
@@ -138,23 +216,35 @@ const styles = StyleSheet.create({
         marginBottom: SPACING.SM,
     },
     value: {
-        fontSize: isTablet ? moderateScale(36) : moderateScale(32),
-        fontWeight: 'bold',
-        color: COLORS.text,
         marginBottom: SPACING.XS,
+        textAlign: 'center',
     },
     label: {
-        fontSize: moderateScale(14),
-        color: COLORS.textSecondary,
         textAlign: 'center',
-        fontWeight: '500',
         marginBottom: SPACING.XS,
     },
-    subtitle: {
-        fontSize: moderateScale(12),
-        color: COLORS.textLight,
-        textAlign: 'center',
+    trendContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
         marginTop: SPACING.XS,
+        gap: SPACING.XS,
+    },
+    trendBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: SPACING.SM,
+        paddingVertical: 4,
+        borderRadius: 12,
+        gap: 4,
+    },
+    trendText: {
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    subtitle: {
+        fontSize: 12,
+        textAlign: 'center',
     },
 });
 

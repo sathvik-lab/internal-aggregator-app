@@ -40,7 +40,7 @@ import { ROUTES } from '../navigation/navigationConfig';
 const DashboardScreen = () => {
     const navigation = useNavigation();
     const { user } = useAuth();
-    const { colors } = useTheme();
+    const { colors, typography, spacing, shadows } = useTheme();
 
     // State management
     const [loading, setLoading] = useState(true);
@@ -451,6 +451,8 @@ const DashboardScreen = () => {
                                     label="Compliance Score"
                                     subtitle={stats.complianceScore >= 80 ? 'Good' : stats.complianceScore >= 60 ? 'At Risk' : 'Needs Attention'}
                                     color={stats.complianceScore >= 80 ? colors.success : stats.complianceScore >= 60 ? colors.warning : colors.error}
+                                    trend={stats.complianceScore >= 80 ? 'up' : undefined}
+                                    trendValue={stats.complianceScore >= 80 ? '+5%' : undefined}
                                 />
                             </View>
 
@@ -478,13 +480,28 @@ const DashboardScreen = () => {
                     {/* Today's Tasks Section */}
                     <View style={styles.section} accessibilityRole="region" accessibilityLabel="Today's Tasks section">
                         <View style={styles.sectionHeader}>
-                            <Text 
-                                style={[styles.sectionTitle, { color: colors.text }]}
-                                accessibilityRole="header"
-                                accessibilityLevel={2}
-                            >
-                                Today's Tasks
-                            </Text>
+                            <View style={styles.sectionTitleContainer}>
+                                <Text 
+                                    style={[
+                                        styles.sectionTitle, 
+                                        { 
+                                            color: colors.text.primary,
+                                            ...typography.textStyles.h3,
+                                        }
+                                    ]}
+                                    accessibilityRole="header"
+                                    accessibilityLevel={2}
+                                >
+                                    Today's Tasks
+                                </Text>
+                                {todayTasks.length > 0 && (
+                                    <View style={[styles.badge, { backgroundColor: `${colors.primary}20` }]}>
+                                        <Text style={[styles.badgeText, { color: colors.primary }]}>
+                                            {todayTasks.length}
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
                             {todayTasks.length > 0 && (
                                 <TouchableOpacity
                                     onPress={handleViewAllChecklist}
@@ -520,13 +537,28 @@ const DashboardScreen = () => {
                     {/* Recent Documents Section */}
                     <View style={styles.section} accessibilityRole="region" accessibilityLabel="Recent Documents section">
                         <View style={styles.sectionHeader}>
-                            <Text 
-                                style={[styles.sectionTitle, { color: colors.text }]}
-                                accessibilityRole="header"
-                                accessibilityLevel={2}
-                            >
-                                Recent Documents
-                            </Text>
+                            <View style={styles.sectionTitleContainer}>
+                                <Text 
+                                    style={[
+                                        styles.sectionTitle, 
+                                        { 
+                                            color: colors.text.primary,
+                                            ...typography.textStyles.h3,
+                                        }
+                                    ]}
+                                    accessibilityRole="header"
+                                    accessibilityLevel={2}
+                                >
+                                    Recent Documents
+                                </Text>
+                                {recentDocuments.length > 0 && (
+                                    <View style={[styles.badge, { backgroundColor: `${colors.info}20` }]}>
+                                        <Text style={[styles.badgeText, { color: colors.info }]}>
+                                            {recentDocuments.length}
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
                             {recentDocuments.length > 0 && (
                                 <TouchableOpacity
                                     onPress={handleViewAllDocuments}
@@ -579,6 +611,7 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap',
         justifyContent: 'space-between',
         marginTop: SPACING.SM,
+        gap: SPACING.MD,
     },
     statCardWrapper: {
         width: isTablet && isLandscape ? '23%' : isTablet ? '48%' : '48%',
@@ -593,9 +626,25 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: SPACING.MD,
     },
+    sectionTitleContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.SM,
+    },
     sectionTitle: {
-        fontSize: moderateScale(18),
-        fontWeight: 'bold',
+        // Typography applied via inline style
+    },
+    badge: {
+        paddingHorizontal: SPACING.SM,
+        paddingVertical: 4,
+        borderRadius: 12,
+        minWidth: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    badgeText: {
+        fontSize: 12,
+        fontWeight: '600',
     },
     viewAllText: {
         fontSize: moderateScale(14),

@@ -6,13 +6,15 @@
  * 
  * NOTE: For theme support, use the useTheme hook from ThemeContext instead of importing COLORS directly.
  * This file exports the light theme colors for backward compatibility and as a fallback.
+ * 
+ * @deprecated Use useTheme() hook from ThemeContext for theme-aware colors
  */
 
-import { lightColors } from '../context/ThemeContext';
+import { lightThemeColors } from '../theme/colors';
 
 // Export light colors as default COLORS for backward compatibility
 // Components should use useTheme() hook for theme support
-export const COLORS = lightColors;
+export const COLORS = lightThemeColors;
 
 // Export default for convenience
 export default COLORS;

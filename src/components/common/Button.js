@@ -43,7 +43,7 @@ const Button = ({
     textStyle,
     ...props
 }) => {
-    const { colors } = useTheme();
+    const { colors, shadows, spacing } = useTheme();
     
     // Determine if button should be disabled
     const isDisabled = disabled || loading;
@@ -77,6 +77,12 @@ const Button = ({
                     borderWidth: 0,
                     borderColor: 'transparent',
                 };
+            case 'danger':
+                return {
+                    backgroundColor: isDisabled ? colors.border : colors.error,
+                    borderWidth: 0,
+                    borderColor: 'transparent',
+                };
             default:
                 return {
                     backgroundColor: isDisabled ? colors.border : customColor,
@@ -97,6 +103,7 @@ const Button = ({
         switch (variant) {
             case 'primary':
             case 'secondary':
+            case 'danger':
                 return colors.textInverse;
             case 'outline':
             case 'text':
@@ -259,6 +266,8 @@ const Button = ({
                     styles.button,
                     variantStyles,
                     sizeStyles,
+                    // Add shadow for non-text variants
+                    variant !== 'text' && !isDisabled && shadows.shadows[2],
                     fullWidth && styles.fullWidth,
                     style,
                 ]}
@@ -299,18 +308,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'row',
-        // Shadow for depth (only for non-text variants)
-        ...Platform.select({
-            ios: {
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 2,
-            },
-            android: {
-                elevation: 2,
-            },
-        }),
     },
     content: {
         flexDirection: 'row',

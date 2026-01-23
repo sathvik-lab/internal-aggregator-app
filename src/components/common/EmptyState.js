@@ -5,10 +5,11 @@
  * Used in lists, sections, and search results throughout the app.
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { useTheme } from '../../context/ThemeContext';
+import Button from './Button';
 
 /**
  * EmptyState Component
@@ -29,21 +30,53 @@ const EmptyState = ({
     actionLabel = 'Get Started',
     showAction = false
 }) => {
+    const { colors, typography, spacing } = useTheme();
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const scaleAnim = useRef(new Animated.Value(0.8)).current;
+
+    useEffect(() => {
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 400,
+                useNativeDriver: true,
+            }),
+            Animated.spring(scaleAnim, {
+                toValue: 1,
+                tension: 50,
+                friction: 7,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, []);
+
     return (
-        <View 
-            style={styles.container}
+        <Animated.View 
+            style={[
+                styles.container,
+                {
+                    opacity: fadeAnim,
+                    transform: [{ scale: scaleAnim }],
+                }
+            ]}
             accessibilityRole="text"
         >
             <MaterialCommunityIcons
                 name={icon}
                 size={64}
-                color={COLORS.textLight}
+                color={colors.text.tertiary}
                 accessibilityElementsHidden={true}
                 importantForAccessibility="no-hide-descendants"
             />
             {title && (
                 <Text 
-                    style={styles.title}
+                    style={[
+                        styles.title,
+                        {
+                            color: colors.text.primary,
+                            ...typography.textStyles.h3,
+                        }
+                    ]}
                     accessibilityRole="header"
                     accessibilityLevel={3}
                 >
@@ -52,22 +85,27 @@ const EmptyState = ({
             )}
             {message && (
                 <Text 
-                    style={styles.message}
+                    style={[
+                        styles.message,
+                        {
+                            color: colors.text.secondary,
+                            ...typography.textStyles.body,
+                        }
+                    ]}
                     accessibilityRole="text"
                 >
                     {message}
                 </Text>
             )}
             {showAction && onAction && (
-                <TouchableOpacity
-                    style={styles.actionButton}
+                <Button
+                    title={actionLabel}
                     onPress={onAction}
-                    activeOpacity={0.7}
-                >
-                    <Text style={styles.actionButtonText}>{actionLabel}</Text>
-                </TouchableOpacity>
+                    variant="primary"
+                    style={{ marginTop: spacing.MD }}
+                />
             )}
-        </View>
+        </Animated.View>
     );
 };
 
@@ -79,33 +117,14 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     title: {
-        fontSize: 20,
-        fontWeight: '600',
-        color: COLORS.text,
         marginTop: 20,
         marginBottom: 8,
         textAlign: 'center',
     },
     message: {
-        fontSize: 15,
-        color: COLORS.textSecondary,
         textAlign: 'center',
-        lineHeight: 22,
         marginBottom: 24,
-    },
-    actionButton: {
-        backgroundColor: COLORS.primary,
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        borderRadius: 8,
-        marginTop: 8,
-        minWidth: 140,
-    },
-    actionButtonText: {
-        color: COLORS.textInverse,
-        fontSize: 16,
-        fontWeight: '600',
-        textAlign: 'center',
+        paddingHorizontal: 16,
     },
 });
 
