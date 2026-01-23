@@ -5,7 +5,7 @@
  * Features Today, Upcoming, and Completed tabs with real-time Firestore updates.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     View,
     Text,
@@ -108,7 +108,7 @@ const ChecklistScreen = () => {
     const [showAddModal, setShowAddModal] = useState(false);
 
     // Calculate today's completion percentage
-    const todayCompletionPercentage = React.useMemo(() => {
+    const todayCompletionPercentage = useMemo(() => {
         if (todayItems.length === 0) return 100;
         const completed = todayItems.filter((item) => item.completed).length;
         return (completed / todayItems.length) * 100;
