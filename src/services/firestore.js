@@ -21,6 +21,7 @@ import {
   onSnapshot,
   serverTimestamp,
 } from 'firebase/firestore';
+import { handleAsyncOperation, getErrorMessage, isNetworkError } from '../utils/errorHandler';
 
 /**
  * Create a new document in a Firestore collection
@@ -31,29 +32,67 @@ import {
  * @throws {Error} Error object with code and message on failure
  */
 export const createDocument = async (collectionName, data, docId = null) => {
-  try {
-    if (!collectionName || !data) {
-      throw { code: 'invalid-argument', message: 'Collection name and data are required' };
-    }
-
-    const docRef = docId ? doc(db, collectionName, docId) : doc(collection(db, collectionName));
-    
-    await setDoc(docRef, {
-      ...data,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-    
-    return { id: docRef.id, error: null };
-  } catch (error) {
+  // Validate inputs
+  if (!collectionName || typeof collectionName !== 'string') {
     return {
       id: null,
       error: {
-        code: error.code || 'unknown-error',
-        message: error.message || 'An error occurred creating the document',
+        code: 'invalid-argument',
+        message: 'Collection name is required and must be a string',
       },
     };
   }
+
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return {
+      id: null,
+      error: {
+        code: 'invalid-argument',
+        message: 'Data is required and must be an object',
+      },
+    };
+  }
+
+  // Check if db is available
+  if (!db) {
+    return {
+      id: null,
+      error: {
+        code: 'unavailable',
+        message: 'Database is not available. Please check your connection.',
+      },
+    };
+  }
+
+  return handleAsyncOperation(
+    async () => {
+      const docRef = docId ? doc(db, collectionName, docId) : doc(collection(db, collectionName));
+      
+      await setDoc(docRef, {
+        ...data,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      
+      return docRef.id;
+    },
+    {
+      timeout: 30000,
+      checkNetwork: true,
+      defaultMessage: 'An error occurred creating the document',
+    }
+  ).then(result => {
+    if (result.error) {
+      return {
+        id: null,
+        error: {
+          code: result.error.code,
+          message: getErrorMessage(result.error, 'An error occurred creating the document'),
+        },
+      };
+    }
+    return { id: result.data, error: null };
+  });
 };
 
 /**
@@ -64,28 +103,76 @@ export const createDocument = async (collectionName, data, docId = null) => {
  * @throws {Error} Error object with code and message on failure
  */
 export const getDocument = async (collectionName, docId) => {
-  try {
-    if (!collectionName || !docId) {
-      throw { code: 'invalid-argument', message: 'Collection name and document ID are required' };
-    }
-
-    const docRef = doc(db, collectionName, docId);
-    const docSnap = await getDoc(docRef);
-    
-    if (docSnap.exists()) {
-      return { data: { id: docSnap.id, ...docSnap.data() }, error: null };
-    }
-    
-    return { data: null, error: null };
-  } catch (error) {
+  // Validate inputs
+  if (!collectionName || typeof collectionName !== 'string') {
     return {
       data: null,
       error: {
-        code: error.code || 'unknown-error',
-        message: error.message || 'An error occurred retrieving the document',
+        code: 'invalid-argument',
+        message: 'Collection name is required and must be a string',
       },
     };
   }
+
+  if (!docId || typeof docId !== 'string') {
+    return {
+      data: null,
+      error: {
+        code: 'invalid-argument',
+        message: 'Document ID is required and must be a string',
+      },
+    };
+  }
+
+  // Check if db is available
+  if (!db) {
+    return {
+      data: null,
+      error: {
+        code: 'unavailable',
+        message: 'Database is not available. Please check your connection.',
+      },
+    };
+  }
+
+  return handleAsyncOperation(
+    async () => {
+      const docRef = doc(db, collectionName, docId);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        const docData = docSnap.data();
+        return {
+          id: docSnap.id,
+          ...docData,
+          // Convert Firestore Timestamps to ISO strings
+          createdAt: docData.createdAt?.toDate?.()?.toISOString() || docData.createdAt,
+          updatedAt: docData.updatedAt?.toDate?.()?.toISOString() || docData.updatedAt,
+          uploadDate: docData.uploadDate?.toDate?.()?.toISOString() || docData.uploadDate,
+          dueDate: docData.dueDate?.toDate?.()?.toISOString() || docData.dueDate,
+          completedAt: docData.completedAt?.toDate?.()?.toISOString() || docData.completedAt,
+        };
+      }
+      
+      return null;
+    },
+    {
+      timeout: 30000,
+      checkNetwork: true,
+      defaultMessage: 'An error occurred retrieving the document',
+    }
+  ).then(result => {
+    if (result.error) {
+      return {
+        data: null,
+        error: {
+          code: result.error.code,
+          message: getErrorMessage(result.error, 'An error occurred retrieving the document'),
+        },
+      };
+    }
+    return { data: result.data, error: null };
+  });
 };
 
 /**
@@ -97,26 +184,69 @@ export const getDocument = async (collectionName, docId) => {
  * @throws {Error} Error object with code and message on failure
  */
 export const updateDocument = async (collectionName, docId, data) => {
-  try {
-    if (!collectionName || !docId || !data) {
-      throw { code: 'invalid-argument', message: 'Collection name, document ID, and data are required' };
-    }
-
-    const docRef = doc(db, collectionName, docId);
-    await updateDoc(docRef, {
-      ...data,
-      updatedAt: serverTimestamp(),
-    });
-    
-    return { error: null };
-  } catch (error) {
+  // Validate inputs
+  if (!collectionName || typeof collectionName !== 'string') {
     return {
       error: {
-        code: error.code || 'unknown-error',
-        message: error.message || 'An error occurred updating the document',
+        code: 'invalid-argument',
+        message: 'Collection name is required and must be a string',
       },
     };
   }
+
+  if (!docId || typeof docId !== 'string') {
+    return {
+      error: {
+        code: 'invalid-argument',
+        message: 'Document ID is required and must be a string',
+      },
+    };
+  }
+
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return {
+      error: {
+        code: 'invalid-argument',
+        message: 'Data is required and must be an object',
+      },
+    };
+  }
+
+  // Check if db is available
+  if (!db) {
+    return {
+      error: {
+        code: 'unavailable',
+        message: 'Database is not available. Please check your connection.',
+      },
+    };
+  }
+
+  return handleAsyncOperation(
+    async () => {
+      const docRef = doc(db, collectionName, docId);
+      await updateDoc(docRef, {
+        ...data,
+        updatedAt: serverTimestamp(),
+      });
+      return true;
+    },
+    {
+      timeout: 30000,
+      checkNetwork: true,
+      defaultMessage: 'An error occurred updating the document',
+    }
+  ).then(result => {
+    if (result.error) {
+      return {
+        error: {
+          code: result.error.code,
+          message: getErrorMessage(result.error, 'An error occurred updating the document'),
+        },
+      };
+    }
+    return { error: null };
+  });
 };
 
 /**
@@ -127,23 +257,57 @@ export const updateDocument = async (collectionName, docId, data) => {
  * @throws {Error} Error object with code and message on failure
  */
 export const deleteDocument = async (collectionName, docId) => {
-  try {
-    if (!collectionName || !docId) {
-      throw { code: 'invalid-argument', message: 'Collection name and document ID are required' };
-    }
-
-    const docRef = doc(db, collectionName, docId);
-    await deleteDoc(docRef);
-    
-    return { error: null };
-  } catch (error) {
+  // Validate inputs
+  if (!collectionName || typeof collectionName !== 'string') {
     return {
       error: {
-        code: error.code || 'unknown-error',
-        message: error.message || 'An error occurred deleting the document',
+        code: 'invalid-argument',
+        message: 'Collection name is required and must be a string',
       },
     };
   }
+
+  if (!docId || typeof docId !== 'string') {
+    return {
+      error: {
+        code: 'invalid-argument',
+        message: 'Document ID is required and must be a string',
+      },
+    };
+  }
+
+  // Check if db is available
+  if (!db) {
+    return {
+      error: {
+        code: 'unavailable',
+        message: 'Database is not available. Please check your connection.',
+      },
+    };
+  }
+
+  return handleAsyncOperation(
+    async () => {
+      const docRef = doc(db, collectionName, docId);
+      await deleteDoc(docRef);
+      return true;
+    },
+    {
+      timeout: 30000,
+      checkNetwork: true,
+      defaultMessage: 'An error occurred deleting the document',
+    }
+  ).then(result => {
+    if (result.error) {
+      return {
+        error: {
+          code: result.error.code,
+          message: getErrorMessage(result.error, 'An error occurred deleting the document'),
+        },
+      };
+    }
+    return { error: null };
+  });
 };
 
 /**
@@ -156,125 +320,145 @@ export const deleteDocument = async (collectionName, docId) => {
  * @throws {Error} Error object with code and message on failure
  */
 export const queryDocuments = async (collectionName, conditions = [], options = {}) => {
-  try {
-    if (!collectionName) {
-      throw { code: 'invalid-argument', message: 'Collection name is required' };
-    }
-
-    let q = query(collection(db, collectionName));
-    
-    // Apply where conditions
-    conditions.forEach((condition) => {
-      q = query(q, where(condition.field, condition.operator, condition.value));
-    });
-    
-    // NOTE: When using where() with orderBy() on a different field, Firestore requires a composite index.
-    // To avoid index errors, we'll do client-side sorting instead.
-    const hasWhereConditions = conditions.length > 0;
-    const orderByField = options.orderBy?.field;
-    const orderByMatchesWhere = conditions.some(c => c.field === orderByField);
-    
-    // Only apply orderBy if no where conditions or orderBy matches a where condition
-    if (options.orderBy && (!hasWhereConditions || orderByMatchesWhere)) {
-      q = query(q, orderBy(options.orderBy.field, options.orderBy.direction || 'asc'));
-    }
-    
-    // Apply limit (only if orderBy was applied, otherwise we'll limit after sorting)
-    if (options.limit && (!hasWhereConditions || orderByMatchesWhere)) {
-      q = query(q, limit(options.limit));
-    }
-    
-    // Apply pagination (startAfter) - only works with orderBy
-    if (options.startAfter && (!hasWhereConditions || orderByMatchesWhere)) {
-      q = query(q, startAfter(options.startAfter));
-    }
-    
-    const querySnapshot = await getDocs(q);
-    let documents = querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      // Convert Firestore Timestamps to ISO strings if necessary
-      createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
-      updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt,
-      uploadDate: doc.data().uploadDate?.toDate?.()?.toISOString() || doc.data().uploadDate,
-      dueDate: doc.data().dueDate?.toDate?.()?.toISOString() || doc.data().dueDate,
-      completedAt: doc.data().completedAt?.toDate?.()?.toISOString() || doc.data().completedAt,
-    }));
-    
-    // Client-side sorting if orderBy was requested but couldn't be applied in query
-    if (options.orderBy && hasWhereConditions && !orderByMatchesWhere) {
-      documents.sort((a, b) => {
-        const aVal = a[options.orderBy.field];
-        const bVal = b[options.orderBy.field];
-        if (!aVal || !bVal) return 0;
-        const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-        return options.orderBy.direction === 'desc' ? -comparison : comparison;
-      });
-      
-      // Apply limit after sorting
-      if (options.limit) {
-        documents = documents.slice(0, options.limit);
-      }
-    }
-    
-    return { data: documents, error: null };
-  } catch (error) {
-    // If error is about missing index, try to work around it
-    if (error.code === 'failed-precondition' && error.message?.includes('index')) {
-      console.warn('Firestore index required. Using client-side sorting instead. Create index for better performance:', error.message);
-      // Try query without orderBy
-      try {
-        let q = query(collection(db, collectionName));
-        conditions.forEach((condition) => {
-          q = query(q, where(condition.field, condition.operator, condition.value));
-        });
-        const querySnapshot = await getDocs(q);
-        let documents = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
-          updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt,
-          uploadDate: doc.data().uploadDate?.toDate?.()?.toISOString() || doc.data().uploadDate,
-          dueDate: doc.data().dueDate?.toDate?.()?.toISOString() || doc.data().dueDate,
-          completedAt: doc.data().completedAt?.toDate?.()?.toISOString() || doc.data().completedAt,
-        }));
-        
-        // Client-side sorting
-        if (options.orderBy) {
-          documents.sort((a, b) => {
-            const aVal = a[options.orderBy.field];
-            const bVal = b[options.orderBy.field];
-            if (!aVal || !bVal) return 0;
-            const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-            return options.orderBy.direction === 'desc' ? -comparison : comparison;
-          });
-        }
-        
-        // Apply limit
-        if (options.limit) {
-          documents = documents.slice(0, options.limit);
-        }
-        
-        return { data: documents, error: null };
-      } catch (retryError) {
-        return {
-          data: [],
-          error: {
-            code: retryError.code || 'unknown-error',
-            message: retryError.message || 'An error occurred querying documents',
-          },
-        };
-      }
-    }
-    
+  // Validate inputs
+  if (!collectionName || typeof collectionName !== 'string') {
     return {
       data: [],
       error: {
-        code: error.code || 'unknown-error',
-        message: error.message || 'An error occurred querying documents',
+        code: 'invalid-argument',
+        message: 'Collection name is required and must be a string',
       },
     };
   }
+
+  // Validate conditions array
+  if (!Array.isArray(conditions)) {
+    return {
+      data: [],
+      error: {
+        code: 'invalid-argument',
+        message: 'Conditions must be an array',
+      },
+    };
+  }
+
+  // Validate options object
+  if (options && typeof options !== 'object') {
+    return {
+      data: [],
+      error: {
+        code: 'invalid-argument',
+        message: 'Options must be an object',
+      },
+    };
+  }
+
+  // Check if db is available
+  if (!db) {
+    return {
+      data: [],
+      error: {
+        code: 'unavailable',
+        message: 'Database is not available. Please check your connection.',
+      },
+    };
+  }
+
+  return handleAsyncOperation(
+    async () => {
+      let q = query(collection(db, collectionName));
+      
+      // Apply where conditions with validation
+      conditions.forEach((condition) => {
+        if (condition && condition.field && condition.operator && condition.value !== undefined) {
+          q = query(q, where(condition.field, condition.operator, condition.value));
+        }
+      });
+      
+      // NOTE: When using where() with orderBy() on a different field, Firestore requires a composite index.
+      // To avoid index errors, we'll do client-side sorting instead.
+      const hasWhereConditions = conditions.length > 0;
+      const orderByField = options?.orderBy?.field;
+      const orderByMatchesWhere = conditions.some(c => c?.field === orderByField);
+      
+      // Only apply orderBy if no where conditions or orderBy matches a where condition
+      if (options?.orderBy && orderByField && (!hasWhereConditions || orderByMatchesWhere)) {
+        q = query(q, orderBy(orderByField, options.orderBy.direction || 'asc'));
+      }
+      
+      // Apply limit (only if orderBy was applied, otherwise we'll limit after sorting)
+      if (options?.limit && typeof options.limit === 'number' && options.limit > 0 && (!hasWhereConditions || orderByMatchesWhere)) {
+        q = query(q, limit(options.limit));
+      }
+      
+      // Apply pagination (startAfter) - only works with orderBy
+      if (options?.startAfter && (!hasWhereConditions || orderByMatchesWhere)) {
+        q = query(q, startAfter(options.startAfter));
+      }
+      
+      const querySnapshot = await getDocs(q);
+      let documents = querySnapshot.docs.map((doc) => {
+        const docData = doc.data();
+        return {
+          id: doc.id,
+          ...docData,
+          // Convert Firestore Timestamps to ISO strings if necessary
+          createdAt: docData.createdAt?.toDate?.()?.toISOString() || docData.createdAt || null,
+          updatedAt: docData.updatedAt?.toDate?.()?.toISOString() || docData.updatedAt || null,
+          uploadDate: docData.uploadDate?.toDate?.()?.toISOString() || docData.uploadDate || null,
+          dueDate: docData.dueDate?.toDate?.()?.toISOString() || docData.dueDate || null,
+          completedAt: docData.completedAt?.toDate?.()?.toISOString() || docData.completedAt || null,
+        };
+      });
+      
+      // Client-side sorting if orderBy was requested but couldn't be applied in query
+      if (options?.orderBy && orderByField && hasWhereConditions && !orderByMatchesWhere) {
+        documents.sort((a, b) => {
+          const aVal = a[orderByField];
+          const bVal = b[orderByField];
+          if (aVal === null || aVal === undefined) return 1;
+          if (bVal === null || bVal === undefined) return -1;
+          const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+          return options.orderBy.direction === 'desc' ? -comparison : comparison;
+        });
+        
+        // Apply limit after sorting
+        if (options.limit && typeof options.limit === 'number' && options.limit > 0) {
+          documents = documents.slice(0, options.limit);
+        }
+      }
+      
+      return documents;
+    },
+    {
+      timeout: 30000,
+      checkNetwork: true,
+      defaultMessage: 'An error occurred querying documents',
+    }
+  ).then(result => {
+    if (result.error) {
+      // If error is about missing index, provide helpful message
+      if (result.error.code === 'failed-precondition' && result.error.message?.includes('index')) {
+        console.warn('Firestore index required. Using client-side sorting instead. Create index for better performance.');
+        return {
+          data: [],
+          error: {
+            code: 'failed-precondition',
+            message: 'Index required. Please create the required Firestore index for better performance.',
+          },
+        };
+      }
+      
+      return {
+        data: [],
+        error: {
+          code: result.error.code,
+          message: getErrorMessage(result.error, 'An error occurred querying documents'),
+        },
+      };
+    }
+    return { data: result.data || [], error: null };
+  });
 };
 
 /**

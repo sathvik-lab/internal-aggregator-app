@@ -14,7 +14,8 @@ import {
   getBytes,
   getMetadata,
 } from 'firebase/storage';
-import { FILE_LIMITS, STORAGE_PATHS } from '../constants/constants';
+import { FILE_LIMITS, STORAGE_PATHS, ERROR_MESSAGES } from '../constants/constants';
+import { handleAsyncOperation, getErrorMessage, isNetworkError } from '../utils/errorHandler';
 
 /**
  * Convert a file URI to a Blob (for React Native/Expo)
@@ -38,32 +39,85 @@ const uriToBlob = async (uri) => {
  * @throws {Error} Error object with code and message on failure
  */
 export const uploadFile = async (file, path, onProgress = null) => {
-  try {
-    if (!file || !path) {
-      throw { code: 'invalid-argument', message: 'File and path are required' };
-    }
+  // Validate inputs
+  if (!file || typeof file !== 'object') {
+    return {
+      url: null,
+      path: null,
+      error: {
+        code: 'invalid-argument',
+        message: 'File is required and must be an object',
+      },
+    };
+  }
 
-    // Validate file size
-    if (file.size && file.size > FILE_LIMITS.MAX_SIZE_BYTES) {
-      throw {
+  if (!path || typeof path !== 'string') {
+    return {
+      url: null,
+      path: null,
+      error: {
+        code: 'invalid-argument',
+        message: 'Path is required and must be a string',
+      },
+    };
+  }
+
+  if (!file.uri) {
+    return {
+      url: null,
+      path: null,
+      error: {
+        code: 'invalid-argument',
+        message: 'File URI is required',
+      },
+    };
+  }
+
+  // Validate file size
+  if (file.size && file.size > FILE_LIMITS.MAX_SIZE_BYTES) {
+    return {
+      url: null,
+      path: null,
+      error: {
         code: 'storage/file-too-large',
         message: `File size exceeds ${FILE_LIMITS.MAX_SIZE_MB}MB limit`,
-      };
-    }
+      },
+    };
+  }
 
-    // Validate file type
-    const allowedTypes = [...FILE_LIMITS.ALLOWED_IMAGE_TYPES, ...FILE_LIMITS.ALLOWED_DOCUMENT_TYPES];
-    if (file.type && !allowedTypes.includes(file.type)) {
-      throw { code: 'storage/invalid-file-type', message: 'Invalid file type' };
-    }
+  // Validate file type
+  const allowedTypes = [...FILE_LIMITS.ALLOWED_IMAGE_TYPES, ...FILE_LIMITS.ALLOWED_DOCUMENT_TYPES];
+  if (file.type && !allowedTypes.includes(file.type)) {
+    return {
+      url: null,
+      path: null,
+      error: {
+        code: 'storage/invalid-file-type',
+        message: ERROR_MESSAGES.INVALID_FILE_TYPE,
+      },
+    };
+  }
 
-    const storageRef = ref(storage, path);
+  // Check if storage is available
+  if (!storage) {
+    return {
+      url: null,
+      path: null,
+      error: {
+        code: 'unavailable',
+        message: 'Storage is not available. Please check your connection.',
+      },
+    };
+  }
 
-    // Convert URI to Blob for React Native/Expo
+  const storageRef = ref(storage, path);
+
+  // Convert URI to Blob for React Native/Expo
+  try {
     const blob = await uriToBlob(file.uri);
 
     // If progress callback provided, use resumable upload
-    if (onProgress) {
+    if (onProgress && typeof onProgress === 'function') {
       return new Promise((resolve, reject) => {
         const uploadTask = uploadBytesResumable(storageRef, blob, {
           contentType: file.type || 'application/octet-stream',
@@ -72,47 +126,75 @@ export const uploadFile = async (file, path, onProgress = null) => {
         uploadTask.on(
           'state_changed',
           (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            onProgress(progress);
+            try {
+              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              onProgress(Math.min(100, Math.max(0, progress)));
+            } catch (progressError) {
+              console.error('Error in progress callback:', progressError);
+            }
           },
           (error) => {
-            reject(error);
+            reject({
+              code: error.code || 'storage/unknown',
+              message: getErrorMessage(error, 'An error occurred uploading the file'),
+            });
           },
           async () => {
             try {
               const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
               resolve({ url: downloadURL, path, error: null });
             } catch (error) {
-              reject(error);
+              reject({
+                code: error.code || 'storage/unknown',
+                message: getErrorMessage(error, 'An error occurred getting the download URL'),
+              });
             }
           }
         );
-      });
+      }).catch(error => ({
+        url: null,
+        path: null,
+        error: {
+          code: error.code || 'storage/unknown',
+          message: getErrorMessage(error, 'An error occurred uploading the file'),
+        },
+      }));
     } else {
       // Simple upload without progress tracking
-      await uploadBytes(storageRef, blob, {
-        contentType: file.type || 'application/octet-stream',
+      return handleAsyncOperation(
+        async () => {
+          await uploadBytes(storageRef, blob, {
+            contentType: file.type || 'application/octet-stream',
+          });
+          const downloadURL = await getDownloadURL(storageRef);
+          return { url: downloadURL, path };
+        },
+        {
+          timeout: 60000, // Longer timeout for file uploads
+          checkNetwork: true,
+          defaultMessage: 'An error occurred uploading the file',
+        }
+      ).then(result => {
+        if (result.error) {
+          return {
+            url: null,
+            path: null,
+            error: {
+              code: result.error.code,
+              message: getErrorMessage(result.error, 'An error occurred uploading the file'),
+            },
+          };
+        }
+        return { ...result.data, error: null };
       });
-      const downloadURL = await getDownloadURL(storageRef);
-      return { url: downloadURL, path, error: null };
     }
   } catch (error) {
-    // Map Storage error codes to user-friendly messages
-    const errorMessages = {
-      'storage/unauthorized': 'You do not have permission to upload files',
-      'storage/canceled': 'Upload was canceled',
-      'storage/unknown': 'An unknown error occurred',
-      'storage/invalid-argument': 'Invalid file or path provided',
-      'storage/file-too-large': `File size exceeds ${FILE_LIMITS.MAX_SIZE_MB}MB limit`,
-      'storage/invalid-file-type': 'Invalid file type. Please select a supported file',
-    };
-
     return {
       url: null,
       path: null,
       error: {
         code: error.code || 'storage/unknown',
-        message: errorMessages[error.code] || error.message || 'An error occurred uploading the file',
+        message: getErrorMessage(error, 'An error occurred uploading the file'),
       },
     };
   }
