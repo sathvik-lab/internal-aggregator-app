@@ -8,7 +8,7 @@
 import React, { useRef } from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View, Platform, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/colors';
+import { useTheme } from '../../context/ThemeContext';
 import { TOUCH_TARGETS, PADDING, moderateScale } from '../../utils/responsive';
 
 /**
@@ -43,23 +43,25 @@ const Button = ({
     textStyle,
     ...props
 }) => {
+    const { colors } = useTheme();
+    
     // Determine if button should be disabled
     const isDisabled = disabled || loading;
 
     // Get variant styles
     const getVariantStyles = () => {
-        const customColor = color || COLORS.primary;
+        const customColor = color || colors.primary;
         
         switch (variant) {
             case 'primary':
                 return {
-                    backgroundColor: isDisabled ? COLORS.border : customColor,
+                    backgroundColor: isDisabled ? colors.border : customColor,
                     borderWidth: 0,
                     borderColor: 'transparent',
                 };
             case 'secondary':
                 return {
-                    backgroundColor: isDisabled ? COLORS.border : COLORS.secondary,
+                    backgroundColor: isDisabled ? colors.border : colors.secondary,
                     borderWidth: 0,
                     borderColor: 'transparent',
                 };
@@ -67,7 +69,7 @@ const Button = ({
                 return {
                     backgroundColor: 'transparent',
                     borderWidth: 2,
-                    borderColor: isDisabled ? COLORS.border : customColor,
+                    borderColor: isDisabled ? colors.border : customColor,
                 };
             case 'text':
                 return {
@@ -77,7 +79,7 @@ const Button = ({
                 };
             default:
                 return {
-                    backgroundColor: isDisabled ? COLORS.border : customColor,
+                    backgroundColor: isDisabled ? colors.border : customColor,
                     borderWidth: 0,
                     borderColor: 'transparent',
                 };
@@ -86,21 +88,21 @@ const Button = ({
 
     // Get text color based on variant
     const getTextColor = () => {
-        const customColor = color || COLORS.primary;
+        const customColor = color || colors.primary;
         
         if (isDisabled) {
-            return COLORS.textLight;
+            return colors.textLight;
         }
         
         switch (variant) {
             case 'primary':
             case 'secondary':
-                return COLORS.textInverse;
+                return colors.textInverse;
             case 'outline':
             case 'text':
                 return customColor;
             default:
-                return COLORS.textInverse;
+                return colors.textInverse;
         }
     };
 

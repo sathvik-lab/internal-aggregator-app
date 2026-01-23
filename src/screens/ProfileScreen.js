@@ -20,7 +20,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Switch, Divider } from 'react-native-paper';
 import { useAuth } from '../context/AuthContext';
-import { COLORS } from '../constants/colors';
+import { useTheme, THEME_MODES } from '../context/ThemeContext';
 import { getDocument, queryDocuments, updateDocument } from '../services/firestore';
 import { updateUserProfile } from '../services/auth';
 import EditProfileModal from '../components/profile/EditProfileModal';
@@ -47,8 +47,10 @@ const SettingsRow = ({
     onPress,
     rightComponent,
     showChevron = true,
-    iconColor = COLORS.textSecondary,
+    iconColor,
+    colors,
 }) => {
+    const defaultIconColor = iconColor || colors?.textSecondary || '#4A5568';
     return (
         <TouchableOpacity
             style={styles.settingsRow}
@@ -58,23 +60,23 @@ const SettingsRow = ({
         >
             <View style={styles.settingsRowLeft}>
                 {icon && (
-                    <View style={[styles.settingsIconContainer, { backgroundColor: `${iconColor}15` }]}>
-                        <MaterialCommunityIcons name={icon} size={20} color={iconColor} />
+                    <View style={[styles.settingsIconContainer, { backgroundColor: `${defaultIconColor}15` }]}>
+                        <MaterialCommunityIcons name={icon} size={20} color={defaultIconColor} />
                     </View>
                 )}
                 <View style={styles.settingsRowContent}>
-                    <Text style={styles.settingsRowTitle}>{title}</Text>
-                    {subtitle && <Text style={styles.settingsRowSubtitle}>{subtitle}</Text>}
+                    <Text style={[styles.settingsRowTitle, { color: colors?.text }]}>{title}</Text>
+                    {subtitle && <Text style={[styles.settingsRowSubtitle, { color: colors?.textSecondary }]}>{subtitle}</Text>}
                 </View>
             </View>
             <View style={styles.settingsRowRight}>
-                {value && <Text style={styles.settingsRowValue}>{value}</Text>}
+                {value && <Text style={[styles.settingsRowValue, { color: colors?.textSecondary }]}>{value}</Text>}
                 {rightComponent}
                 {showChevron && onPress && (
                     <MaterialCommunityIcons
                         name="chevron-right"
                         size={20}
-                        color={COLORS.textLight}
+                        color={colors?.textLight}
                         style={styles.chevron}
                     />
                 )}
@@ -86,11 +88,11 @@ const SettingsRow = ({
 /**
  * Settings Section Component
  */
-const SettingsSection = ({ title, children }) => {
+const SettingsSection = ({ title, children, colors }) => {
     return (
         <View style={styles.settingsSection}>
-            {title && <Text style={styles.settingsSectionTitle}>{title}</Text>}
-            <View style={styles.settingsSectionContent}>{children}</View>
+            {title && <Text style={[styles.settingsSectionTitle, { color: colors?.textSecondary }]}>{title}</Text>}
+            <View style={[styles.settingsSectionContent, { backgroundColor: colors?.surface, borderColor: colors?.border }]}>{children}</View>
         </View>
     );
 };
@@ -100,6 +102,7 @@ const SettingsSection = ({ title, children }) => {
  */
 const ProfileScreen = () => {
     const { user, signOut } = useAuth();
+    const { colors, theme, setTheme, isDark } = useTheme();
     const [loading, setLoading] = useState(true);
     const [userPreferences, setUserPreferences] = useState({
         emailNotifications: true,
@@ -317,17 +320,17 @@ const ProfileScreen = () => {
 
     if (loading) {
         return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
+            <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+                <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
     }
 
     return (
         <>
-        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
             {/* Header Section */}
-            <View style={styles.header}>
+            <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
                 <View style={styles.profileHeader}>
                     {/* Profile Picture */}
                     <TouchableOpacity
@@ -338,59 +341,137 @@ const ProfileScreen = () => {
                         {user?.photoURL ? (
                             <Image source={{ uri: user.photoURL }} style={styles.profilePicture} />
                         ) : (
-                            <View style={styles.profilePicturePlaceholder}>
-                                <Text style={styles.profilePictureText}>{getUserInitials()}</Text>
+                            <View style={[styles.profilePicturePlaceholder, { backgroundColor: colors.primary }]}>
+                                <Text style={[styles.profilePictureText, { color: colors.textInverse }]}>{getUserInitials()}</Text>
                             </View>
                         )}
-                        <View style={styles.editProfileBadge}>
-                            <MaterialCommunityIcons name="camera" size={16} color={COLORS.textInverse} />
+                        <View style={[styles.editProfileBadge, { backgroundColor: colors.primary, borderColor: colors.surface }]}>
+                            <MaterialCommunityIcons name="camera" size={16} color={colors.textInverse} />
                         </View>
                     </TouchableOpacity>
 
                     {/* User Info */}
                     <View style={styles.userInfo}>
-                        <Text style={styles.userName}>{user?.displayName || 'User'}</Text>
-                        <Text style={styles.userEmail}>{user?.email || ''}</Text>
+                        <Text style={[styles.userName, { color: colors.text }]}>{user?.displayName || 'User'}</Text>
+                        <Text style={[styles.userEmail, { color: colors.textSecondary }]}>{user?.email || ''}</Text>
                     </View>
 
                     {/* Edit Button */}
                     <TouchableOpacity
-                        style={styles.editButton}
+                        style={[styles.editButton, { borderColor: colors.primary, backgroundColor: colors.surface }]}
                         onPress={handleEditProfile}
                         activeOpacity={0.7}
                     >
-                        <MaterialCommunityIcons name="pencil" size={20} color={COLORS.primary} />
-                        <Text style={styles.editButtonText}>Edit</Text>
+                        <MaterialCommunityIcons name="pencil" size={20} color={colors.primary} />
+                        <Text style={[styles.editButtonText, { color: colors.primary }]}>Edit</Text>
                     </TouchableOpacity>
                 </View>
             </View>
 
             {/* Account Settings Section */}
-            <SettingsSection title="Account Settings">
+            <SettingsSection title="Account Settings" colors={colors}>
                 <SettingsRow
                     icon="account-outline"
                     title="Name"
                     subtitle={user?.displayName || 'Not set'}
                     onPress={() => handleAccountSettings('name')}
+                    colors={colors}
                 />
-                <Divider style={styles.divider} />
+                <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
                 <SettingsRow
                     icon="email-outline"
                     title="Email"
                     subtitle={user?.email || 'Not set'}
                     onPress={() => handleAccountSettings('email')}
+                    colors={colors}
                 />
-                <Divider style={styles.divider} />
+                <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
                 <SettingsRow
                     icon="lock-outline"
                     title="Password"
                     subtitle="Change your password"
                     onPress={() => handleAccountSettings('password')}
+                    colors={colors}
+                />
+            </SettingsSection>
+
+            {/* Appearance Section */}
+            <SettingsSection title="Appearance" colors={colors}>
+                <SettingsRow
+                    icon="theme-light-dark"
+                    title="Theme"
+                    subtitle={theme === THEME_MODES.SYSTEM ? 'Follow system' : theme === THEME_MODES.DARK ? 'Dark mode' : 'Light mode'}
+                    rightComponent={
+                        <View style={styles.themeSelector}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.themeOption,
+                                    { borderColor: colors.border },
+                                    theme === THEME_MODES.LIGHT && [styles.themeOptionActive, { borderColor: colors.primary }]
+                                ]}
+                                onPress={() => setTheme(THEME_MODES.LIGHT)}
+                                activeOpacity={0.7}
+                                accessibilityLabel="Light mode"
+                                accessibilityRole="button"
+                                accessibilityState={{ selected: theme === THEME_MODES.LIGHT }}
+                            >
+                                <MaterialCommunityIcons
+                                    name="weather-sunny"
+                                    size={18}
+                                    color={theme === THEME_MODES.LIGHT ? colors.primary : colors.textSecondary}
+                                    accessibilityElementsHidden={true}
+                                    importantForAccessibility="no-hide-descendants"
+                                />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[
+                                    styles.themeOption,
+                                    { borderColor: colors.border },
+                                    theme === THEME_MODES.SYSTEM && [styles.themeOptionActive, { borderColor: colors.primary }]
+                                ]}
+                                onPress={() => setTheme(THEME_MODES.SYSTEM)}
+                                activeOpacity={0.7}
+                                accessibilityLabel="System theme"
+                                accessibilityRole="button"
+                                accessibilityState={{ selected: theme === THEME_MODES.SYSTEM }}
+                            >
+                                <MaterialCommunityIcons
+                                    name="cellphone-settings"
+                                    size={18}
+                                    color={theme === THEME_MODES.SYSTEM ? colors.primary : colors.textSecondary}
+                                    accessibilityElementsHidden={true}
+                                    importantForAccessibility="no-hide-descendants"
+                                />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[
+                                    styles.themeOption,
+                                    { borderColor: colors.border },
+                                    theme === THEME_MODES.DARK && [styles.themeOptionActive, { borderColor: colors.primary }]
+                                ]}
+                                onPress={() => setTheme(THEME_MODES.DARK)}
+                                activeOpacity={0.7}
+                                accessibilityLabel="Dark mode"
+                                accessibilityRole="button"
+                                accessibilityState={{ selected: theme === THEME_MODES.DARK }}
+                            >
+                                <MaterialCommunityIcons
+                                    name="weather-night"
+                                    size={18}
+                                    color={theme === THEME_MODES.DARK ? colors.primary : colors.textSecondary}
+                                    accessibilityElementsHidden={true}
+                                    importantForAccessibility="no-hide-descendants"
+                                />
+                            </TouchableOpacity>
+                        </View>
+                    }
+                    colors={colors}
+                    showChevron={false}
                 />
             </SettingsSection>
 
             {/* Notification Preferences Section */}
-            <SettingsSection title="Notification Preferences">
+            <SettingsSection title="Notification Preferences" colors={colors}>
                 <SettingsRow
                     icon="email-outline"
                     title="Email Notifications"
@@ -399,12 +480,13 @@ const ProfileScreen = () => {
                         <Switch
                             value={userPreferences.emailNotifications}
                             onValueChange={() => handleNotificationToggle('emailNotifications')}
-                            color={COLORS.primary}
+                            color={colors.primary}
                         />
                     }
+                    colors={colors}
                     showChevron={false}
                 />
-                <Divider style={styles.divider} />
+                <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
                 <SettingsRow
                     icon="bell-outline"
                     title="Push Notifications"
@@ -413,12 +495,13 @@ const ProfileScreen = () => {
                         <Switch
                             value={userPreferences.pushNotifications}
                             onValueChange={() => handleNotificationToggle('pushNotifications')}
-                            color={COLORS.primary}
+                            color={colors.primary}
                         />
                     }
+                    colors={colors}
                     showChevron={false}
                 />
-                <Divider style={styles.divider} />
+                <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
                 <SettingsRow
                     icon="bell-ring-outline"
                     title="Checklist Reminders"
@@ -427,85 +510,94 @@ const ProfileScreen = () => {
                         <Switch
                             value={userPreferences.checklistReminders}
                             onValueChange={() => handleNotificationToggle('checklistReminders')}
-                            color={COLORS.primary}
+                            color={colors.primary}
                         />
                     }
+                    colors={colors}
                     showChevron={false}
                 />
             </SettingsSection>
 
             {/* Document Storage Section */}
-            <SettingsSection title="Document Storage">
+            <SettingsSection title="Document Storage" colors={colors}>
                 <SettingsRow
                     icon="database-outline"
                     title="Storage Used"
                     subtitle="Total space used by your documents"
                     value={storageLoading ? 'Calculating...' : formatFileSize(storageUsed)}
+                    colors={colors}
                     showChevron={false}
                 />
-                <Divider style={styles.divider} />
+                <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
                 <SettingsRow
                     icon="cloud-outline"
                     title="Storage Limit"
                     subtitle="Maximum storage capacity"
                     value="10 GB"
+                    colors={colors}
                     showChevron={false}
                 />
             </SettingsSection>
 
             {/* Checklist Settings Section */}
-            <SettingsSection title="Checklist Settings">
+            <SettingsSection title="Checklist Settings" colors={colors}>
                 <SettingsRow
                     icon="clock-outline"
                     title="Reminder Time"
                     subtitle={`Daily reminders at ${userPreferences.reminderTime}`}
                     onPress={handleChecklistSettings}
+                    colors={colors}
                 />
-                <Divider style={styles.divider} />
+                <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
                 <SettingsRow
                     icon="calendar-clock"
                     title="Default Frequency"
                     subtitle={`Default checklist frequency: ${userPreferences.checklistFrequency}`}
                     onPress={handleChecklistSettings}
+                    colors={colors}
                 />
             </SettingsSection>
 
             {/* App Information Section */}
-            <SettingsSection title="App Information">
+            <SettingsSection title="App Information" colors={colors}>
                 <SettingsRow
                     icon="information-outline"
                     title="About"
                     onPress={() => handleAppInfo('about')}
+                    colors={colors}
                 />
-                <Divider style={styles.divider} />
+                <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
                 <SettingsRow
                     icon="shield-check-outline"
                     title="Privacy Policy"
                     onPress={() => handleAppInfo('privacy')}
+                    colors={colors}
                 />
-                <Divider style={styles.divider} />
+                <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
                 <SettingsRow
                     icon="file-document-outline"
                     title="Terms of Service"
                     onPress={() => handleAppInfo('terms')}
+                    colors={colors}
                 />
-                <Divider style={styles.divider} />
+                <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
                 <SettingsRow
                     icon="tag-outline"
                     title="App Version"
                     subtitle="1.0.0"
+                    colors={colors}
                     showChevron={false}
                 />
             </SettingsSection>
 
             {/* Logout Button */}
             <TouchableOpacity
-                style={styles.logoutButton}
+                style={[styles.logoutButton, { backgroundColor: colors.surface, borderColor: colors.error }]}
                 onPress={handleSignOut}
                 activeOpacity={0.7}
             >
-                <MaterialCommunityIcons name="logout" size={20} color={COLORS.error} />
-                <Text style={styles.logoutButtonText}>Sign Out</Text>
+                <MaterialCommunityIcons name="logout" size={20} color={colors.error} />
+                <Text style={[styles.logoutButtonText, { color: colors.error }]}>Sign Out</Text>
             </TouchableOpacity>
 
             {/* Bottom spacing */}
@@ -525,21 +617,17 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.background,
     },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: COLORS.background,
     },
     header: {
-        backgroundColor: COLORS.surface,
         paddingTop: Platform.OS === 'ios' ? 60 : 20,
         paddingBottom: 24,
         paddingHorizontal: 20,
         borderBottomWidth: 1,
-        borderBottomColor: COLORS.border,
     },
     profileHeader: {
         alignItems: 'center',
@@ -552,20 +640,17 @@ const styles = StyleSheet.create({
         width: 100,
         height: 100,
         borderRadius: 50,
-        backgroundColor: COLORS.backgroundSecondary,
     },
     profilePicturePlaceholder: {
         width: 100,
         height: 100,
         borderRadius: 50,
-        backgroundColor: COLORS.primary,
         justifyContent: 'center',
         alignItems: 'center',
     },
     profilePictureText: {
         fontSize: 36,
         fontWeight: 'bold',
-        color: COLORS.textInverse,
     },
     editProfileBadge: {
         position: 'absolute',
@@ -574,11 +659,9 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: COLORS.primary,
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 3,
-        borderColor: COLORS.surface,
         ...Platform.select({
             ios: {
                 shadowColor: '#000',
@@ -598,12 +681,10 @@ const styles = StyleSheet.create({
     userName: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: COLORS.text,
         marginBottom: 4,
     },
     userEmail: {
         fontSize: 16,
-        color: COLORS.textSecondary,
     },
     editButton: {
         flexDirection: 'row',
@@ -612,13 +693,10 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: COLORS.primary,
-        backgroundColor: COLORS.surface,
     },
     editButtonText: {
         fontSize: 14,
         fontWeight: '600',
-        color: COLORS.primary,
         marginLeft: 6,
     },
     settingsSection: {
@@ -627,17 +705,30 @@ const styles = StyleSheet.create({
     settingsSectionTitle: {
         fontSize: 13,
         fontWeight: '600',
-        color: COLORS.textSecondary,
         textTransform: 'uppercase',
         paddingHorizontal: 20,
         marginBottom: 8,
         letterSpacing: 0.5,
     },
     settingsSectionContent: {
-        backgroundColor: COLORS.surface,
         borderTopWidth: 1,
         borderBottomWidth: 1,
-        borderColor: COLORS.border,
+    },
+    themeSelector: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    themeOption: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+    },
+    themeOptionActive: {
+        borderWidth: 2,
     },
     settingsRow: {
         flexDirection: 'row',
@@ -665,12 +756,10 @@ const styles = StyleSheet.create({
     },
     settingsRowTitle: {
         fontSize: 16,
-        color: COLORS.text,
         fontWeight: '500',
     },
     settingsRowSubtitle: {
         fontSize: 14,
-        color: COLORS.textSecondary,
         marginTop: 2,
     },
     settingsRowRight: {
@@ -679,7 +768,6 @@ const styles = StyleSheet.create({
     },
     settingsRowValue: {
         fontSize: 14,
-        color: COLORS.textSecondary,
         marginRight: 8,
     },
     chevron: {
@@ -687,24 +775,20 @@ const styles = StyleSheet.create({
     },
     divider: {
         marginLeft: 68, // Align with content (icon + margin)
-        backgroundColor: COLORS.border,
     },
     logoutButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: COLORS.surface,
         marginHorizontal: 20,
         marginTop: 24,
         paddingVertical: 16,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: COLORS.error,
     },
     logoutButtonText: {
         fontSize: 16,
         fontWeight: '600',
-        color: COLORS.error,
         marginLeft: 8,
     },
     bottomSpacing: {

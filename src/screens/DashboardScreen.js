@@ -30,7 +30,7 @@ import ChecklistItem from '../components/checklist/ChecklistItem';
 import DocumentItem from '../components/documents/DocumentItem';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
 import EmptyState from '../components/common/EmptyState';
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../context/ThemeContext';
 import { queryDocuments, setupRealtimeListener } from '../services/firestore';
 import { CHECKLIST_STATUS } from '../constants/constants';
 import { PADDING, SPACING, moderateScale, getGridColumns, isTablet, isLandscape } from '../utils/responsive';
@@ -39,6 +39,7 @@ import { ROUTES } from '../navigation/navigationConfig';
 const DashboardScreen = () => {
     const navigation = useNavigation();
     const { user } = useAuth();
+    const { colors } = useTheme();
 
     // State management
     const [loading, setLoading] = useState(true);
@@ -404,10 +405,10 @@ const DashboardScreen = () => {
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        tintColor={COLORS.primary}
-                        colors={[COLORS.primary]}
+                        tintColor={colors.primary}
+                        colors={[colors.primary]}
                         progressViewOffset={Platform.OS === 'android' ? 20 : 0}
-                        progressBackgroundColor={COLORS.surface}
+                        progressBackgroundColor={colors.surface}
                     />
                 }
             >
@@ -425,7 +426,7 @@ const DashboardScreen = () => {
                                     label="Total Documents"
                                     subtitle="All compliance docs"
                                     onPress={handleDocumentsPress}
-                                    color={COLORS.info}
+                                    color={colors.info}
                                 />
                             </View>
 
@@ -437,7 +438,7 @@ const DashboardScreen = () => {
                                     label="Pending Checklists"
                                     subtitle={stats.dueToday > 0 ? `${stats.dueToday} due today` : 'All up to date'}
                                     onPress={handleChecklistPress}
-                                    color={stats.dueToday > 0 ? COLORS.warning : COLORS.success}
+                                    color={stats.dueToday > 0 ? colors.warning : colors.success}
                                 />
                             </View>
 
@@ -448,7 +449,7 @@ const DashboardScreen = () => {
                                     value={`${stats.complianceScore}%`}
                                     label="Compliance Score"
                                     subtitle={stats.complianceScore >= 80 ? 'Good' : stats.complianceScore >= 60 ? 'At Risk' : 'Needs Attention'}
-                                    color={stats.complianceScore >= 80 ? COLORS.success : stats.complianceScore >= 60 ? COLORS.warning : COLORS.error}
+                                    color={stats.complianceScore >= 80 ? colors.success : stats.complianceScore >= 60 ? colors.warning : colors.error}
                                 />
                             </View>
 
@@ -459,7 +460,7 @@ const DashboardScreen = () => {
                                     value={stats.recentActivity}
                                     label="Recent Activity"
                                     subtitle="Last 7 days"
-                                    color={COLORS.accent}
+                                    color={colors.accent}
                                 />
                             </View>
                         </View>
@@ -477,7 +478,7 @@ const DashboardScreen = () => {
                     <View style={styles.section} accessibilityRole="region" accessibilityLabel="Today's Tasks section">
                         <View style={styles.sectionHeader}>
                             <Text 
-                                style={styles.sectionTitle}
+                                style={[styles.sectionTitle, { color: colors.text }]}
                                 accessibilityRole="header"
                                 accessibilityLevel={2}
                             >
@@ -491,7 +492,7 @@ const DashboardScreen = () => {
                                     accessibilityHint="Double tap to view all checklist items"
                                     accessibilityRole="button"
                                 >
-                                    <Text style={styles.viewAllText}>View All</Text>
+                                    <Text style={[styles.viewAllText, { color: colors.primary }]}>View All</Text>
                                 </TouchableOpacity>
                             )}
                         </View>
@@ -519,7 +520,7 @@ const DashboardScreen = () => {
                     <View style={styles.section} accessibilityRole="region" accessibilityLabel="Recent Documents section">
                         <View style={styles.sectionHeader}>
                             <Text 
-                                style={styles.sectionTitle}
+                                style={[styles.sectionTitle, { color: colors.text }]}
                                 accessibilityRole="header"
                                 accessibilityLevel={2}
                             >
@@ -533,7 +534,7 @@ const DashboardScreen = () => {
                                     accessibilityHint="Double tap to view all documents"
                                     accessibilityRole="button"
                                 >
-                                    <Text style={styles.viewAllText}>View All</Text>
+                                    <Text style={[styles.viewAllText, { color: colors.primary }]}>View All</Text>
                                 </TouchableOpacity>
                             )}
                         </View>
@@ -564,7 +565,6 @@ const DashboardScreen = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.background,
     },
     scrollView: {
         flex: 1,
@@ -595,11 +595,9 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: moderateScale(18),
         fontWeight: 'bold',
-        color: COLORS.text,
     },
     viewAllText: {
         fontSize: moderateScale(14),
-        color: COLORS.primary,
         fontWeight: '600',
     },
 });

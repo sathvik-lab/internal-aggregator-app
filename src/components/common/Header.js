@@ -9,7 +9,7 @@ import React, { memo, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { COLORS } from '../../constants/colors';
+import { useTheme } from '../../context/ThemeContext';
 
 /**
  * Format date to readable string
@@ -66,6 +66,7 @@ const Header = ({
     showNotifications = true,
 }) => {
     const { user } = useAuth();
+    const { colors } = useTheme();
 
     // Memoize user data calculations
     const userName = useMemo(() => {
@@ -113,12 +114,12 @@ const Header = ({
     }, [onProfilePress]);
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
             <View style={styles.headerContent}>
                 {/* Left section - Greeting and Date */}
                 <View style={styles.leftSection}>
                     <Text 
-                        style={styles.greeting}
+                        style={[styles.greeting, { color: colors.text }]}
                         accessibilityRole="header"
                         accessibilityLevel={1}
                     >
@@ -126,7 +127,7 @@ const Header = ({
                     </Text>
                     {showDate && (
                         <Text 
-                            style={styles.date}
+                            style={[styles.date, { color: colors.textSecondary }]}
                             accessibilityLabel={`Today is ${currentDate}`}
                         >
                             {currentDate}
@@ -139,7 +140,7 @@ const Header = ({
                     {/* Notification Bell */}
                     {showNotifications && (
                         <TouchableOpacity
-                            style={styles.iconButton}
+                            style={[styles.iconButton, { backgroundColor: colors.backgroundSecondary }]}
                             onPress={handleNotificationPress}
                             activeOpacity={0.7}
                             accessibilityLabel={notificationLabel}
@@ -150,17 +151,17 @@ const Header = ({
                             <MaterialCommunityIcons
                                 name="bell-outline"
                                 size={24}
-                                color={COLORS.text}
+                                color={colors.text}
                                 accessibilityElementsHidden={true}
                                 importantForAccessibility="no-hide-descendants"
                             />
                             {notificationCount > 0 && (
                                 <View 
-                                    style={styles.notificationBadge}
+                                    style={[styles.notificationBadge, { backgroundColor: colors.error, borderColor: colors.surface }]}
                                     accessibilityElementsHidden={true}
                                     importantForAccessibility="no-hide-descendants"
                                 >
-                                    <Text style={styles.notificationBadgeText}>
+                                    <Text style={[styles.notificationBadgeText, { color: colors.textInverse }]}>
                                         {notificationBadgeText}
                                     </Text>
                                 </View>
@@ -178,9 +179,9 @@ const Header = ({
                             accessibilityHint="Double tap to view your profile"
                             accessibilityRole="button"
                         >
-                            <View style={styles.avatar}>
+                            <View style={[styles.avatar, { backgroundColor: colors.primary, borderColor: colors.primaryLight }]}>
                                 <Text 
-                                    style={styles.avatarText}
+                                    style={[styles.avatarText, { color: colors.textInverse }]}
                                     accessibilityElementsHidden={true}
                                     importantForAccessibility="no-hide-descendants"
                                 >
@@ -197,12 +198,10 @@ const Header = ({
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: COLORS.surface,
         paddingTop: Platform.OS === 'ios' ? 0 : 8,
         paddingBottom: 16,
         paddingHorizontal: 20,
         borderBottomWidth: 1,
-        borderBottomColor: COLORS.border,
         // Shadow for depth
         ...Platform.select({
             ios: {
@@ -228,12 +227,10 @@ const styles = StyleSheet.create({
     greeting: {
         fontSize: 22,
         fontWeight: 'bold',
-        color: COLORS.text,
         marginBottom: 4,
     },
     date: {
         fontSize: 14,
-        color: COLORS.textSecondary,
         fontWeight: '500',
     },
     rightSection: {
@@ -246,7 +243,6 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: COLORS.backgroundSecondary,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -254,7 +250,6 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 2,
         right: 2,
-        backgroundColor: COLORS.error,
         borderRadius: 10,
         minWidth: 20,
         height: 20,
@@ -262,10 +257,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 2,
-        borderColor: COLORS.surface,
     },
     notificationBadgeText: {
-        color: COLORS.textInverse,
         fontSize: 10,
         fontWeight: 'bold',
     },
@@ -276,15 +269,12 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: COLORS.primary,
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 2,
-        borderColor: COLORS.primaryLight,
         // Subtle shadow
         ...Platform.select({
             ios: {
-                shadowColor: COLORS.primary,
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.3,
                 shadowRadius: 3,
@@ -295,7 +285,6 @@ const styles = StyleSheet.create({
         }),
     },
     avatarText: {
-        color: COLORS.textInverse,
         fontSize: 16,
         fontWeight: 'bold',
     },
