@@ -6,7 +6,7 @@
  * Used for action sheets, filters, forms, and modals throughout the app.
  */
 
-import React, { useEffect, useRef, memo, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, memo, useCallback, useMemo, useState } from 'react';
 import {
     View,
     Text,
@@ -51,6 +51,7 @@ const BottomSheet = ({
     const backdropOpacity = useRef(new Animated.Value(0)).current;
     const panY = useRef(new Animated.Value(0)).current;
     const lastGestureDy = useRef(0);
+    const [internalVisible, setInternalVisible] = useState(false);
 
     // Memoize sheet height calculation
     const sheetHeight = useMemo(() => {
@@ -65,7 +66,22 @@ const BottomSheet = ({
         }
     }, [height]);
 
+    // Ref for mutable onClose dependency
+    const latestOnCloseRef = useRef(onClose);
+    
+    useEffect(() => {
+        latestOnCloseRef.current = onClose;
+    }, [onClose]);
+
+    const closeSheetRef = useCallback(() => {
+        if (latestOnCloseRef.current) {
+            latestOnCloseRef.current();
+        }
+    }, []);
+
     // Pan responder for drag gestures
+    const panOffsetRef = useRef(0);
+    
     const panResponder = useRef(
         PanResponder.create({
             onStartShouldSetPanResponder: () => true,
@@ -74,8 +90,8 @@ const BottomSheet = ({
                 return Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
             },
             onPanResponderGrant: () => {
-                panY.setOffset(panY._value);
-                panY.setValue(0);
+                panY.extractOffset();
+                panOffsetRef.current = panY._value || 0;
             },
             onPanResponderMove: (_, gestureState) => {
                 // Only allow downward dragging
@@ -89,7 +105,7 @@ const BottomSheet = ({
                 const shouldClose = gestureState.dy > 100 || gestureState.vy > 0.5;
                 
                 if (shouldClose) {
-                    closeSheet();
+                    closeSheetRef();
                 } else {
                     // Snap back to original position
                     Animated.spring(panY, {
@@ -106,6 +122,7 @@ const BottomSheet = ({
     // Animate sheet in/out
     useEffect(() => {
         if (visible) {
+            setInternalVisible(true);
             // Reset pan value
             panY.setValue(0);
             
@@ -123,7 +140,7 @@ const BottomSheet = ({
                 tension: 65,
                 friction: 11,
             }).start();
-        } else {
+        } else if (internalVisible) {
             // Animate backdrop fade out
             Animated.timing(backdropOpacity, {
                 toValue: 0,
@@ -136,15 +153,17 @@ const BottomSheet = ({
                 toValue: SCREEN_HEIGHT,
                 duration: 250,
                 useNativeDriver: true,
-            }).start();
+            }).start(() => {
+                setInternalVisible(false);
+            });
         }
-    }, [visible]);
+    }, [visible, internalVisible]);
 
     const closeSheet = useCallback(() => {
-        if (onClose) {
-            onClose();
+        if (latestOnCloseRef.current) {
+            latestOnCloseRef.current();
         }
-    }, [onClose]);
+    }, []);
 
     const handleBackdropPress = useCallback(() => {
         if (dismissible) {
@@ -155,7 +174,7 @@ const BottomSheet = ({
     // Combine slide animation with pan gesture
     const translateY = Animated.add(slideAnim, panY);
 
-    if (!visible) {
+    if (!internalVisible) {
         return null;
     }
 
@@ -217,11 +236,13 @@ const BottomSheet = ({
                     {title && (
                         <View style={styles.titleContainer}>
                             <View style={styles.titleContent}>
-                                <MaterialCommunityIcons
-                                    name="drag-horizontal"
-                                    size={20}
-                                    color={COLORS.textLight}
-                                />
+                                {showHandle && (
+                                    <MaterialCommunityIcons
+                                        name="drag-horizontal"
+                                        size={20}
+                                        color={COLORS.textLight}
+                                    />
+                                )}
                                 <View style={styles.titleTextContainer}>
                                     <Text style={styles.titleText}>{title}</Text>
                                 </View>

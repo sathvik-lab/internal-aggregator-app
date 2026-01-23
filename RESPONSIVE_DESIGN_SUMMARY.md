@@ -54,7 +54,7 @@ import {
 - Buttons, icons, and tappable areas are properly sized
 
 ### 2. Spacing & Padding
-- Screen padding adapts: 12px (small), 16px (medium), 32px (tablets)
+- Screen padding adapts: 12 points (small), 16 points (medium), 32 points (tablets)
 - Consistent spacing system using `SPACING` constants
 - Card padding scales appropriately
 
@@ -75,10 +75,10 @@ import {
 ## Screen Size Breakpoints
 
 ```javascript
-SMALL: 375px   // iPhone SE, small Android phones
-MEDIUM: 414px  // iPhone 11 Pro Max, most Android phones
-LARGE: 768px   // iPad Mini, small tablets
-XLARGE: 1024px // iPad Pro, large tablets
+SMALL: 375 points   // iPhone SE, small Android phones
+MEDIUM: 414 points  // iPhone 11 Pro Max, most Android phones
+LARGE: 768 points   // iPad Mini, small tablets
+XLARGE: 1024 points // iPad Pro, large tablets
 ```
 
 ## Responsive Constants Available
@@ -96,7 +96,7 @@ XLARGE: 1024px // iPad Pro, large tablets
 - `FONT_SIZES.XS` through `FONT_SIZES.XXXL`
 
 ### Touch Targets
-- `TOUCH_TARGETS.MINIMUM` (44px)
+- `TOUCH_TARGETS.MINIMUM` (44 points)
 - `TOUCH_TARGETS.SMALL`, `MEDIUM`, `LARGE`
 
 ### Image & Icon Sizes
@@ -135,6 +135,6 @@ XLARGE: 1024px // iPad Pro, large tablets
 ## Notes
 
 - The responsive utilities are designed to work with React Native's `Dimensions` API
-- All scaling functions use a base reference size (375px width for phones)
+- All scaling functions use a base reference size (375 points width for phones)
 - The system automatically adjusts for different device densities
 - Landscape orientation is detected and can be used for layout adjustments

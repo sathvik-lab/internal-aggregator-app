@@ -110,7 +110,7 @@ When test mode expires (after 30 days) or you're ready for production:
 
 1. **No code changes needed** - rules are the same
 2. **Just ensure rules are deployed** in Firebase Console
-3. **Test mode automatically becomes production mode** after 30 days
+3. **Important**: Firestore does not automatically switch modes. When test mode expires after 30 days, the permissive default rules simply expire, causing restrictive behavior (denying access) until proper security rules are deployed. Ensure production security rules are deployed before test mode expires.
 
 ## Summary
 

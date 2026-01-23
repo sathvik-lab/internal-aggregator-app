@@ -98,7 +98,7 @@ const totalChecklists = checklistItems.length;
 const completedChecklists = checklistItems.filter((item) => item.completed).length;
 const completionRate = totalChecklists > 0 
   ? (completedChecklists / totalChecklists) * 100 
-  : 100;
+  : 0; // Return 0 when no checklists exist, not 100
 
 // Step 2: Calculate compliance score
 const complianceScore = Math.round(

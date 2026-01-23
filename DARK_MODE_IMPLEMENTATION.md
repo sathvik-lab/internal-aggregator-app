@@ -49,12 +49,12 @@ const MyComponent = () => {
 1. **ThemeContext** - Created with light/dark/system modes
 2. **Color Schemes** - Light and dark color palettes defined
 3. **App.js** - Wrapped with ThemeProvider
-4. **ProfileScreen** - Theme toggle added with AsyncStorage persistence
-5. **Header Component** - Updated to use theme colors
-6. **Button Component** - Updated to use theme colors
-7. **DashboardScreen** - Updated to use theme colors
+4. **Header Component** - Updated to use theme colors
+5. **Button Component** - Updated to use theme colors
+6. **DashboardScreen** - Updated to use theme colors
 
 ### 🔄 In Progress
+- **ProfileScreen** - Theme toggle added with AsyncStorage persistence (verification in progress)
 - Updating remaining components to use theme colors
 - Updating remaining screens to use theme colors
 

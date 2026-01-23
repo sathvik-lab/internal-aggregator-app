@@ -57,6 +57,7 @@ const LoadingSpinner = ({
                 animationType="fade"
                 visible={true}
                 statusBarTranslucent
+                onRequestClose={() => {}}
             >
                 <View 
                     style={styles.overlay}

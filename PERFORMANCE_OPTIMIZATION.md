@@ -43,6 +43,7 @@ export default memo(Component);
 - ✅ **maxToRenderPerBatch={10}** - Renders 10 items per batch
 - ✅ **updateCellsBatchingPeriod={50}** - Batches updates every 50ms
 - ✅ **removeClippedSubviews={true}** - Removes off-screen views from native hierarchy
+  - ⚠️ **iOS Caveat**: `removeClippedSubviews` can cause rendering issues on iOS, including disappearing content and component-specific problems. Consider guarding usage with a platform check (e.g., conditionally apply `removeClippedSubviews` only on Android) or test thoroughly on iOS before enabling.
 - ✅ **getItemLayout** - Provided for DocumentsScreen (when item height is known)
 
 #### Screens Optimized

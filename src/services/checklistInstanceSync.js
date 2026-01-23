@@ -1,0 +1,190 @@
+/**
+ * Checklist Instance Sync Service
+ * 
+ * Handles syncing user's checklist instances (items) from Firestore.
+ * Uses real-time listeners for active items, cache for completed items.
+ */
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { queryDocuments, setupRealtimeListener } from './firestore';
+import { generateChecklistInstances } from './checklistScheduling';
+
+const INSTANCES_CACHE_KEY_PREFIX = '@checklist_instances_';
+const COMPLETED_CACHE_KEY_PREFIX = '@checklist_completed_';
+
+/**
+ * Sync and generate checklist instances
+ * 
+ * @param {string} userId - User ID
+ * @param {Array} templates - Applicable templates
+ * @returns {Promise<{items: Array, error: null}>}
+ */
+export const syncInstances = async (userId, templates) => {
+  try {
+    if (!userId) {
+      return { items: [], error: { message: 'User ID is required' } };
+    }
+
+    if (!templates || templates.length === 0) {
+      return { items: [], error: null };
+    }
+
+    // Get existing instances
+    const existingResult = await queryDocuments('checklistItems', [
+      { field: 'userId', operator: '==', value: userId },
+      { field: 'completed', operator: '==', value: false }
+    ]);
+
+    if (existingResult.error) {
+      return { items: [], error: existingResult.error };
+    }
+
+    // Generate missing instances from templates
+    const newInstances = await generateChecklistInstances(
+      userId,
+      templates,
+      existingResult.data || []
+    );
+
+    // Combine existing + new
+    const allItems = [...(existingResult.data || []), ...newInstances];
+
+    // Cache active items
+    try {
+      const cacheKey = `${INSTANCES_CACHE_KEY_PREFIX}${userId}`;
+      await AsyncStorage.setItem(cacheKey, JSON.stringify({
+        items: allItems,
+        cachedAt: new Date().toISOString(),
+        lastSync: new Date().toISOString(),
+      }));
+    } catch (cacheError) {
+      console.warn('Error caching instances:', cacheError);
+      // Continue even if cache fails
+    }
+
+    return { items: allItems, error: null };
+  } catch (error) {
+    console.error('Error syncing instances:', error);
+    return { items: [], error: { message: error.message || 'Unknown error' } };
+  }
+};
+
+/**
+ * Set up real-time listener for active checklist items
+ * 
+ * @param {string} userId - User ID
+ * @param {Function} callback - Callback when items change
+ * @returns {Function} Unsubscribe function
+ */
+export const setupInstancesListener = (userId, callback) => {
+  if (!userId || !callback) {
+    console.warn('setupInstancesListener: userId and callback are required');
+    return () => {}; // Return no-op unsubscribe
+  }
+
+  try {
+    const unsubscribe = setupRealtimeListener(
+      'checklistItems',
+      [
+        { field: 'userId', operator: '==', value: userId },
+        { field: 'completed', operator: '==', value: false }
+      ],
+      async (items) => {
+        // Update cache
+        try {
+          const cacheKey = `${INSTANCES_CACHE_KEY_PREFIX}${userId}`;
+          await AsyncStorage.setItem(cacheKey, JSON.stringify({
+            items: items || [],
+            cachedAt: new Date().toISOString(),
+            lastSync: new Date().toISOString(),
+          }));
+        } catch (cacheError) {
+          console.warn('Error updating instance cache:', cacheError);
+        }
+
+        // Call callback
+        callback(items || []);
+      },
+      { orderBy: { field: 'dueDate', direction: 'asc' } }
+    );
+
+    return unsubscribe;
+  } catch (error) {
+    console.error('Error setting up instances listener:', error);
+    callback([]);
+    return () => {}; // Return no-op unsubscribe
+  }
+};
+
+/**
+ * Get cached instances
+ * 
+ * @param {string} userId - User ID
+ * @returns {Promise<Array>} - Array of cached instances
+ */
+export const getCachedInstances = async (userId) => {
+  try {
+    if (!userId) return [];
+
+    const cacheKey = `${INSTANCES_CACHE_KEY_PREFIX}${userId}`;
+    const cached = await AsyncStorage.getItem(cacheKey);
+    if (cached) {
+      const cacheData = JSON.parse(cached);
+      return cacheData.items || [];
+    }
+    return [];
+  } catch (error) {
+    console.error('Error getting cached instances:', error);
+    return [];
+  }
+};
+
+/**
+ * Cache instances locally
+ * 
+ * @param {string} userId - User ID
+ * @param {Array} items - Checklist items to cache
+ * @returns {Promise<void>}
+ */
+export const cacheInstances = async (userId, items) => {
+  try {
+    if (!userId) return;
+
+    const cacheKey = `${INSTANCES_CACHE_KEY_PREFIX}${userId}`;
+    await AsyncStorage.setItem(cacheKey, JSON.stringify({
+      items: items || [],
+      cachedAt: new Date().toISOString(),
+      lastSync: new Date().toISOString(),
+    }));
+  } catch (error) {
+    console.error('Error caching instances:', error);
+  }
+};
+
+/**
+ * Clear instance cache
+ * 
+ * @param {string} userId - User ID
+ * @returns {Promise<void>}
+ */
+export const clearInstanceCache = async (userId) => {
+  try {
+    if (!userId) return;
+
+    const instancesKey = `${INSTANCES_CACHE_KEY_PREFIX}${userId}`;
+    const completedKey = `${COMPLETED_CACHE_KEY_PREFIX}${userId}`;
+    
+    await AsyncStorage.removeItem(instancesKey);
+    await AsyncStorage.removeItem(completedKey);
+  } catch (error) {
+    console.error('Error clearing instance cache:', error);
+  }
+};
+
+export default {
+  syncInstances,
+  setupInstancesListener,
+  getCachedInstances,
+  cacheInstances,
+  clearInstanceCache,
+};

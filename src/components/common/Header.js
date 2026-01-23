@@ -5,7 +5,7 @@
  * Features user greeting, profile picture, notification bell, and date display.
  */
 
-import React, { memo, useMemo, useCallback } from 'react';
+import React, { memo, useMemo, useCallback, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -75,13 +75,40 @@ const Header = ({
 
     const userInitials = useMemo(() => getInitials(userName), [userName]);
 
-    // Memoize greeting text
+    // State to trigger updates on time boundaries
+    const [now, setNow] = useState(new Date());
+
+    // Update time at appropriate boundaries (next greeting change or midnight)
+    useEffect(() => {
+        const updateTime = () => {
+            const current = new Date();
+            setNow(current);
+            
+            // Calculate next update time (next hour boundary for greeting, or midnight for date)
+            const nextHour = new Date(current);
+            nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0);
+            
+            const midnight = new Date(current);
+            midnight.setHours(24, 0, 0, 0);
+            
+            const nextUpdate = Math.min(nextHour.getTime(), midnight.getTime());
+            const delay = nextUpdate - current.getTime();
+            
+            const timeoutId = setTimeout(updateTime, delay);
+            return () => clearTimeout(timeoutId);
+        };
+
+        const timeoutId = setTimeout(updateTime, 60000); // Check every minute
+        return () => clearTimeout(timeoutId);
+    }, []);
+
+    // Memoize greeting text with now dependency
     const greetingText = useMemo(() => {
         return title || `${getGreeting()}, ${userName}!`;
-    }, [title, userName]);
+    }, [title, userName, now]);
 
-    // Memoize current date
-    const currentDate = useMemo(() => formatDate(new Date()), []);
+    // Memoize current date with now dependency
+    const currentDate = useMemo(() => formatDate(now), [now]);
 
     // Memoize notification badge text
     const notificationBadgeText = useMemo(() => {
@@ -275,6 +302,7 @@ const styles = StyleSheet.create({
         // Subtle shadow
         ...Platform.select({
             ios: {
+                shadowColor: '#000',
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.3,
                 shadowRadius: 3,

@@ -100,7 +100,7 @@ This document provides a comprehensive accessibility checklist for the Internal 
 - ✅ Success text (`#38A169`) on white: 4.5:1 ✓
 
 #### Recommendations
-- Use warning color only for large text or with additional indicators (icons, borders)
+- Warning color (#D69E2E) has a measured contrast of 2.9:1, which fails WCAG AA even for large text (WCAG AA requires at least 3:1 for large text). Do not use this color for any text. Instead, use #D69E2E only as a non-text indicator (icon, border, background) paired with visible text labels that meet contrast requirements (≥3:1 for large text, ≥4.5:1 for normal text).
 - Ensure status messages include text labels, not just color
 
 ### 6. Text Scaling

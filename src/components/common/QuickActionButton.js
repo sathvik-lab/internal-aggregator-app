@@ -12,6 +12,34 @@ import { COLORS } from '../../constants/colors';
 import { TOUCH_TARGETS, SPACING, moderateScale, ICON_SIZES, isTablet } from '../../utils/responsive';
 
 /**
+ * Convert color to translucent version with alpha
+ * @param {string} color - Color in hex, rgb, rgba, or named format
+ * @param {number} opacity - Opacity value (0-1)
+ * @returns {string} Color string with alpha applied
+ */
+const getTranslucentColor = (color, opacity) => {
+    // Handle 7-char hex (with #)
+    if (typeof color === 'string' && color.startsWith('#') && color.length === 7) {
+        const alphaHex = Math.round(opacity * 255).toString(16).padStart(2, '0');
+        return `${color}${alphaHex}`;
+    }
+    // Handle 6-char hex (without #)
+    if (typeof color === 'string' && !color.startsWith('#') && /^[0-9A-Fa-f]{6}$/.test(color)) {
+        const alphaHex = Math.round(opacity * 255).toString(16).padStart(2, '0');
+        return `#${color}${alphaHex}`;
+    }
+    // Handle rgb/rgba - convert to rgba
+    if (typeof color === 'string' && color.startsWith('rgb')) {
+        const rgbaMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/);
+        if (rgbaMatch) {
+            return `rgba(${rgbaMatch[1]}, ${rgbaMatch[2]}, ${rgbaMatch[3]}, ${opacity})`;
+        }
+    }
+    // Fallback: return original color or safe default
+    return color || '#000000';
+};
+
+/**
  * QuickActionButton Component
  * 
  * @param {Object} props
@@ -62,7 +90,7 @@ const QuickActionButton = ({
                 accessibilityHint={`Double tap to ${label.toLowerCase()}`}
                 accessibilityRole="button"
             >
-            <View style={[styles.iconContainer, { backgroundColor: `${color}15` }]}>
+            <View style={[styles.iconContainer, { backgroundColor: getTranslucentColor(color, 0.08) }]}>
                 <MaterialCommunityIcons
                     name={icon}
                     size={isTablet ? ICON_SIZES.MD : ICON_SIZES.SM}

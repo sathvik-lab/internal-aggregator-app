@@ -71,7 +71,10 @@ const firebaseConfig = {
 
 1. In Firebase Console, go to **Firestore Database** (left sidebar)
 2. Click **"Create database"**
-3. Choose **"Start in test mode"** (we'll configure security rules later)
+3. **⚠️ SECURITY WARNING**: 
+   - **Test mode** makes your database publicly readable/writable for 30 days, allowing anyone to access or modify data.
+   - **Recommended**: Choose **"Start in production mode"** and immediately apply security rules from Section 4 below.
+   - **Alternative**: If using test mode, complete Section 4 (security rules) immediately before uploading any sensitive data.
 4. Click **"Next"**
 5. Select a **location** (choose closest to your users)
    - Recommended: `us-central1` (Iowa) or `us-east1` (South Carolina) for US
@@ -83,7 +86,10 @@ const firebaseConfig = {
 
 1. In Firebase Console, go to **Storage** (left sidebar)
 2. Click **"Get started"**
-3. Choose **"Start in test mode"** (we'll configure security rules later)
+3. **⚠️ SECURITY WARNING**: 
+   - **Test mode** makes your storage publicly readable/writable for 30 days, allowing anyone to access or modify files.
+   - **Recommended**: Choose **"Start in production mode"** and immediately apply security rules from Section 4 below.
+   - **Alternative**: If using test mode, complete Section 4 (security rules) immediately before uploading any sensitive files.
 4. Click **"Next"**
 5. Select the **same location** as Firestore (for consistency)
 6. Click **"Done"**
@@ -91,6 +97,8 @@ const firebaseConfig = {
 ---
 
 ## 4. Configure Security Rules
+
+**⚠️ IMPORTANT**: Apply these security rules immediately after enabling Firestore and Storage, especially if you chose test mode. Do not upload sensitive data until rules are deployed.
 
 ### 4.1 Firestore Security Rules
 
@@ -287,7 +295,7 @@ FIREBASE_APP_ID=1:123456789012:web:abcdef123456
 - Check Storage security rules are published
 - Verify the storage path matches the rules pattern
 - Check file size limits (10MB max)
-- Verify file type is allowed (images: jpeg, png; documents: pdf, doc, docx)
+- Verify file type is allowed (images: jpeg, png; documents: pdf, doc, docx) (application-level validation; not enforced by Storage security rules)
 
 ### Issue: Firestore queries return empty
 

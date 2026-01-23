@@ -5,10 +5,12 @@
  * Manages Firebase Authentication state observer and user session.
  */
 
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 // Import auth service functions
 // These will be available once auth.js is created in /src/services/auth.js
 import { onAuthStateChanged, signOutUser } from '../services/auth';
+import { syncTemplates, clearTemplateCache } from '../services/checklistTemplateSync';
+import { syncInstances, clearInstanceCache } from '../services/checklistInstanceSync';
 
 /**
  * AuthContext - Provides auth state and functions
@@ -101,12 +103,91 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   /**
+   * Sync templates and instances when user logs in
+   */
+  const lastSyncedUid = useRef(null);
+  
+  useEffect(() => {
+    const uid = user?.uid;
+    
+    // Skip if no user, still loading, or already synced for this UID
+    if (!uid || loading || uid === lastSyncedUid.current) {
+      return;
+    }
+    
+    // Track that we're syncing for this UID
+    lastSyncedUid.current = uid;
+    let mounted = true;
+    
+    // Sync templates and generate instances in background
+    syncTemplates(uid)
+      .then((result) => {
+        // Check if component is still mounted and UID hasn't changed
+        if (!mounted || uid !== lastSyncedUid.current) {
+          return;
+        }
+        
+        if (!result.error && result.templates && result.templates.length > 0) {
+          // Generate instances from templates
+          syncInstances(uid, result.templates)
+            .then(() => {
+              // Only update lastSyncedUid if sync completed successfully and still mounted
+              if (mounted && uid === lastSyncedUid.current) {
+                // Sync completed successfully
+              }
+            })
+            .catch((error) => {
+              if (mounted && uid === lastSyncedUid.current) {
+                console.error('Error syncing instances on login:', error);
+              }
+            });
+        }
+      })
+      .catch((error) => {
+        if (mounted && uid === lastSyncedUid.current) {
+          console.error('Error syncing templates on login:', error);
+          // Reset lastSyncedUid on error so it can retry
+          lastSyncedUid.current = null;
+        }
+      });
+    
+    // Cleanup: mark as unmounted
+    return () => {
+      mounted = false;
+    };
+  }, [user?.uid, loading]);
+
+  /**
    * Sign out the current user
    * @returns {Promise<void>}
    */
   const signOut = async () => {
     try {
       setLoading(true);
+      
+      // Clear caches before signing out (non-blocking)
+      if (user?.uid) {
+        // Use Promise.allSettled to ensure sign-out proceeds even if cache clearing fails
+        const cacheResults = await Promise.allSettled([
+          clearTemplateCache(user.uid).catch((error) => {
+            console.error('Error clearing template cache:', error);
+            return { error };
+          }),
+          clearInstanceCache(user.uid).catch((error) => {
+            console.error('Error clearing instance cache:', error);
+            return { error };
+          }),
+        ]);
+        
+        // Log any cache clearing failures but don't block sign-out
+        cacheResults.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            console.error(`Cache clear ${index === 0 ? 'template' : 'instance'} failed:`, result.reason);
+          }
+        });
+      }
+      
+      // Always proceed with sign-out regardless of cache clearing results
       const result = await signOutUser();
       
       if (result.error) {

@@ -58,6 +58,68 @@ const missingConfig = Object.entries(firebaseConfig).filter(([_, value]) => !val
 if (missingConfig.length > 0) {
   const missingKeys = missingConfig.map(([key]) => camelToSnakeCase(key)).join(', ');
   
+  // Helper function to format missing keys within box width constraints
+  // Box width is 64 characters total
+  // Line format: "║  Missing variables: [keys]║"
+  // "║  " = 3 chars, "Missing variables: " = 19 chars, "║" = 1 char
+  // Available for keys: 64 - 3 - 19 - 1 = 41 characters
+  const formatMissingKeys = (keysString) => {
+    const BOX_WIDTH = 64;
+    const LEFT_PREFIX = '║  Missing variables: ';
+    const LEFT_PREFIX_LENGTH = LEFT_PREFIX.length; // 22 characters
+    const RIGHT_BORDER = '║';
+    const MAX_KEY_LENGTH = BOX_WIDTH - LEFT_PREFIX_LENGTH - RIGHT_BORDER.length; // 64 - 22 - 1 = 41
+    
+    if (keysString.length <= MAX_KEY_LENGTH) {
+      // String fits on one line - pad to fill exactly to the border
+      return `${LEFT_PREFIX}${keysString.padEnd(MAX_KEY_LENGTH)}${RIGHT_BORDER}`;
+    } else {
+      // String is too long - split into multiple lines
+      const lines = [];
+      let remaining = keysString;
+      let isFirstLine = true;
+      
+      while (remaining.length > 0) {
+        if (remaining.length <= MAX_KEY_LENGTH) {
+          // Last line - use continuation prefix and pad to fill width
+          const continuationPrefix = '║  ';
+          const continuationPrefixLength = continuationPrefix.length;
+          const continuationMaxLength = BOX_WIDTH - continuationPrefixLength - RIGHT_BORDER.length;
+          lines.push(`${continuationPrefix}${remaining.padEnd(continuationMaxLength)}${RIGHT_BORDER}`);
+          break;
+        } else {
+          // Find the last comma before the max length to break cleanly
+          let breakPoint = MAX_KEY_LENGTH;
+          const lastComma = remaining.lastIndexOf(',', MAX_KEY_LENGTH);
+          if (lastComma > MAX_KEY_LENGTH * 0.5) {
+            // Only break at comma if it's not too early (at least 50% through the line)
+            breakPoint = lastComma + 1; // Include the comma
+          }
+          
+          if (isFirstLine) {
+            // First line uses the "Missing variables: " prefix
+            const firstLineContent = remaining.substring(0, breakPoint).trim();
+            lines.push(`${LEFT_PREFIX}${firstLineContent.padEnd(MAX_KEY_LENGTH)}${RIGHT_BORDER}`);
+            isFirstLine = false;
+          } else {
+            // Continuation lines use just "║  " prefix
+            const continuationPrefix = '║  ';
+            const continuationPrefixLength = continuationPrefix.length;
+            const continuationMaxLength = BOX_WIDTH - continuationPrefixLength - RIGHT_BORDER.length;
+            const continuationContent = remaining.substring(0, breakPoint).trim();
+            lines.push(`${continuationPrefix}${continuationContent.padEnd(continuationMaxLength)}${RIGHT_BORDER}`);
+          }
+          
+          remaining = remaining.substring(breakPoint).trim();
+        }
+      }
+      
+      return lines.join('\n');
+    }
+  };
+  
+  const formattedMissingKeys = formatMissingKeys(missingKeys);
+  
   // Create a more prominent warning message
   let setupMessage = '';
   
@@ -76,7 +138,7 @@ if (missingConfig.length > 0) {
 ║     Firebase Console > Project Settings > General > Your apps ║
 ║  3. Restart the Expo development server                        ║
 ║                                                                ║
-║  Missing variables: ${missingKeys.padEnd(39)}║
+${formattedMissingKeys}
 ║                                                                ║
 ║  ⚠️  Without Firebase config, authentication and data will    ║
 ║     not work. The app will show errors when trying to use      ║
@@ -97,7 +159,7 @@ if (missingConfig.length > 0) {
 ║     Firebase Console > Project Settings > General > Your apps ║
 ║  3. Restart the Expo development server                        ║
 ║                                                                ║
-║  Missing variables: ${missingKeys.padEnd(39)}║
+${formattedMissingKeys}
 ║                                                                ║
 ║  ⚠️  Without complete Firebase config, authentication and     ║
 ║     data will not work properly.                              ║

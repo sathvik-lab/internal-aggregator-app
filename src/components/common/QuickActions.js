@@ -31,7 +31,6 @@ const QuickActions = ({
             <Text 
                 style={styles.sectionTitle}
                 accessibilityRole="header"
-                accessibilityLevel={2}
             >
                 Quick Actions
             </Text>

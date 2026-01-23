@@ -8,7 +8,7 @@ Core Rules (must follow)
 - All Firebase calls through /services.
 - Local UI state; global state via Context.
 - Use StyleSheet.create(); styles at file bottom.
-- Naming: Components PascalCase; files camelCase/kebab-case; constants UPPER_SNAKE_CASE.
+- Naming: Components PascalCase; files: component files PascalCase (e.g., UserProfile.js), utility/service files camelCase (e.g., authService.js), config/static files kebab-case (e.g., firebase-config.js); constants UPPER_SNAKE_CASE.
 - Use FlatList for lists; React.memo for expensive components.
 
 Security & Config

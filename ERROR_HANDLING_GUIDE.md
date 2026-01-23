@@ -261,7 +261,17 @@ import EmptyState from '../components/common/EmptyState';
 2. **User Retry**: Provide retry button for user-initiated retry
 3. **Graceful Degradation**: Show cached data or empty state
 4. **Offline Support**: Use Firestore offline persistence
-5. **Error Logging**: Log errors for debugging (in development)
+5. **Error Logging**: Production-ready logging with PII sanitization, severity levels, sampling/aggregation, and correlation IDs
+
+### Error Logging
+
+Production error logging must follow these practices:
+
+- **PII Sanitization**: Strip personally identifiable information (emails, user IDs, names) before logging. Use placeholders like `[REDACTED]` or hash values.
+- **Severity Levels**: Categorize errors by severity (ERROR, WARNING, INFO, DEBUG) to enable filtering and alerting.
+- **Sampling/Aggregation**: Implement rate limiting and aggregation to control log volume (e.g., log first occurrence, then sample 1% of duplicates).
+- **Correlation IDs**: Include unique correlation IDs in logs to trace errors across services and requests. Generate at request start and propagate through all log entries.
+- **Secure Storage**: Store logs in secure, access-controlled systems. Never expose full stack traces or internal paths to users.
 
 ## Common Error Messages
 
@@ -273,6 +283,13 @@ All error messages are user-friendly and actionable:
 - **Validation**: Field-specific messages (e.g., "Email is required")
 - **File**: "File size exceeds 10MB limit."
 - **Generic**: "An error occurred. Please try again."
+
+**Security Note**: User-facing error messages must never include:
+- Sensitive data (API keys, internal paths, stack traces, user IDs)
+- System architecture details (database names, server paths, internal service names)
+- Technical implementation details
+
+Sanitize field-specific messages to avoid exposing data structure. Log full error context (including stack traces, internal paths, and technical details) securely on the server-side only, never in user-facing messages.
 
 ## Future Enhancements
 

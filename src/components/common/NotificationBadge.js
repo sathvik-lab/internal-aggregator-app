@@ -22,7 +22,7 @@ import { COLORS } from '../../constants/colors';
  * @param {boolean} props.showWhenZero - Show badge even when count is 0 (default: false)
  * @param {Object} props.style - Additional styles for the badge container
  * @param {string} props.position - Position: 'top-right', 'top-left', 'bottom-right', 'bottom-left' (default: 'top-right')
- * @param {number} props.size - Size of the badge: 'small', 'medium', 'large' (default: 'small')
+ * @param {string} props.size - Size of the badge: 'small', 'medium', 'large' (default: 'small')
  */
 const NotificationBadge = ({
     count = 0,
@@ -35,11 +35,6 @@ const NotificationBadge = ({
     position = 'top-right',
     size = 'small',
 }) => {
-    // Don't show badge if count is 0 and showWhenZero is false
-    if (!showWhenZero && count === 0 && !showDot) {
-        return null;
-    }
-
     // Memoize size dimensions
     const sizeStyles = useMemo(() => {
         switch (size) {
@@ -113,6 +108,11 @@ const NotificationBadge = ({
         }
         return count.toString();
     }, [showDot, count, maxCount]);
+
+    // Don't show badge if count is 0 and showWhenZero is false
+    if (!showWhenZero && count === 0 && !showDot) {
+        return null;
+    }
 
     return (
         <View

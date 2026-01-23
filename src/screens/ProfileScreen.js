@@ -24,6 +24,15 @@ import { useTheme, THEME_MODES } from '../context/ThemeContext';
 import { getDocument, queryDocuments, updateDocument } from '../services/firestore';
 import { updateUserProfile } from '../services/auth';
 import EditProfileModal from '../components/profile/EditProfileModal';
+import BusinessProfileModal from '../components/profile/BusinessProfileModal';
+import { clearTemplateCache, syncTemplates } from '../services/checklistTemplateSync';
+import { syncInstances } from '../services/checklistInstanceSync';
+import {
+    TRUCK_TYPE_LABELS,
+    FOOD_TYPE_LABELS,
+    BUSINESS_TYPE_LABELS,
+    COMPLIANCE_AREA_LABELS,
+} from '../constants/checklistConstants';
 
 /**
  * Format file size for display
@@ -114,6 +123,8 @@ const ProfileScreen = () => {
     const [storageUsed, setStorageUsed] = useState(0);
     const [storageLoading, setStorageLoading] = useState(true);
     const [showEditModal, setShowEditModal] = useState(false);
+    const [showBusinessProfileModal, setShowBusinessProfileModal] = useState(false);
+    const [businessProfile, setBusinessProfile] = useState(null);
 
     /**
      * Fetch user preferences from Firestore
@@ -175,10 +186,31 @@ const ProfileScreen = () => {
         }
     }, [user]);
 
+    /**
+     * Fetch business profile from Firestore
+     */
+    const fetchBusinessProfile = useCallback(async () => {
+        if (!user?.uid) {
+            return;
+        }
+
+        try {
+            const result = await getDocument('users', user.uid);
+            if (result.data && result.data.businessProfile) {
+                setBusinessProfile(result.data.businessProfile);
+            } else {
+                setBusinessProfile(null);
+            }
+        } catch (error) {
+            console.error('Error fetching business profile:', error);
+        }
+    }, [user]);
+
     useEffect(() => {
         fetchUserPreferences();
         calculateStorageUsed();
-    }, [user, fetchUserPreferences, calculateStorageUsed]);
+        fetchBusinessProfile();
+    }, [user, fetchUserPreferences, calculateStorageUsed, fetchBusinessProfile]);
 
     /**
      * Handle edit profile
@@ -201,6 +233,68 @@ const ProfileScreen = () => {
         // Refresh user preferences and storage
         fetchUserPreferences();
         calculateStorageUsed();
+        fetchBusinessProfile();
+    };
+
+    /**
+     * Handle business profile edit
+     */
+    const handleEditBusinessProfile = () => {
+        setShowBusinessProfileModal(true);
+    };
+
+    /**
+     * Handle business profile modal close
+     */
+    const handleBusinessProfileModalClose = () => {
+        setShowBusinessProfileModal(false);
+    };
+
+    /**
+     * Handle successful business profile update
+     */
+    const handleBusinessProfileUpdated = async () => {
+        // Clear template cache (profile changed)
+        if (user?.uid) {
+            await clearTemplateCache(user.uid);
+        }
+
+        // Refresh business profile
+        await fetchBusinessProfile();
+
+        // Re-sync templates with new profile
+        if (user?.uid) {
+            try {
+                const result = await syncTemplates(user.uid, true);
+                if (!result.error && result.templates) {
+                    await syncInstances(user.uid, result.templates);
+                }
+            } catch (error) {
+                console.error('Error syncing templates after profile update:', error);
+            }
+        }
+    };
+
+    /**
+     * Format business profile for display
+     */
+    const formatBusinessProfileDisplay = () => {
+        if (!businessProfile) {
+            return 'Not set up';
+        }
+
+        const parts = [];
+        if (businessProfile.truckType) {
+            parts.push(`Truck: ${TRUCK_TYPE_LABELS[businessProfile.truckType]}`);
+        }
+        if (businessProfile.location?.state) {
+            parts.push(`Location: ${businessProfile.location.state}${businessProfile.location.city ? `, ${businessProfile.location.city}` : ''}`);
+        }
+        if (businessProfile.foodTypes && businessProfile.foodTypes.length > 0) {
+            parts.push(`Food: ${businessProfile.foodTypes.map(ft => FOOD_TYPE_LABELS[ft]).join(', ')}`);
+        }
+
+        return parts.length > 0 ? parts.join(' • ') : 'Incomplete';
     };
 
     /**
@@ -539,6 +633,26 @@ const ProfileScreen = () => {
                 />
             </SettingsSection>
 
+            {/* Business Profile Section */}
+            <SettingsSection title="Business Profile" colors={colors}>
+                <SettingsRow
+                    icon="truck-outline"
+                    title="Business Profile"
+                    subtitle={formatBusinessProfileDisplay()}
+                    value={businessProfile?.lastTemplateSync ? `Last synced: ${new Date(businessProfile.lastTemplateSync).toLocaleDateString()}` : null}
+                    onPress={handleEditBusinessProfile}
+                    colors={colors}
+                />
+                <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
+                <SettingsRow
+                    icon="information-outline"
+                    title="About Business Profile"
+                    subtitle="Customize your checklist templates based on your business type, location, and food types"
+                    colors={colors}
+                    showChevron={false}
+                />
+            </SettingsSection>
+
             {/* Checklist Settings Section */}
             <SettingsSection title="Checklist Settings" colors={colors}>
                 <SettingsRow
@@ -609,6 +723,13 @@ const ProfileScreen = () => {
             visible={showEditModal}
             onClose={handleEditModalClose}
             onSuccess={handleProfileUpdated}
+        />
+
+        {/* Business Profile Modal */}
+        <BusinessProfileModal
+            visible={showBusinessProfileModal}
+            onClose={handleBusinessProfileModalClose}
+            onSuccess={handleBusinessProfileUpdated}
         />
         </>
     );

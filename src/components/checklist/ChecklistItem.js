@@ -174,15 +174,72 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
         }).start();
     }, [item.completed]);
 
+    // Animate checkmark and pulse when completion changes
+    useEffect(() => {
+        if (item.completed) {
+            // Animate checkmark scale
+            Animated.spring(checkmarkScale, {
+                toValue: 1,
+                useNativeDriver: true,
+                tension: 200,
+                friction: 5,
+            }).start();
+
+            // Animate success pulse
+            Animated.sequence([
+                Animated.timing(successPulse, {
+                    toValue: 1,
+                    duration: 200,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(successPulse, {
+                    toValue: 0,
+                    duration: 300,
+                    useNativeDriver: true,
+                }),
+            ]).start();
+        } else {
+            Animated.timing(checkmarkScale, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+            }).start();
+        }
+    }, [item.completed, checkmarkScale, successPulse]);
+
+    // Refs for mutable dependencies in PanResponder
+    const expandedRef = useRef(expanded);
+    const onToggleCompleteRef = useRef(onToggleComplete);
+    const onSnoozeRef = useRef(onSnooze);
+    const itemRef = useRef(item);
+
+    // Keep refs updated
+    useEffect(() => {
+        expandedRef.current = expanded;
+    }, [expanded]);
+
+    useEffect(() => {
+        onToggleCompleteRef.current = onToggleComplete;
+    }, [onToggleComplete]);
+
+    useEffect(() => {
+        onSnoozeRef.current = onSnooze;
+    }, [onSnooze]);
+
+    useEffect(() => {
+        itemRef.current = item;
+    }, [item]);
+
     // Pan responder for swipe gestures
     const panResponder = useRef(
         PanResponder.create({
-            onStartShouldSetPanResponder: () => !expanded,
+            onStartShouldSetPanResponder: () => !expandedRef.current,
             onMoveShouldSetPanResponder: (_, gestureState) => {
-                return !expanded && Math.abs(gestureState.dx) > 10;
+                return !expandedRef.current && Math.abs(gestureState.dx) > 10;
             },
             onPanResponderGrant: () => {
                 setIsSwiping(true);
+                swipeAnimation.extractOffset();
             },
             onPanResponderMove: (_, gestureState) => {
                 const dx = gestureState.dx;
@@ -200,23 +257,23 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
                 const dx = gestureState.dx;
 
                 // Swipe left to complete
-                if (dx < -SWIPE_THRESHOLD && onToggleComplete) {
+                if (dx < -SWIPE_THRESHOLD && onToggleCompleteRef.current) {
                     Animated.spring(swipeAnimation, {
                         toValue: -SCREEN_WIDTH,
                         useNativeDriver: true,
                     }).start(() => {
-                        onToggleComplete(item);
+                        onToggleCompleteRef.current?.(itemRef.current);
                         swipeAnimation.setValue(0);
                         setSwipeOffset(0);
                     });
                 }
                 // Swipe right to snooze
-                else if (dx > SWIPE_THRESHOLD && onSnooze) {
+                else if (dx > SWIPE_THRESHOLD && onSnoozeRef.current) {
                     Animated.spring(swipeAnimation, {
                         toValue: SCREEN_WIDTH,
                         useNativeDriver: true,
                     }).start(() => {
-                        onSnooze(item);
+                        onSnoozeRef.current?.(itemRef.current);
                         swipeAnimation.setValue(0);
                         setSwipeOffset(0);
                     });
@@ -289,10 +346,6 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
         <Animated.View
             style={[
                 styles.wrapper,
-                {
-                    opacity: fadeAnim,
-                    transform: [{ translateY: slideAnim }],
-                },
             ]}
         >
             {/* Swipe Action: Complete (left) */}
@@ -341,7 +394,7 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
                     activeOpacity={0.7}
                     onPress={handleCardPress}
                     style={styles.cardContent}
-                    accessibilityLabel={`${item.title}, ${item.completed ? 'completed' : 'pending'}, ${item.priority ? `${item.priority} priority` : ''}, due ${formatDate(item.dueDate)}`}
+                    accessibilityLabel={`${item.title}, ${item.completed ? 'completed' : 'pending'}, ${item.priority ? `${item.priority} priority` : ''}, due ${formatDueDate(item.dueDate)}`}
                     accessibilityHint={expanded ? 'Double tap to collapse' : 'Double tap to expand and view details'}
                     accessibilityRole="button"
                     accessibilityState={{ expanded, checked: item.completed }}
@@ -781,6 +834,8 @@ export default memo(ChecklistItem, (prevProps, nextProps) => {
         prevProps.item.dueDate === nextProps.item.dueDate &&
         prevProps.item.priority === nextProps.item.priority &&
         prevProps.item.category === nextProps.item.category &&
+        prevProps.item.description === nextProps.item.description &&
+        prevProps.item.notes === nextProps.item.notes &&
         prevProps.onPress === nextProps.onPress &&
         prevProps.onToggleComplete === nextProps.onToggleComplete &&
         prevProps.onSnooze === nextProps.onSnooze

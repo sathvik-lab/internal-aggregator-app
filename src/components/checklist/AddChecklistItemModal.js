@@ -173,9 +173,11 @@ const AddChecklistItemModal = ({ visible, onClose, onSuccess }) => {
 
     /**
      * Validate category
+     * @param {string} [categoryValue] - Optional category value to validate (uses state if not provided)
      */
-    const validateCategory = () => {
-        if (!category) {
+    const validateCategory = (categoryValue = null) => {
+        const valueToCheck = categoryValue !== null ? categoryValue : category;
+        if (!valueToCheck) {
             setCategoryError('Category is required');
             return false;
         }
@@ -251,16 +253,20 @@ const AddChecklistItemModal = ({ visible, onClose, onSuccess }) => {
                 userId: user.uid,
                 title: title.trim(),
                 description: description.trim() || null,
-                dueDate: dueDate || new Date().toISOString(),
+                dueDate: dueDate || null,
                 priority: priority,
                 category: category,
                 completed: false,
                 status: 'pending',
                 frequency: isRecurring ? recurringFrequency : null,
-                createdAt: new Date().toISOString(), // Mock serverTimestamp
+                // createdAt and updatedAt are added by createDocument with serverTimestamp
                 createdBy: 'user', // vs 'system' for auto-generated ones
                 completedAt: null,
                 notes: null,
+                photos: [],
+                // New fields for template system
+                templateId: null, // User-created items don't have a template
+                source: 'user', // 'user' | 'osha_generated' | 'system'
             };
 
             // Real Firestore:
@@ -431,7 +437,7 @@ const AddChecklistItemModal = ({ visible, onClose, onSuccess }) => {
                                 onPress={() => {
                                     setCategory(cat);
                                     setShowCategoryDialog(false);
-                                    validateCategory();
+                                    validateCategory(cat);
                                 }}
                                 activeOpacity={0.7}
                             >

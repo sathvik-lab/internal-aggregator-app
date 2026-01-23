@@ -40,10 +40,15 @@ const SearchBar = ({
     const [localValue, setLocalValue] = useState(value);
     const inputRef = useRef(null);
     const debounceTimerRef = useRef(null);
+    const isTypingRef = useRef(false);
+    const latestLocalValueRef = useRef(value);
 
-    // Sync local value with prop value
+    // Sync local value with prop value (only when not actively typing)
     useEffect(() => {
-        setLocalValue(value);
+        if (!isTypingRef.current || value !== latestLocalValueRef.current) {
+            setLocalValue(value);
+            latestLocalValueRef.current = value;
+        }
     }, [value]);
 
     // Auto-focus on mount if requested
@@ -59,7 +64,9 @@ const SearchBar = ({
 
     // Handle local text change with debouncing
     const handleTextChange = (text) => {
+        isTypingRef.current = true;
         setLocalValue(text);
+        latestLocalValueRef.current = text;
 
         // Clear existing timer
         if (debounceTimerRef.current) {
@@ -68,6 +75,7 @@ const SearchBar = ({
 
         // Set new timer for debounced callback
         debounceTimerRef.current = setTimeout(() => {
+            isTypingRef.current = false;
             if (onChangeText) {
                 onChangeText(text);
             }
@@ -76,7 +84,9 @@ const SearchBar = ({
 
     // Handle clear button press
     const handleClear = useCallback(() => {
+        isTypingRef.current = false;
         setLocalValue('');
+        latestLocalValueRef.current = '';
         if (debounceTimerRef.current) {
             clearTimeout(debounceTimerRef.current);
         }

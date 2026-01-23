@@ -96,7 +96,7 @@ The service files have the real Firebase code ready but commented out. You need 
    - `getDocument`: Uncomment lines 98-104, remove mock code
    - `updateDocument`: Uncomment lines 166-171, remove mock code
    - `deleteDocument`: Uncomment lines 202-207, remove mock code
-   - `queryDocuments`: Uncomment lines 237-231, remove mock code
+   - `queryDocuments`: Uncomment lines 231-237, remove mock code
    - `setupRealtimeListener`: Uncomment lines 339-365, remove mock code
 
 #### C. Update `src/services/storage.js`

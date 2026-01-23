@@ -45,7 +45,7 @@ const StatCard = ({
         return `${label}: ${value}${subtitle ? `. ${subtitle}` : ''}`;
     }, [label, value, subtitle]);
     
-    const accessibilityHint = onPress ? `Double tap to view ${label.toLowerCase()}` : undefined;
+    const accessibilityHint = onPress && label ? `Double tap to view ${(typeof label === 'string' ? label : String(label || '')).toLowerCase()}` : undefined;
 
     const handlePressIn = () => {
         if (onPress) {

@@ -119,7 +119,7 @@ useEffect(() => {
             useNativeDriver: true,
         }),
     ]).start();
-}, [fadeAnim, slideAnim]);
+}, []); // Empty dependency array - animation runs once on mount
 ```
 
 ### 4. Loading Skeleton Shimmer
@@ -138,7 +138,7 @@ useEffect(() => {
 const shimmerAnim = useRef(new Animated.Value(0)).current;
 
 useEffect(() => {
-    Animated.loop(
+    const loopAnim = Animated.loop(
         Animated.sequence([
             Animated.timing(shimmerAnim, {
                 toValue: 1,
@@ -152,8 +152,14 @@ useEffect(() => {
                 useNativeDriver: true,
             }),
         ])
-    ).start();
-}, [shimmerAnim, delay]);
+    );
+    
+    loopAnim.start();
+    
+    return () => {
+        loopAnim.stop();
+    };
+}, [delay]); // Only include changing dependencies, not stable refs
 
 const opacity = shimmerAnim.interpolate({
     inputRange: [0, 1],
@@ -286,6 +292,90 @@ React.useEffect(() => {
 3. **Debounce Rapid Actions**: Prevent animation conflicts from rapid taps
 4. **Clean Up Animations**: Stop animations on unmount
 5. **Optimize Spring Config**: Tune spring parameters for smooth 60 FPS
+
+### Cleanup Patterns
+
+Always stop animations and remove listeners when components unmount to prevent memory leaks and unexpected behavior.
+
+#### Basic Animation Cleanup
+```javascript
+const animatedRef = useRef(new Animated.Value(0)).current;
+
+useEffect(() => {
+    const animation = Animated.timing(animatedRef, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+    });
+    
+    animation.start();
+    
+    return () => {
+        animation.stop();
+        animatedRef.stopAnimation();
+    };
+}, []);
+```
+
+#### Loop Animation Cleanup
+```javascript
+const shimmerAnim = useRef(new Animated.Value(0)).current;
+
+useEffect(() => {
+    const loopAnim = Animated.loop(
+        Animated.sequence([
+            Animated.timing(shimmerAnim, {
+                toValue: 1,
+                duration: 1000,
+                useNativeDriver: true,
+            }),
+            Animated.timing(shimmerAnim, {
+                toValue: 0,
+                duration: 1000,
+                useNativeDriver: true,
+            }),
+        ])
+    );
+    
+    loopAnim.start();
+    
+    return () => {
+        loopAnim.stop();
+    };
+}, [delay]); // Only include changing dependencies, not stable refs
+```
+
+#### Event Listener Cleanup
+```javascript
+useEffect(() => {
+    const listener = animatedValue.addListener(({ value }) => {
+        // Handle value changes
+    });
+    
+    return () => {
+        animatedValue.removeListener(listener);
+        // Or use: animatedValue.removeAllListeners();
+    };
+}, []);
+```
+
+#### requestAnimationFrame Cleanup
+```javascript
+useEffect(() => {
+    let rafId;
+    
+    const animate = () => {
+        // Animation logic
+        rafId = requestAnimationFrame(animate);
+    };
+    
+    rafId = requestAnimationFrame(animate);
+    
+    return () => {
+        cancelAnimationFrame(rafId);
+    };
+}, []);
+```
 
 ### Performance Metrics
 - **Button Press**: < 16ms (60 FPS)

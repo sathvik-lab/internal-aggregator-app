@@ -23,6 +23,7 @@ import { COLORS } from '../../constants/colors';
 const ErrorMessage = ({ 
     message, 
     onRetry, 
+    onDismiss,
     retryLabel = 'Retry',
     fullScreen = false,
     icon = 'alert-circle'
@@ -68,6 +69,7 @@ const ErrorMessage = ({
                 animationType="fade"
                 visible={true}
                 statusBarTranslucent
+                onRequestClose={onDismiss || onRetry || (() => {})}
             >
                 <View 
                     style={styles.overlay}

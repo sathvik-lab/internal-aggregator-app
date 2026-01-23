@@ -26,9 +26,11 @@ import ChecklistItem from '../components/checklist/ChecklistItem';
 import AddChecklistItemModal from '../components/checklist/AddChecklistItemModal';
 import EmptyState from '../components/common/EmptyState';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
-import { setupRealtimeListener, updateDocument } from '../services/firestore';
+import { setupRealtimeListener, updateDocument, queryDocuments } from '../services/firestore';
 import { CHECKLIST_STATUS } from '../constants/constants';
 import { MOCK_CHECKLIST_CATEGORIES } from '../utils/mockData';
+import { syncTemplates, getCachedTemplates } from '../services/checklistTemplateSync';
+import { setupInstancesListener, syncInstances, getCachedInstances } from '../services/checklistInstanceSync';
 
 const TABS = {
     TODAY: 'today',
@@ -107,6 +109,10 @@ const ChecklistScreen = () => {
     const [showFilters, setShowFilters] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
 
+    // Template sync states
+    const [syncingTemplates, setSyncingTemplates] = useState(false);
+    const [templatesLoaded, setTemplatesLoaded] = useState(false);
+
     // Calculate today's completion percentage
     const todayCompletionPercentage = useMemo(() => {
         if (todayItems.length === 0) return 100;
@@ -114,102 +120,8 @@ const ChecklistScreen = () => {
         return (completed / todayItems.length) * 100;
     }, [todayItems]);
 
-    /**
-     * Fetch today's items
-     */
-    const fetchTodayItems = useCallback(() => {
-        if (!user?.uid) {
-            setTodayItems([]);
-            setLoading(false);
-            return;
-        }
-
-        const { todayStart, todayEnd } = getTodayRange();
-
-        // Real Firestore query structure:
-        // const todayQuery = query(
-        //   collection(db, 'checklistItems'),
-        //   where('userId', '==', user.uid),
-        //   where('dueDate', '>=', todayStart.toISOString()),
-        //   where('dueDate', '<=', todayEnd.toISOString()),
-        //   orderBy('dueDate', 'asc')
-        // );
-
-        const conditions = [
-            { field: 'userId', operator: '==', value: user.uid },
-            { field: 'dueDate', operator: '>=', value: todayStart.toISOString() },
-            { field: 'dueDate', operator: '<=', value: todayEnd.toISOString() },
-        ];
-
-        const options = {
-            orderBy: { field: 'dueDate', direction: 'asc' },
-        };
-
-        const unsubscribe = setupRealtimeListener(
-            'checklistItems',
-            conditions,
-            (data, error) => {
-                if (error) {
-                    console.error('Error fetching today items:', error);
-                    setTodayItems([]);
-                } else {
-                    setTodayItems(data);
-                }
-                setLoading(false);
-                setRefreshing(false);
-            },
-            options
-        );
-
-        return unsubscribe;
-    }, [user]);
-
-    /**
-     * Fetch upcoming items
-     */
-    const fetchUpcomingItems = useCallback(() => {
-        if (!user?.uid) {
-            setUpcomingItems([]);
-            return;
-        }
-
-        const { todayEnd } = getTodayRange();
-
-        // Real Firestore query:
-        // const upcomingQuery = query(
-        //   collection(db, 'checklistItems'),
-        //   where('userId', '==', user.uid),
-        //   where('dueDate', '>', todayEnd.toISOString()),
-        //   where('completed', '==', false),
-        //   orderBy('dueDate', 'asc')
-        // );
-
-        const conditions = [
-            { field: 'userId', operator: '==', value: user.uid },
-            { field: 'dueDate', operator: '>', value: todayEnd.toISOString() },
-            { field: 'completed', operator: '==', value: false },
-        ];
-
-        const options = {
-            orderBy: { field: 'dueDate', direction: 'asc' },
-        };
-
-        const unsubscribe = setupRealtimeListener(
-            'checklistItems',
-            conditions,
-            (data, error) => {
-                if (error) {
-                    console.error('Error fetching upcoming items:', error);
-                    setUpcomingItems([]);
-                } else {
-                    setUpcomingItems(data);
-                }
-            },
-            options
-        );
-
-        return unsubscribe;
-    }, [user]);
+    // Note: fetchTodayItems and fetchUpcomingItems are replaced by setupInstancesListener
+    // which handles both today and upcoming items in a single listener
 
     /**
      * Fetch completed items
@@ -255,15 +167,85 @@ const ChecklistScreen = () => {
     }, [user]);
 
     /**
+     * Sync templates and generate instances
+     */
+    const syncTemplatesAndInstances = useCallback(async (forceRefresh = false) => {
+        if (!user?.uid) return;
+
+        setSyncingTemplates(true);
+        try {
+            // Try cache first if not forcing refresh
+            let templates = [];
+            if (!forceRefresh) {
+                templates = await getCachedTemplates(user.uid);
+            }
+
+            // If no cache or forcing refresh, sync from Firestore
+            if (templates.length === 0 || forceRefresh) {
+                const syncResult = await syncTemplates(user.uid, forceRefresh);
+                if (!syncResult.error) {
+                    templates = syncResult.templates;
+                } else {
+                    console.error('Error syncing templates:', syncResult.error);
+                }
+            }
+
+            // Generate instances from templates
+            if (templates.length > 0) {
+                await syncInstances(user.uid, templates);
+            }
+
+            setTemplatesLoaded(true);
+        } catch (error) {
+            console.error('Error syncing templates and instances:', error);
+        } finally {
+            setSyncingTemplates(false);
+        }
+    }, [user]);
+
+    /**
+     * Set up template sync on mount
+     */
+    useEffect(() => {
+        if (user?.uid) {
+            syncTemplatesAndInstances();
+        }
+    }, [user, syncTemplatesAndInstances]);
+
+    /**
      * Set up all real-time listeners
      */
     useEffect(() => {
         const unsubscribes = [];
 
         if (user?.uid) {
-            unsubscribes.push(fetchTodayItems());
-            unsubscribes.push(fetchUpcomingItems());
+            // Set up real-time listener for active checklist items (replaces fetchTodayItems and fetchUpcomingItems)
+            const instancesUnsubscribe = setupInstancesListener(user.uid, (items) => {
+                // Filter items by date for today/upcoming
+                const { todayStart, todayEnd } = getTodayRange();
+                const today = items.filter(item => {
+                    if (!item.dueDate) return false;
+                    const dueDate = new Date(item.dueDate);
+                    return dueDate >= todayStart && dueDate <= todayEnd;
+                });
+                const upcoming = items.filter(item => {
+                    if (!item.dueDate) return false;
+                    const dueDate = new Date(item.dueDate);
+                    return dueDate > todayEnd;
+                });
+                setTodayItems(today);
+                setUpcomingItems(upcoming);
+                setLoading(false);
+                setRefreshing(false);
+            });
+            if (instancesUnsubscribe) {
+                unsubscribes.push(instancesUnsubscribe);
+            }
+
+            // Keep existing listener for completed items
             unsubscribes.push(fetchCompletedItems());
+        } else {
+            setLoading(false);
         }
 
         return () => {
@@ -271,18 +253,35 @@ const ChecklistScreen = () => {
                 if (unsubscribe) unsubscribe();
             });
         };
-    }, [user, fetchTodayItems, fetchUpcomingItems, fetchCompletedItems]);
+    }, [user, fetchCompletedItems]);
 
     /**
      * Handle pull to refresh
      */
-    const handleRefresh = useCallback(() => {
+    const handleRefresh = useCallback(async () => {
         setRefreshing(true);
-        // Re-fetch all data
-        fetchTodayItems();
-        fetchUpcomingItems();
-        fetchCompletedItems();
-    }, [fetchTodayItems, fetchUpcomingItems, fetchCompletedItems]);
+        // Sync templates and instances (real-time listeners will update automatically)
+        await syncTemplatesAndInstances(true);
+        // Note: fetchCompletedItems() is not called here to avoid duplicate listeners.
+        // The existing useEffect real-time listener (line 246) continues to drive state updates.
+        setRefreshing(false);
+    }, [syncTemplatesAndInstances]);
+
+    /**
+     * Handle manual template sync
+     */
+    const handleSyncTemplates = useCallback(async () => {
+        setSyncingTemplates(true);
+        try {
+            await syncTemplatesAndInstances(true);
+            Alert.alert('Success', 'Templates synced successfully!');
+        } catch (error) {
+            console.error('Error syncing templates:', error);
+            Alert.alert('Error', 'Failed to sync templates. Please try again.');
+        } finally {
+            setSyncingTemplates(false);
+        }
+    }, [syncTemplatesAndInstances]);
 
     /**
      * Handle mark as complete
@@ -739,6 +738,18 @@ const ChecklistScreen = () => {
                         color={showFilters ? COLORS.primary : COLORS.textSecondary}
                     />
                 </TouchableOpacity>
+                <TouchableOpacity
+                    style={styles.syncButton}
+                    onPress={handleSyncTemplates}
+                    activeOpacity={0.7}
+                    disabled={syncingTemplates}
+                >
+                    <MaterialCommunityIcons
+                        name={syncingTemplates ? 'sync' : 'sync-outline'}
+                        size={20}
+                        color={syncingTemplates ? COLORS.primary : COLORS.textSecondary}
+                    />
+                </TouchableOpacity>
             </View>
 
             {/* Filters */}
@@ -847,6 +858,11 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     filterButton: {
+        padding: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    syncButton: {
         padding: 12,
         justifyContent: 'center',
         alignItems: 'center',

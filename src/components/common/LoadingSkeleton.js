@@ -17,26 +17,28 @@ const ShimmerSkeletonItem = ({ style, delay = 0 }) => {
     const shimmerAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        const startAnimation = () => {
-            Animated.loop(
-                Animated.sequence([
-                    Animated.timing(shimmerAnim, {
-                        toValue: 1,
-                        duration: 1000,
-                        delay,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(shimmerAnim, {
-                        toValue: 0,
-                        duration: 1000,
-                        useNativeDriver: true,
-                    }),
-                ])
-            ).start();
+        const loopAnim = Animated.loop(
+            Animated.sequence([
+                Animated.timing(shimmerAnim, {
+                    toValue: 1,
+                    duration: 1000,
+                    delay,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(shimmerAnim, {
+                    toValue: 0,
+                    duration: 1000,
+                    useNativeDriver: true,
+                }),
+            ])
+        );
+        
+        loopAnim.start();
+        
+        return () => {
+            loopAnim.stop();
         };
-
-        startAnimation();
-    }, [shimmerAnim, delay]);
+    }, [delay]);
 
     const opacity = shimmerAnim.interpolate({
         inputRange: [0, 1],
