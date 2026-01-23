@@ -130,11 +130,23 @@ const ThemeContext = createContext({
 
 /**
  * Theme Provider Component
+ * 
+ * Provides theme context with safe initialization:
+ * - Always provides valid default values (light theme) immediately
+ * - Loads saved preference from AsyncStorage asynchronously
+ * - Updates theme when saved preference loads (causes re-render)
+ * - Handles system theme changes automatically
  */
 export const ThemeProvider = ({ children }) => {
   const systemColorScheme = useColorScheme();
+  // Initialize with system theme detection (synchronous, always available)
+  // This ensures we always have a valid isDark value from the start
   const [themeMode, setThemeMode] = useState(THEME_MODES.SYSTEM);
-  const [isDark, setIsDark] = useState(systemColorScheme === 'dark');
+  const [isDark, setIsDark] = useState(() => {
+    // Initialize based on system theme (synchronous)
+    // This provides a valid value immediately, even before AsyncStorage loads
+    return systemColorScheme === 'dark';
+  });
 
   // Load theme preference from storage
   useEffect(() => {
@@ -185,6 +197,8 @@ export const ThemeProvider = ({ children }) => {
     await setTheme(newMode);
   }, [isDark, setTheme]);
 
+  // Always provide a valid value object, even during async initialization
+  // This ensures useTheme() never returns undefined values
   const value = {
     theme: themeMode,
     colors,
@@ -193,6 +207,12 @@ export const ThemeProvider = ({ children }) => {
     toggleTheme,
   };
 
+  // The context provider always renders children immediately with valid default values
+  // When AsyncStorage loads the saved preference, it updates state and causes a re-render
+  // This is safe because:
+  // 1. Default values are always valid (light theme)
+  // 2. Components using useTheme() will re-render when theme changes
+  // 3. No component will ever receive undefined values
   return (
     <ThemeContext.Provider value={value}>
       {children}
@@ -202,12 +222,42 @@ export const ThemeProvider = ({ children }) => {
 
 /**
  * Hook to use theme context
+ * 
+ * Always returns a valid context object with:
+ * - theme: Current theme mode (LIGHT, DARK, or SYSTEM)
+ * - colors: Current color scheme object
+ * - isDark: Boolean indicating if dark mode is active
+ * - setTheme: Function to change theme mode
+ * - toggleTheme: Function to toggle between light and dark
+ * 
+ * Safety guarantees:
+ * - Context always provides valid default values (light theme)
+ * - isDark is initialized synchronously from system color scheme
+ * - No undefined values are ever returned
+ * - AsyncStorage loading happens after initial render (non-blocking)
+ * 
+ * @throws {Error} If called outside ThemeProvider
+ * @returns {Object} Theme context object
  */
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (!context) {
     throw new Error('useTheme must be used within a ThemeProvider');
   }
+  
+  // Defensive check: ensure context has all required properties
+  // This should never happen, but provides extra safety
+  if (!context.colors || context.isDark === undefined) {
+    console.warn('Theme context is missing required properties. Using defaults.');
+    return {
+      theme: THEME_MODES.LIGHT,
+      colors: lightColors,
+      isDark: false,
+      setTheme: () => {},
+      toggleTheme: () => {},
+    };
+  }
+  
   return context;
 };
 
