@@ -5,7 +5,7 @@
  * and smooth animations. Supports collapsed and expanded views.
  */
 
-import React, { useState, useRef, memo, useMemo, useCallback } from 'react';
+import React, { useState, useRef, memo, useMemo, useCallback, useEffect } from 'react';
 import {
     View,
     Text,
@@ -156,17 +156,17 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
     const regulatoryReference = getRegulatoryReference(item.category);
 
     // Expand/collapse animation
-    React.useEffect(() => {
+    useEffect(() => {
         Animated.spring(expandAnimation, {
             toValue: expanded ? 1 : 0,
             useNativeDriver: false,
             tension: 100,
             friction: 8,
         }).start();
-    }, [expanded]);
+    }, [expanded, expandAnimation]);
 
     // Opacity animation for completed items
-    React.useEffect(() => {
+    useEffect(() => {
         Animated.timing(opacityAnimation, {
             toValue: item.completed ? 0.6 : 1,
             duration: 300,
