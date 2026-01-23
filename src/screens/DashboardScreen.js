@@ -33,6 +33,8 @@ import EmptyState from '../components/common/EmptyState';
 import { COLORS } from '../constants/colors';
 import { queryDocuments, setupRealtimeListener } from '../services/firestore';
 import { CHECKLIST_STATUS } from '../constants/constants';
+import { PADDING, SPACING, moderateScale, getGridColumns, isTablet, isLandscape } from '../utils/responsive';
+import { ROUTES } from '../navigation/navigationConfig';
 
 const DashboardScreen = () => {
     const navigation = useNavigation();
@@ -315,29 +317,29 @@ const DashboardScreen = () => {
     };
 
     const handleProfilePress = () => {
-        navigation.navigate('Profile');
+        navigation.navigate(ROUTES.MAIN.PROFILE);
     };
 
     const handleDocumentsPress = () => {
-        navigation.navigate('Documents');
+        navigation.navigate(ROUTES.MAIN.DOCUMENTS);
     };
 
     const handleChecklistPress = () => {
-        navigation.navigate('Checklist');
+        navigation.navigate(ROUTES.MAIN.CHECKLIST);
     };
 
     const handleUploadPress = () => {
-        navigation.navigate('Documents');
+        navigation.navigate(ROUTES.MAIN.DOCUMENTS);
         // TODO: Open upload modal when Documents screen supports it
     };
 
     const handleTodayChecklistPress = () => {
-        navigation.navigate('Checklist');
+        navigation.navigate(ROUTES.MAIN.CHECKLIST);
         // TODO: Filter to show only today's items when Checklist screen supports it
     };
 
     const handleRecentDocumentsPress = () => {
-        navigation.navigate('Documents');
+        navigation.navigate(ROUTES.MAIN.DOCUMENTS);
         // TODO: Filter to show recent documents when Documents screen supports it
     };
 
@@ -349,12 +351,13 @@ const DashboardScreen = () => {
         );
     };
 
-    const handleChecklistItemPress = (item) => {
-        navigation.navigate('Checklist');
+    // Memoize handlers to prevent re-renders
+    const handleChecklistItemPress = useCallback((item) => {
+        navigation.navigate(ROUTES.MAIN.CHECKLIST);
         // TODO: Pass item as parameter when detail screen is implemented
-    };
+    }, [navigation]);
 
-    const handleToggleComplete = (item) => {
+    const handleToggleComplete = useCallback((item) => {
         Alert.alert(
             'Mark Complete',
             `Mark "${item.title}" as complete?`,
@@ -371,20 +374,20 @@ const DashboardScreen = () => {
         );
     };
 
-    const handleViewAllChecklist = () => {
-        navigation.navigate('Checklist');
-    };
+    const handleViewAllChecklist = useCallback(() => {
+        navigation.navigate(ROUTES.MAIN.CHECKLIST);
+    }, [navigation]);
 
-    const handleDocumentPress = (document) => {
-        navigation.navigate('Documents', {
-            screen: 'DocumentDetail',
+    const handleDocumentPress = useCallback((document) => {
+        navigation.navigate(ROUTES.MAIN.DOCUMENTS, {
+            screen: ROUTES.DOCUMENTS.DETAIL,
             params: { documentId: document.id },
         });
-    };
+    }, [navigation]);
 
-    const handleViewAllDocuments = () => {
-        navigation.navigate('Documents');
-    };
+    const handleViewAllDocuments = useCallback(() => {
+        navigation.navigate(ROUTES.MAIN.DOCUMENTS);
+    }, [navigation]);
 
     return (
         <View style={styles.container}>
@@ -403,6 +406,8 @@ const DashboardScreen = () => {
                         onRefresh={onRefresh}
                         tintColor={COLORS.primary}
                         colors={[COLORS.primary]}
+                        progressViewOffset={Platform.OS === 'android' ? 20 : 0}
+                        progressBackgroundColor={COLORS.surface}
                     />
                 }
             >
@@ -469,13 +474,22 @@ const DashboardScreen = () => {
                     />
 
                     {/* Today's Tasks Section */}
-                    <View style={styles.section}>
+                    <View style={styles.section} accessibilityRole="region" accessibilityLabel="Today's Tasks section">
                         <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Today's Tasks</Text>
+                            <Text 
+                                style={styles.sectionTitle}
+                                accessibilityRole="header"
+                                accessibilityLevel={2}
+                            >
+                                Today's Tasks
+                            </Text>
                             {todayTasks.length > 0 && (
                                 <TouchableOpacity
                                     onPress={handleViewAllChecklist}
                                     activeOpacity={0.7}
+                                    accessibilityLabel="View all checklist items"
+                                    accessibilityHint="Double tap to view all checklist items"
+                                    accessibilityRole="button"
                                 >
                                     <Text style={styles.viewAllText}>View All</Text>
                                 </TouchableOpacity>
@@ -502,13 +516,22 @@ const DashboardScreen = () => {
                     </View>
 
                     {/* Recent Documents Section */}
-                    <View style={styles.section}>
+                    <View style={styles.section} accessibilityRole="region" accessibilityLabel="Recent Documents section">
                         <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Recent Documents</Text>
+                            <Text 
+                                style={styles.sectionTitle}
+                                accessibilityRole="header"
+                                accessibilityLevel={2}
+                            >
+                                Recent Documents
+                            </Text>
                             {recentDocuments.length > 0 && (
                                 <TouchableOpacity
                                     onPress={handleViewAllDocuments}
                                     activeOpacity={0.7}
+                                    accessibilityLabel="View all documents"
+                                    accessibilityHint="Double tap to view all documents"
+                                    accessibilityRole="button"
                                 >
                                     <Text style={styles.viewAllText}>View All</Text>
                                 </TouchableOpacity>
@@ -547,34 +570,35 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     content: {
-        padding: 20,
+        paddingHorizontal: PADDING.SCREEN_HORIZONTAL,
+        paddingVertical: PADDING.SCREEN_VERTICAL,
     },
     statsGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
-        marginTop: 8,
+        marginTop: SPACING.SM,
     },
     statCardWrapper: {
-        width: '48%',
-        marginBottom: 16,
+        width: isTablet && isLandscape ? '23%' : isTablet ? '48%' : '48%',
+        marginBottom: SPACING.MD,
     },
     section: {
-        marginTop: 32,
+        marginTop: SPACING.XL,
     },
     sectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: SPACING.MD,
     },
     sectionTitle: {
-        fontSize: 18,
+        fontSize: moderateScale(18),
         fontWeight: 'bold',
         color: COLORS.text,
     },
     viewAllText: {
-        fontSize: 14,
+        fontSize: moderateScale(14),
         color: COLORS.primary,
         fontWeight: '600',
     },

@@ -5,10 +5,11 @@
  * Features icon, large number, label, optional subtitle, and press animation.
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import React, { memo, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import { moderateScale, PADDING, SPACING, isTablet, getCardWidth } from '../../utils/responsive';
 
 /**
  * StatCard Component
@@ -32,14 +33,55 @@ const StatCard = ({
     style,
 }) => {
     const CardComponent = onPress ? TouchableOpacity : View;
+    const scaleAnim = useRef(new Animated.Value(1)).current;
+
+    // Memoize accessibility label
+    const accessibilityLabel = useMemo(() => {
+        return `${label}: ${value}${subtitle ? `. ${subtitle}` : ''}`;
+    }, [label, value, subtitle]);
+    
+    const accessibilityHint = onPress ? `Double tap to view ${label.toLowerCase()}` : undefined;
+
+    const handlePressIn = () => {
+        if (onPress) {
+            Animated.spring(scaleAnim, {
+                toValue: 0.95,
+                useNativeDriver: true,
+                tension: 300,
+                friction: 10,
+            }).start();
+        }
+    };
+
+    const handlePressOut = () => {
+        if (onPress) {
+            Animated.spring(scaleAnim, {
+                toValue: 1,
+                useNativeDriver: true,
+                tension: 300,
+                friction: 10,
+            }).start();
+        }
+    };
 
     return (
-        <CardComponent
-            style={[styles.card, style]}
-            onPress={onPress}
-            activeOpacity={onPress ? 0.7 : 1}
-            disabled={!onPress}
+        <Animated.View
+            style={[
+                { transform: [{ scale: scaleAnim }] },
+            ]}
         >
+            <CardComponent
+                style={[styles.card, style]}
+                onPress={onPress}
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
+                activeOpacity={onPress ? 1 : 1}
+                disabled={!onPress}
+                accessibilityLabel={accessibilityLabel}
+                accessibilityHint={accessibilityHint}
+                accessibilityRole={onPress ? "button" : "text"}
+                accessibilityState={{ disabled: !onPress }}
+            >
             {/* Icon Container */}
             <View style={[styles.iconContainer, { backgroundColor: `${color}15` }]}>
                 <MaterialCommunityIcons
@@ -57,20 +99,21 @@ const StatCard = ({
 
             {/* Subtitle (optional) */}
             {subtitle && (
-                <Text style={styles.subtitle}>{subtitle}</Text>
-            )}
+                    <Text style={styles.subtitle}>{subtitle}</Text>
+                )}
         </CardComponent>
+        </Animated.View>
     );
 };
 
 const styles = StyleSheet.create({
     card: {
         backgroundColor: COLORS.surface,
-        borderRadius: 12,
-        padding: 20,
+        borderRadius: moderateScale(12),
+        padding: PADDING.CARD,
         alignItems: 'center',
         justifyContent: 'center',
-        minHeight: 160,
+        minHeight: isTablet ? moderateScale(180) : moderateScale(160),
         // Shadow for depth
         ...Platform.select({
             ios: {
@@ -87,32 +130,33 @@ const styles = StyleSheet.create({
         borderColor: COLORS.border,
     },
     iconContainer: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+        width: isTablet ? moderateScale(64) : moderateScale(56),
+        height: isTablet ? moderateScale(64) : moderateScale(56),
+        borderRadius: isTablet ? moderateScale(32) : moderateScale(28),
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: SPACING.SM,
     },
     value: {
-        fontSize: 32,
+        fontSize: isTablet ? moderateScale(36) : moderateScale(32),
         fontWeight: 'bold',
         color: COLORS.text,
-        marginBottom: 4,
+        marginBottom: SPACING.XS,
     },
     label: {
-        fontSize: 14,
+        fontSize: moderateScale(14),
         color: COLORS.textSecondary,
         textAlign: 'center',
         fontWeight: '500',
-        marginBottom: 4,
+        marginBottom: SPACING.XS,
     },
     subtitle: {
-        fontSize: 12,
+        fontSize: moderateScale(12),
         color: COLORS.textLight,
         textAlign: 'center',
-        marginTop: 4,
+        marginTop: SPACING.XS,
     },
 });
 
-export default StatCard;
+// Memoize component to prevent unnecessary re-renders
+export default memo(StatCard);

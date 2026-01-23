@@ -27,6 +27,7 @@ import { signUpUser } from '../../services/auth';
 import { createDocument } from '../../services/firestore';
 import { COLORS } from '../../constants/colors';
 import { USER_ROLES } from '../../constants/constants';
+import { ROUTES } from '../../navigation/navigationConfig';
 
 /**
  * Email validation regex pattern
@@ -326,7 +327,7 @@ const SignupScreen = ({ navigation }) => {
               text: 'OK',
               onPress: () => {
                 // Navigate to Login screen so user can sign in
-                navigation.navigate('Login');
+                navigation.navigate(ROUTES.AUTH.LOGIN);
               },
             },
           ]
@@ -351,9 +352,9 @@ const SignupScreen = ({ navigation }) => {
   /**
    * Handle login link press
    */
-  const handleLogin = () => {
-    navigation.navigate('Login');
-  };
+    const handleLogin = () => {
+        navigation.navigate(ROUTES.AUTH.LOGIN);
+    };
 
   /**
    * Get password strength color

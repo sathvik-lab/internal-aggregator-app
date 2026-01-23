@@ -5,7 +5,7 @@
  * Shows document name, category, upload date, and file type icon.
  */
 
-import React from 'react';
+import React, { memo, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
@@ -70,12 +70,18 @@ const formatDate = (dateString) => {
  * @param {Function} props.onPress - Callback when document is pressed
  */
 const DocumentItem = ({ document, onPress }) => {
-    const fileIcon = getFileIcon(document.mimeType);
+    const fileIcon = useMemo(() => getFileIcon(document.mimeType), [document.mimeType]);
+
+    const handlePress = useCallback(() => {
+        if (onPress) {
+            onPress(document);
+        }
+    }, [onPress, document]);
 
     return (
         <TouchableOpacity
             style={styles.container}
-            onPress={() => onPress && onPress(document)}
+            onPress={handlePress}
             activeOpacity={0.7}
         >
             {/* File Icon */}
@@ -177,4 +183,14 @@ const styles = StyleSheet.create({
     },
 });
 
-export default DocumentItem;
+// Memoize component to prevent unnecessary re-renders
+export default memo(DocumentItem, (prevProps, nextProps) => {
+    return (
+        prevProps.document.id === nextProps.document.id &&
+        prevProps.document.name === nextProps.document.name &&
+        prevProps.document.size === nextProps.document.size &&
+        prevProps.document.uploadDate === nextProps.document.uploadDate &&
+        prevProps.document.category === nextProps.document.category &&
+        prevProps.onPress === nextProps.onPress
+    );
+});

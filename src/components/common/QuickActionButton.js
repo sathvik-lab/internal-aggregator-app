@@ -5,10 +5,11 @@
  * Features icon, label, press animation, and navigation.
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import React, { memo, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import { TOUCH_TARGETS, SPACING, moderateScale, ICON_SIZES, isTablet } from '../../utils/responsive';
 
 /**
  * QuickActionButton Component
@@ -25,16 +26,46 @@ const QuickActionButton = ({
     onPress,
     color = COLORS.primary,
 }) => {
+    const scaleAnim = useRef(new Animated.Value(1)).current;
+
+    const handlePressIn = () => {
+        Animated.spring(scaleAnim, {
+            toValue: 0.9,
+            useNativeDriver: true,
+            tension: 300,
+            friction: 10,
+        }).start();
+    };
+
+    const handlePressOut = () => {
+        Animated.spring(scaleAnim, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 300,
+            friction: 10,
+        }).start();
+    };
+
     return (
-        <TouchableOpacity
-            style={styles.button}
-            onPress={onPress}
-            activeOpacity={0.7}
+        <Animated.View
+            style={{
+                transform: [{ scale: scaleAnim }],
+            }}
         >
+            <TouchableOpacity
+                style={styles.button}
+                onPress={onPress}
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
+                activeOpacity={1}
+                accessibilityLabel={label}
+                accessibilityHint={`Double tap to ${label.toLowerCase()}`}
+                accessibilityRole="button"
+            >
             <View style={[styles.iconContainer, { backgroundColor: `${color}15` }]}>
                 <MaterialCommunityIcons
                     name={icon}
-                    size={24}
+                    size={isTablet ? ICON_SIZES.MD : ICON_SIZES.SM}
                     color={color}
                 />
             </View>
@@ -42,6 +73,7 @@ const QuickActionButton = ({
                 {label}
             </Text>
         </TouchableOpacity>
+        </Animated.View>
     );
 };
 
@@ -49,17 +81,18 @@ const styles = StyleSheet.create({
     button: {
         alignItems: 'center',
         justifyContent: 'center',
-        minWidth: 80,
-        maxWidth: 100,
-        marginRight: 16,
+        minWidth: isTablet ? moderateScale(100) : moderateScale(80),
+        maxWidth: isTablet ? moderateScale(120) : moderateScale(100),
+        minHeight: TOUCH_TARGETS.MINIMUM, // Ensure minimum touch target
+        marginRight: SPACING.MD,
     },
     iconContainer: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+        width: isTablet ? moderateScale(64) : moderateScale(56),
+        height: isTablet ? moderateScale(64) : moderateScale(56),
+        borderRadius: isTablet ? moderateScale(32) : moderateScale(28),
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 8,
+        marginBottom: SPACING.SM,
         // Subtle shadow
         ...Platform.select({
             ios: {
@@ -74,11 +107,12 @@ const styles = StyleSheet.create({
         }),
     },
     label: {
-        fontSize: 12,
+        fontSize: moderateScale(12),
         color: COLORS.text,
         textAlign: 'center',
         fontWeight: '500',
     },
 });
 
-export default QuickActionButton;
+// Memoize component to prevent unnecessary re-renders
+export default memo(QuickActionButton);

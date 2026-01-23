@@ -4,7 +4,7 @@
  * This service provides authentication functions for user management using Firebase Auth.
  */
 
-import { auth } from './firebase';
+import { getFirebaseAuth } from './firebase';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -24,8 +24,10 @@ import {
  */
 export const signUpUser = async (email, password, displayName) => {
   try {
+    // Get the actual auth instance (not a Proxy) for Firebase SDK functions
+    const authInstance = getFirebaseAuth();
     // Create user with email and password
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const userCredential = await createUserWithEmailAndPassword(authInstance, email, password);
     
     // Update profile with display name if provided
     if (displayName) {
@@ -61,7 +63,9 @@ export const signUpUser = async (email, password, displayName) => {
  */
 export const signInUser = async (email, password) => {
   try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    // Get the actual auth instance (not a Proxy) for Firebase SDK functions
+    const authInstance = getFirebaseAuth();
+    const userCredential = await signInWithEmailAndPassword(authInstance, email, password);
     return { user: userCredential.user, error: null };
   } catch (error) {
     // Map Firebase error codes to user-friendly messages
@@ -90,7 +94,9 @@ export const signInUser = async (email, password) => {
  */
 export const signOutUser = async () => {
   try {
-    await signOut(auth);
+    // Get the actual auth instance (not a Proxy) for Firebase SDK functions
+    const authInstance = getFirebaseAuth();
+    await signOut(authInstance);
     return { error: null };
   } catch (error) {
     return {
@@ -110,7 +116,9 @@ export const signOutUser = async () => {
  */
 export const resetPassword = async (email) => {
   try {
-    await sendPasswordResetEmail(auth, email);
+    // Get the actual auth instance (not a Proxy) for Firebase SDK functions
+    const authInstance = getFirebaseAuth();
+    await sendPasswordResetEmail(authInstance, email);
     return { error: null };
   } catch (error) {
     // Map Firebase error codes to user-friendly messages
@@ -133,7 +141,9 @@ export const resetPassword = async (email) => {
  * @returns {Object|null} Current user object or null if not authenticated
  */
 export const getCurrentUser = () => {
-  return auth.currentUser;
+  // Get the actual auth instance to access currentUser
+  const authInstance = getFirebaseAuth();
+  return authInstance.currentUser;
 };
 
 /**
@@ -145,7 +155,9 @@ export const getCurrentUser = () => {
  */
 export const updateUserProfile = async (displayName, photoURL) => {
   try {
-    const user = auth.currentUser;
+    // Get the actual auth instance to access currentUser
+    const authInstance = getFirebaseAuth();
+    const user = authInstance.currentUser;
     if (!user) {
       throw { code: 'auth/no-current-user', message: 'No user is currently signed in' };
     }
@@ -183,5 +195,7 @@ export const updateUserProfile = async (displayName, photoURL) => {
  * @returns {Function} Unsubscribe function to stop listening
  */
 export const onAuthStateChanged = (callback) => {
-  return firebaseOnAuthStateChanged(auth, callback);
+  // Get the actual auth instance (not a Proxy) for Firebase SDK functions
+  const authInstance = getFirebaseAuth();
+  return firebaseOnAuthStateChanged(authInstance, callback);
 };

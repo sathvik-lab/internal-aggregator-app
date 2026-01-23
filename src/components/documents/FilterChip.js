@@ -4,7 +4,7 @@
  * Chip component for filtering documents by category.
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { COLORS } from '../../constants/colors';
 
@@ -22,6 +22,10 @@ const FilterChip = ({ label, selected, onPress }) => {
             style={[styles.chip, selected && styles.chipSelected]}
             onPress={onPress}
             activeOpacity={0.7}
+            accessibilityLabel={`Filter by ${label}${selected ? ', selected' : ''}`}
+            accessibilityHint={selected ? 'Filter is active. Double tap to remove filter.' : 'Double tap to filter by this category'}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
         >
             <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
                 {label}
@@ -55,4 +59,5 @@ const styles = StyleSheet.create({
     },
 });
 
-export default FilterChip;
+// Memoize component to prevent unnecessary re-renders
+export default memo(FilterChip);

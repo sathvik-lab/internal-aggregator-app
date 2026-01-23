@@ -102,10 +102,28 @@ try {
     console.warn('⚠️  App will run with mock services. Firebase features will not work until configured.');
   } else {
     // Validate config values are not just placeholder strings
+    // Check for both .env.example placeholders (your-*-here, your-*-id) and 
+    // fallback placeholders (placeholder-*-key, placeholder-*-id)
+    // This catches cases where users copy .env.example without updating values
+    const isPlaceholderValue = (value) => {
+      if (!value) return true;
+      const lowerValue = value.toLowerCase();
+      // Check for common placeholder patterns
+      return (
+        lowerValue.includes('placeholder') ||
+        lowerValue.includes('your-') ||
+        lowerValue === 'example' ||
+        lowerValue.includes('example-')
+      );
+    };
+    
     if (
-      firebaseApiKey === 'placeholder-api-key' ||
-      firebaseProjectId === 'placeholder-project-id' ||
-      firebaseAppId === 'placeholder-app-id'
+      isPlaceholderValue(firebaseApiKey) ||
+      isPlaceholderValue(firebaseProjectId) ||
+      isPlaceholderValue(firebaseAppId) ||
+      isPlaceholderValue(firebaseAuthDomain) ||
+      isPlaceholderValue(firebaseStorageBucket) ||
+      isPlaceholderValue(firebaseMessagingSenderId)
     ) {
       // In production, throw error
       if (process.env.NODE_ENV === 'production') {
@@ -114,6 +132,7 @@ try {
       
       // In development, allow placeholder values (for testing)
       console.warn('⚠️  Firebase configuration contains placeholder values. App will run with mock services.');
+      console.warn('⚠️  Please update your .env file with real Firebase credentials from Firebase Console.');
       app = null;
       db = null;
       storage = null;
@@ -259,37 +278,14 @@ const getAuthInstance = () => {
   }
 };
 
-// Export auth as a getter that initializes on first access
-// Uses a Proxy to intercept property access and initialize auth lazily
-// This allows the module to load even if Firebase components aren't ready yet
-export const auth = new Proxy({}, {
-  get(target, prop) {
-    try {
-      const authInstance = getAuthInstance();
-      const value = authInstance[prop];
-      // If it's a function, bind it to the auth instance
-      if (typeof value === 'function') {
-        return value.bind(authInstance);
-      }
-      return value;
-    } catch (error) {
-      // If auth initialization fails, log and re-throw
-      // This will cause the calling code to handle the error
-      console.error('Error accessing Firebase Auth:', error.message);
-      throw error;
-    }
-  },
-  set(target, prop, value) {
-    try {
-      const authInstance = getAuthInstance();
-      authInstance[prop] = value;
-      return true;
-    } catch (error) {
-      console.error('Error setting Firebase Auth property:', error.message);
-      throw error;
-    }
-  }
-});
+// Export a function to get the auth instance (lazy initialization)
+// This ensures Firebase SDK functions receive an actual Auth instance, not a Proxy
+// Firebase SDK functions perform type checking and expect a real Auth object
+// IMPORTANT: Always use getFirebaseAuth() when passing auth to Firebase SDK functions
+// This ensures they receive a real Auth instance, not a Proxy
+export const getFirebaseAuth = () => {
+  return getAuthInstance();
+};
 
 // Export other services
 export { db, storage };

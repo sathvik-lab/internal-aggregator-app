@@ -5,8 +5,8 @@
  * Used in grid/list views of the Documents screen.
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import React, { memo, useMemo, useCallback, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 
@@ -90,25 +90,72 @@ const formatDate = (dateString) => {
  * @param {Function} props.onMenuPress - Callback when menu button is pressed (for actions)
  */
 const DocumentCard = ({ document, onPress, onMenuPress }) => {
-    const fileIcon = getFileIcon(document.mimeType);
-    const fileIconColor = getFileIconColor(document.mimeType);
+    // Memoize icon and color calculations
+    const fileIcon = useMemo(() => getFileIcon(document.mimeType), [document.mimeType]);
+    const fileIconColor = useMemo(() => getFileIconColor(document.mimeType), [document.mimeType]);
 
-    const handleMenuPress = (e) => {
+    // Fade-in animation for list items
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const slideAnim = useRef(new Animated.Value(20)).current;
+
+    useEffect(() => {
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 300,
+                useNativeDriver: true,
+            }),
+            Animated.timing(slideAnim, {
+                toValue: 0,
+                duration: 300,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, [fadeAnim, slideAnim]);
+
+    // Memoize handlers to prevent re-renders
+    const handleCardPress = useCallback(() => {
+        if (onPress) {
+            onPress(document);
+        }
+    }, [onPress, document]);
+
+    const handleMenuPress = useCallback((e) => {
         e.stopPropagation(); // Prevent triggering card press
         if (onMenuPress) {
             onMenuPress(document);
         }
-    };
+    }, [onMenuPress, document]);
+
+    // Memoize accessibility label
+    const accessibilityLabel = useMemo(() => {
+        return `${document.name}, ${document.category || 'document'}, ${formatFileSize(document.size)}, uploaded ${formatDate(document.uploadDate)}`;
+    }, [document.name, document.category, document.size, document.uploadDate]);
+    
+    const accessibilityHint = onPress ? 'Double tap to view document details' : undefined;
 
     return (
-        <TouchableOpacity
-            style={styles.container}
-            onPress={() => onPress && onPress(document)}
-            activeOpacity={0.7}
+        <Animated.View
+            style={{
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+            }}
         >
+            <TouchableOpacity
+                style={styles.container}
+                onPress={handleCardPress}
+                activeOpacity={0.7}
+                accessibilityLabel={accessibilityLabel}
+                accessibilityHint={accessibilityHint}
+                accessibilityRole="button"
+            >
             {/* Header with Menu Button */}
             <View style={styles.header}>
-                <View style={styles.iconContainer}>
+                <View 
+                    style={styles.iconContainer}
+                    accessibilityElementsHidden={true}
+                    importantForAccessibility="no-hide-descendants"
+                >
                     <MaterialCommunityIcons
                         name={fileIcon}
                         size={40}
@@ -119,6 +166,9 @@ const DocumentCard = ({ document, onPress, onMenuPress }) => {
                     style={styles.menuButton}
                     onPress={handleMenuPress}
                     activeOpacity={0.7}
+                    accessibilityLabel={`Actions for ${document.name}`}
+                    accessibilityHint="Double tap to view document actions menu"
+                    accessibilityRole="button"
                 >
                     <MaterialCommunityIcons
                         name="dots-vertical"
@@ -163,6 +213,7 @@ const DocumentCard = ({ document, onPress, onMenuPress }) => {
                 </View>
             </View>
         </TouchableOpacity>
+        </Animated.View>
     );
 };
 
@@ -248,4 +299,16 @@ const styles = StyleSheet.create({
     },
 });
 
-export default DocumentCard;
+// Memoize component to prevent unnecessary re-renders
+export default memo(DocumentCard, (prevProps, nextProps) => {
+    // Custom comparison function for better performance
+    return (
+        prevProps.document.id === nextProps.document.id &&
+        prevProps.document.name === nextProps.document.name &&
+        prevProps.document.size === nextProps.document.size &&
+        prevProps.document.uploadDate === nextProps.document.uploadDate &&
+        prevProps.document.category === nextProps.document.category &&
+        prevProps.onPress === nextProps.onPress &&
+        prevProps.onMenuPress === nextProps.onMenuPress
+    );
+});

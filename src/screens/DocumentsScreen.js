@@ -57,6 +57,7 @@ import EmptyState from '../components/common/EmptyState';
 import { COLORS } from '../constants/colors';
 import { setupRealtimeListener } from '../services/firestore';
 import { PAGINATION } from '../constants/constants';
+import { ROUTES } from '../navigation/navigationConfig';
 
 // Available document categories (extracted from mock data)
 const DOCUMENT_CATEGORIES = [
@@ -249,7 +250,7 @@ const DocumentsScreen = () => {
 
     // Handlers
     const handleDocumentPress = (document) => {
-        navigation.navigate('DocumentDetail', { documentId: document.id });
+        navigation.navigate(ROUTES.DOCUMENTS.DETAIL, { documentId: document.id });
     };
 
     const handleMenuPress = (document) => {
@@ -301,17 +302,17 @@ const DocumentsScreen = () => {
         setSearchQuery('');
     };
 
-    // Render document card
-    const renderDocument = ({ item }) => (
+    // Memoize render functions to prevent re-creation on every render
+    const renderDocument = useCallback(({ item }) => (
         <DocumentCard
             document={item}
             onPress={handleDocumentPress}
             onMenuPress={handleMenuPress}
         />
-    );
+    ), [handleDocumentPress, handleMenuPress]);
 
-    // Render list header (search, filters, sort)
-    const renderHeader = () => (
+    // Memoize header to prevent re-renders
+    const renderHeader = useCallback(() => (
         <View style={styles.header}>
             {/* Search Bar */}
             <SearchBar
@@ -344,10 +345,10 @@ const DocumentsScreen = () => {
                 <SortDropdown value={sortOption} onChange={setSortOption} />
             </View>
         </View>
-    );
+    ), [searchQuery, selectedCategory, sortOption, handleSearchClear, setSelectedCategory, setSortOption]);
 
-    // Render empty state
-    const renderEmpty = () => {
+    // Memoize empty state render
+    const renderEmpty = useCallback(() => {
         if (loading) {
             return <LoadingSkeleton type="card" count={3} />;
         }
@@ -367,9 +368,12 @@ const DocumentsScreen = () => {
                 icon="file-document-outline"
                 title="No documents yet"
                 message="Upload your first compliance document to get started."
+                showAction
+                actionLabel="Upload Document"
+                onAction={handleUploadPress}
             />
         );
-    };
+    }, [loading, searchQuery, selectedCategory, handleUploadPress]);
 
     return (
         <View style={styles.container}>
@@ -389,11 +393,24 @@ const DocumentsScreen = () => {
                         onRefresh={onRefresh}
                         tintColor={COLORS.primary}
                         colors={[COLORS.primary]}
+                        progressViewOffset={Platform.OS === 'android' ? 20 : 0}
+                        progressBackgroundColor={COLORS.surface}
                     />
                 }
                 onEndReached={loadMore}
                 onEndReachedThreshold={0.5}
                 showsVerticalScrollIndicator={false}
+                // Performance optimizations
+                windowSize={10} // Render 10 screens worth of items (5 above, 5 below)
+                initialNumToRender={10} // Render 10 items initially
+                maxToRenderPerBatch={10} // Render 10 items per batch
+                updateCellsBatchingPeriod={50} // Batch updates every 50ms
+                removeClippedSubviews={true} // Remove off-screen views from native view hierarchy
+                getItemLayout={(data, index) => ({
+                    length: 200, // Approximate item height (card + margin)
+                    offset: 200 * index,
+                    index,
+                })}
             />
 
             {/* Floating Action Button */}

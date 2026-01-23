@@ -5,7 +5,7 @@
  * choose from gallery, or select file. Includes upload progress and form.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -35,6 +35,82 @@ const DOCUMENT_CATEGORIES = [
     'Legal',
     'Safety Reports',
 ];
+
+/**
+ * Success Animation Component
+ * Shows animated checkmark with success message
+ */
+const SuccessAnimation = ({ message, onAnimationComplete }) => {
+    const scaleAnim = useRef(new Animated.Value(0)).current;
+    const opacityAnim = useRef(new Animated.Value(0)).current;
+    const checkmarkScale = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        // Animate checkmark appearing
+        Animated.sequence([
+            Animated.parallel([
+                Animated.spring(scaleAnim, {
+                    toValue: 1,
+                    useNativeDriver: true,
+                    tension: 100,
+                    friction: 7,
+                }),
+                Animated.timing(opacityAnim, {
+                    toValue: 1,
+                    duration: 300,
+                    useNativeDriver: true,
+                }),
+            ]),
+            Animated.spring(checkmarkScale, {
+                toValue: 1,
+                useNativeDriver: true,
+                tension: 200,
+                friction: 5,
+            }),
+        ]).start(() => {
+            if (onAnimationComplete) {
+                onAnimationComplete();
+            }
+        });
+    }, [scaleAnim, opacityAnim, checkmarkScale, onAnimationComplete]);
+
+    return (
+        <View style={styles.successContainer}>
+            <Animated.View
+                style={{
+                    transform: [{ scale: scaleAnim }],
+                    opacity: opacityAnim,
+                }}
+            >
+                <Animated.View
+                    style={{
+                        transform: [{ scale: checkmarkScale }],
+                    }}
+                >
+                    <MaterialCommunityIcons
+                        name="check-circle"
+                        size={64}
+                        color={COLORS.success}
+                    />
+                </Animated.View>
+            </Animated.View>
+            <Animated.Text
+                style={[
+                    styles.successText,
+                    {
+                        opacity: opacityAnim,
+                        transform: [{ translateY: opacityAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [10, 0],
+                        }) }],
+                    },
+                ]}
+            >
+                {message}
+            </Animated.Text>
+        </View>
+    );
+};
 
 /**
  * UploadDocumentModal Component
@@ -525,14 +601,17 @@ const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
 
                             {/* Success Step */}
                             {step === 'success' && (
-                                <View style={styles.successContainer}>
-                                    <MaterialCommunityIcons
-                                        name="check-circle"
-                                        size={64}
-                                        color={COLORS.success}
-                                    />
-                                    <Text style={styles.successText}>Document uploaded successfully!</Text>
-                                </View>
+                                <SuccessAnimation
+                                    message="Document uploaded successfully!"
+                                    onAnimationComplete={() => {
+                                        setTimeout(() => {
+                                            onClose();
+                                            if (onUploadSuccess) {
+                                                onUploadSuccess();
+                                            }
+                                        }, 1500);
+                                    }}
+                                />
                             )}
                         </ScrollView>
                     </TouchableOpacity>

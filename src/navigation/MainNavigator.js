@@ -3,6 +3,29 @@
  * 
  * Bottom tab navigation for authenticated users.
  * Features 4 main tabs: Dashboard, Documents, Checklist, and Profile.
+ * 
+ * Navigation Structure:
+ * 
+ * MainNavigator (Bottom Tabs)
+ * ├── Dashboard (Tab)
+ * │   └── DashboardScreen
+ * │
+ * ├── Documents (Tab)
+ * │   └── DocumentsStack
+ * │       ├── DocumentsList (initial route)
+ * │       └── DocumentDetail
+ * │
+ * ├── Checklist (Tab)
+ * │   └── ChecklistScreen
+ * │
+ * └── Profile (Tab)
+ *     └── ProfileScreen
+ * 
+ * Navigation Features:
+ * - Tab badges for notifications (Checklist tab)
+ * - Stack navigation within Documents tab
+ * - Gesture navigation enabled
+ * - Proper back button handling
  */
 
 import React from 'react';
@@ -11,6 +34,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../constants/colors';
+import { ROUTES } from './navigationConfig';
 
 // Import screens
 import DashboardScreen from '../screens/DashboardScreen';
@@ -21,6 +45,55 @@ import ProfileScreen from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
+
+// Enhanced transition configuration for smoother animations
+const screenOptions = {
+    headerShown: false,
+    cardStyleInterpolator: ({ current, next, layouts }) => {
+        return {
+            cardStyle: {
+                transform: [
+                    {
+                        translateX: current.progress.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [layouts.screen.width, 0],
+                        }),
+                    },
+                ],
+            },
+            overlayStyle: {
+                opacity: current.progress.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 0.5],
+                }),
+            },
+        };
+    },
+    transitionSpec: {
+        open: {
+            animation: 'spring',
+            config: {
+                stiffness: 1000,
+                damping: 500,
+                mass: 3,
+                overshootClamping: true,
+                restDisplacementThreshold: 0.01,
+                restSpeedThreshold: 0.01,
+            },
+        },
+        close: {
+            animation: 'spring',
+            config: {
+                stiffness: 1000,
+                damping: 500,
+                mass: 3,
+                overshootClamping: true,
+                restDisplacementThreshold: 0.01,
+                restSpeedThreshold: 0.01,
+            },
+        },
+    },
+};
 
 /**
  * Badge Component
@@ -40,34 +113,35 @@ const TabBarBadge = ({ count }) => {
 /**
  * Documents Stack Navigator
  * 
- * Stack navigator for Documents tab to support detail screen navigation
+ * Stack navigator for Documents tab to support detail screen navigation.
+ * 
+ * Navigation Flow:
+ * - DocumentsList (initial route) → DocumentDetail
+ * - DocumentDetail → DocumentsList (back button)
+ * 
+ * Features:
+ * - Gesture navigation enabled (iOS swipe back)
+ * - Proper header styling
+ * - Back button handling
  */
 const DocumentsStack = () => {
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: COLORS.primary,
-        },
-        headerTintColor: COLORS.textInverse,
-        headerTitleStyle: {
-          fontWeight: 'bold',
-          fontSize: 18,
-        },
-      }}
-    >
+    <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
-        name="DocumentsList"
+        name={ROUTES.DOCUMENTS.LIST}
         component={DocumentsScreen}
         options={{
           title: 'My Documents',
+          // Prevent going back from list (first screen in stack)
+          gestureEnabled: false,
         }}
       />
       <Stack.Screen
-        name="DocumentDetail"
+        name={ROUTES.DOCUMENTS.DETAIL}
         component={DocumentDetailScreen}
         options={{
           title: 'Document Details',
+          gestureEnabled: true, // Allow swipe back to list
         }}
       />
     </Stack.Navigator>
@@ -163,7 +237,7 @@ const MainNavigator = () => {
       })}
     >
       <Tab.Screen
-        name="Dashboard"
+        name={ROUTES.MAIN.DASHBOARD}
         component={DashboardScreen}
         options={{
           title: 'Dashboard',
@@ -172,7 +246,7 @@ const MainNavigator = () => {
       />
 
       <Tab.Screen
-        name="Documents"
+        name={ROUTES.MAIN.DOCUMENTS}
         component={DocumentsStack}
         options={{
           title: 'Documents',
@@ -181,7 +255,7 @@ const MainNavigator = () => {
       />
 
       <Tab.Screen
-        name="Checklist"
+        name={ROUTES.MAIN.CHECKLIST}
         component={ChecklistScreen}
         options={{
           title: 'Checklist',
@@ -191,7 +265,7 @@ const MainNavigator = () => {
       />
 
       <Tab.Screen
-        name="Profile"
+        name={ROUTES.MAIN.PROFILE}
         component={ProfileScreen}
         options={{
           title: 'Profile',

@@ -25,6 +25,7 @@ import {
 } from 'react-native-paper';
 import { signInUser } from '../../services/auth';
 import { COLORS } from '../../constants/colors';
+import { ROUTES } from '../../navigation/navigationConfig';
 
 /**
  * Email validation regex pattern
@@ -191,14 +192,14 @@ const LoginScreen = ({ navigation }) => {
    * Handle forgot password link press
    */
   const handleForgotPassword = () => {
-    navigation.navigate('ForgotPassword');
+    navigation.navigate(ROUTES.AUTH.FORGOT_PASSWORD);
   };
 
   /**
    * Handle sign up link press
    */
   const handleSignUp = () => {
-    navigation.navigate('Signup');
+    navigation.navigate(ROUTES.AUTH.SIGNUP);
   };
 
   return (

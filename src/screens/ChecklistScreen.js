@@ -413,8 +413,13 @@ const ChecklistScreen = () => {
         }
     }, [activeTab, todayItems, upcomingItems, completedItems, getFilteredItems]);
 
-    const currentItems = getCurrentTabItems();
-    const groupedUpcomingItems = activeTab === TABS.UPCOMING ? groupItemsByDate(currentItems) : [];
+    // Memoize current items to prevent unnecessary recalculations
+    const currentItems = useMemo(() => getCurrentTabItems(), [getCurrentTabItems]);
+    
+    // Memoize grouped items for upcoming tab
+    const groupedUpcomingItems = useMemo(() => {
+        return activeTab === TABS.UPCOMING ? groupItemsByDate(currentItems) : [];
+    }, [activeTab, currentItems]);
 
     /**
      * Render tab button
@@ -541,10 +546,27 @@ const ChecklistScreen = () => {
         );
     };
 
+    // Memoize render item function for all tabs
+    const renderChecklistItem = useCallback(({ item }) => (
+        <ChecklistItem
+            item={item}
+            onPress={handleViewDetails}
+            onToggleComplete={handleToggleComplete}
+            onSnooze={handleSnooze}
+        />
+    ), [handleViewDetails, handleToggleComplete, handleSnooze]);
+
+    // Memoize section header render function
+    const renderSectionHeader = useCallback(({ section: { title } }) => (
+        <View style={styles.sectionHeader}>
+            <Text style={styles.sectionHeaderText}>{title}</Text>
+        </View>
+    ), []);
+
     /**
      * Render today tab content
      */
-    const renderTodayTab = () => {
+    const renderTodayTab = useCallback(() => {
         if (loading) {
             return <LoadingSkeleton type="list" count={3} />;
         }
@@ -563,26 +585,25 @@ const ChecklistScreen = () => {
             <FlatList
                 data={currentItems}
                 keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                    <ChecklistItem
-                        item={item}
-                        onPress={handleViewDetails}
-                        onToggleComplete={handleToggleComplete}
-                        onSnooze={handleSnooze}
-                    />
-                )}
+                renderItem={renderChecklistItem}
                 contentContainerStyle={styles.listContent}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
                 }
+                // Performance optimizations
+                windowSize={10}
+                initialNumToRender={10}
+                maxToRenderPerBatch={10}
+                updateCellsBatchingPeriod={50}
+                removeClippedSubviews={true}
             />
         );
-    };
+    }, [loading, currentItems, refreshing, handleRefresh, renderChecklistItem]);
 
     /**
      * Render upcoming tab content
      */
-    const renderUpcomingTab = () => {
+    const renderUpcomingTab = useCallback(() => {
         if (loading) {
             return <LoadingSkeleton type="list" count={3} />;
         }
@@ -601,31 +622,35 @@ const ChecklistScreen = () => {
             <SectionList
                 sections={groupedUpcomingItems}
                 keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                    <ChecklistItem
-                        item={item}
-                        onPress={handleViewDetails}
-                        onToggleComplete={handleToggleComplete}
-                        onSnooze={handleSnooze}
-                    />
-                )}
-                renderSectionHeader={({ section: { title } }) => (
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionHeaderText}>{title}</Text>
-                    </View>
-                )}
+                renderItem={renderChecklistItem}
+                renderSectionHeader={renderSectionHeader}
                 contentContainerStyle={styles.listContent}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
                 }
+                // Performance optimizations
+                windowSize={10}
+                initialNumToRender={10}
+                maxToRenderPerBatch={10}
+                updateCellsBatchingPeriod={50}
+                removeClippedSubviews={true}
             />
         );
-    };
+    }, [loading, groupedUpcomingItems, refreshing, handleRefresh, renderChecklistItem, renderSectionHeader]);
+
+    // Memoize render item for completed tab (no snooze)
+    const renderCompletedItem = useCallback(({ item }) => (
+        <ChecklistItem
+            item={item}
+            onPress={handleViewDetails}
+            onToggleComplete={handleToggleComplete}
+        />
+    ), [handleViewDetails, handleToggleComplete]);
 
     /**
      * Render completed tab content
      */
-    const renderCompletedTab = () => {
+    const renderCompletedTab = useCallback(() => {
         if (loading) {
             return <LoadingSkeleton type="list" count={3} />;
         }
@@ -644,20 +669,20 @@ const ChecklistScreen = () => {
             <FlatList
                 data={currentItems}
                 keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                    <ChecklistItem
-                        item={item}
-                        onPress={handleViewDetails}
-                        onToggleComplete={handleToggleComplete}
-                    />
-                )}
+                renderItem={renderCompletedItem}
                 contentContainerStyle={styles.listContent}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
                 }
+                // Performance optimizations
+                windowSize={10}
+                initialNumToRender={10}
+                maxToRenderPerBatch={10}
+                updateCellsBatchingPeriod={50}
+                removeClippedSubviews={true}
             />
         );
-    };
+    }, [loading, currentItems, refreshing, handleRefresh, renderCompletedItem]);
 
     /**
      * Render current tab content

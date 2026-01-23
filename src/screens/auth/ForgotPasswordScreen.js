@@ -182,9 +182,9 @@ const ForgotPasswordScreen = ({ navigation }) => {
   /**
    * Handle back to login
    */
-  const handleBackToLogin = () => {
-    navigation.navigate('Login');
-  };
+    const handleBackToLogin = () => {
+        navigation.navigate(ROUTES.AUTH.LOGIN);
+    };
 
   return (
     <KeyboardAvoidingView

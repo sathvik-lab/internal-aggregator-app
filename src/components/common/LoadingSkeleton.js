@@ -5,9 +5,48 @@
  * Provides visual feedback during loading states.
  */
 
-import React from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet, ActivityIndicator, Animated } from 'react-native';
 import { COLORS } from '../../constants/colors';
+
+/**
+ * Shimmer Skeleton Item Component
+ * Individual skeleton item with shimmer animation
+ */
+const ShimmerSkeletonItem = ({ style, delay = 0 }) => {
+    const shimmerAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        const startAnimation = () => {
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(shimmerAnim, {
+                        toValue: 1,
+                        duration: 1000,
+                        delay,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(shimmerAnim, {
+                        toValue: 0,
+                        duration: 1000,
+                        useNativeDriver: true,
+                    }),
+                ])
+            ).start();
+        };
+
+        startAnimation();
+    }, [shimmerAnim, delay]);
+
+    const opacity = shimmerAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.3, 0.7],
+    });
+
+    return (
+        <Animated.View style={[style, { opacity }]} />
+    );
+};
 
 /**
  * LoadingSkeleton Component
@@ -21,7 +60,11 @@ const LoadingSkeleton = ({ type = 'card', count = 1 }) => {
         return (
             <View style={styles.statsSkeleton}>
                 {[...Array(count)].map((_, index) => (
-                    <View key={index} style={styles.statCardSkeleton} />
+                    <ShimmerSkeletonItem
+                        key={index}
+                        style={styles.statCardSkeleton}
+                        delay={index * 100}
+                    />
                 ))}
             </View>
         );
@@ -31,7 +74,11 @@ const LoadingSkeleton = ({ type = 'card', count = 1 }) => {
         return (
             <View>
                 {[...Array(count)].map((_, index) => (
-                    <View key={index} style={styles.listItemSkeleton} />
+                    <ShimmerSkeletonItem
+                        key={index}
+                        style={styles.listItemSkeleton}
+                        delay={index * 100}
+                    />
                 ))}
             </View>
         );

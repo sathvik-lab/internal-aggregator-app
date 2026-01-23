@@ -5,7 +5,7 @@
  * and smooth animations. Supports collapsed and expanded views.
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, memo, useMemo, useCallback } from 'react';
 import {
     View,
     Text,
@@ -148,6 +148,8 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
     const expandAnimation = useRef(new Animated.Value(0)).current;
     const swipeAnimation = useRef(new Animated.Value(0)).current;
     const opacityAnimation = useRef(new Animated.Value(item.completed ? 0.6 : 1)).current;
+    const checkmarkScale = useRef(new Animated.Value(item.completed ? 1 : 0)).current;
+    const successPulse = useRef(new Animated.Value(0)).current;
 
     const dueDateColor = getDueDateColor(item.dueDate, item.completed);
     const priorityColor = getPriorityColor(item.priority);
@@ -231,37 +233,38 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
         })
     ).current;
 
-    const handleCheckboxPress = (e) => {
+    // Memoize handlers to prevent re-renders
+    const handleCheckboxPress = useCallback((e) => {
         e.stopPropagation();
         if (onToggleComplete) {
             onToggleComplete(item);
         }
-    };
+    }, [onToggleComplete, item]);
 
-    const handleCardPress = () => {
-        setExpanded(!expanded);
-    };
+    const handleCardPress = useCallback(() => {
+        setExpanded(prev => !prev);
+    }, []);
 
-    const handleMarkComplete = () => {
+    const handleMarkComplete = useCallback(() => {
         if (onToggleComplete) {
             onToggleComplete(item);
         }
         setExpanded(false);
-    };
+    }, [onToggleComplete, item]);
 
-    const handleSnooze = () => {
+    const handleSnooze = useCallback(() => {
         if (onSnooze) {
             onSnooze(item);
         }
         setExpanded(false);
-    };
+    }, [onSnooze, item]);
 
-    const handleViewDetails = () => {
+    const handleViewDetails = useCallback(() => {
         if (onPress) {
             onPress(item);
         }
         setExpanded(false);
-    };
+    }, [onPress, item]);
 
     // Calculate expanded height
     const expandedHeight = expandAnimation.interpolate({
@@ -283,7 +286,15 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
     });
 
     return (
-        <View style={styles.wrapper}>
+        <Animated.View
+            style={[
+                styles.wrapper,
+                {
+                    opacity: fadeAnim,
+                    transform: [{ translateY: slideAnim }],
+                },
+            ]}
+        >
             {/* Swipe Action: Complete (left) */}
             <Animated.View
                 style={[
@@ -330,6 +341,10 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
                     activeOpacity={0.7}
                     onPress={handleCardPress}
                     style={styles.cardContent}
+                    accessibilityLabel={`${item.title}, ${item.completed ? 'completed' : 'pending'}, ${item.priority ? `${item.priority} priority` : ''}, due ${formatDate(item.dueDate)}`}
+                    accessibilityHint={expanded ? 'Double tap to collapse' : 'Double tap to expand and view details'}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded, checked: item.completed }}
                 >
                     {/* Collapsed View */}
                     <View style={styles.collapsedContent}>
@@ -338,16 +353,42 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
                             style={styles.checkboxContainer}
                             onPress={handleCheckboxPress}
                             activeOpacity={0.7}
+                            accessibilityLabel={item.completed ? `Mark ${item.title} as incomplete` : `Mark ${item.title} as complete`}
+                            accessibilityHint="Double tap to toggle completion status"
+                            accessibilityRole="checkbox"
+                            accessibilityState={{ checked: item.completed }}
                         >
-                            <View style={[styles.checkbox, item.completed && styles.checkboxChecked]}>
-                                {item.completed && (
-                                    <MaterialCommunityIcons
-                                        name="check"
-                                        size={16}
-                                        color={COLORS.textInverse}
-                                    />
-                                )}
-                            </View>
+                            <Animated.View
+                                style={[
+                                    styles.checkbox,
+                                    item.completed && styles.checkboxChecked,
+                                    {
+                                        transform: [
+                                            {
+                                                scale: successPulse.interpolate({
+                                                    inputRange: [0, 1],
+                                                    outputRange: [1, 1.15],
+                                                }),
+                                            },
+                                        ],
+                                    },
+                                ]}
+                            >
+                                <Animated.View
+                                    style={{
+                                        opacity: checkmarkScale,
+                                        transform: [{ scale: checkmarkScale }],
+                                    }}
+                                >
+                                    {item.completed && (
+                                        <MaterialCommunityIcons
+                                            name="check"
+                                            size={16}
+                                            color={COLORS.textInverse}
+                                        />
+                                    )}
+                                </Animated.View>
+                            </Animated.View>
                         </TouchableOpacity>
 
                         {/* Main Content */}
@@ -456,6 +497,9 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
                                     style={[styles.actionButton, styles.completeButton]}
                                     onPress={handleMarkComplete}
                                     activeOpacity={0.7}
+                                    accessibilityLabel={`Mark ${item.title} as complete`}
+                                    accessibilityHint="Double tap to mark this checklist item as completed"
+                                    accessibilityRole="button"
                                 >
                                     <MaterialCommunityIcons
                                         name="check-circle"
@@ -469,6 +513,9 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
                             {!item.completed && (
                                 <TouchableOpacity
                                     style={[styles.actionButton, styles.snoozeButton]}
+                                    accessibilityLabel={`Snooze ${item.title}`}
+                                    accessibilityHint="Double tap to snooze this checklist item"
+                                    accessibilityRole="button"
                                     onPress={handleSnooze}
                                     activeOpacity={0.7}
                                 >
@@ -485,6 +532,9 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
                                 style={[styles.actionButton, styles.detailsButton]}
                                 onPress={handleViewDetails}
                                 activeOpacity={0.7}
+                                accessibilityLabel={`View details for ${item.title}`}
+                                accessibilityHint="Double tap to view full details of this checklist item"
+                                accessibilityRole="button"
                             >
                                 <MaterialCommunityIcons
                                     name="information-outline"
@@ -499,7 +549,7 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
                     </Animated.View>
                 </TouchableOpacity>
             </Animated.View>
-        </View>
+        </Animated.View>
     );
 };
 
@@ -722,4 +772,17 @@ const styles = StyleSheet.create({
     },
 });
 
-export default ChecklistItem;
+// Memoize component to prevent unnecessary re-renders
+export default memo(ChecklistItem, (prevProps, nextProps) => {
+    return (
+        prevProps.item.id === nextProps.item.id &&
+        prevProps.item.title === nextProps.item.title &&
+        prevProps.item.completed === nextProps.item.completed &&
+        prevProps.item.dueDate === nextProps.item.dueDate &&
+        prevProps.item.priority === nextProps.item.priority &&
+        prevProps.item.category === nextProps.item.category &&
+        prevProps.onPress === nextProps.onPress &&
+        prevProps.onToggleComplete === nextProps.onToggleComplete &&
+        prevProps.onSnooze === nextProps.onSnooze
+    );
+});
