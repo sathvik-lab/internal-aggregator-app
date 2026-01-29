@@ -27,6 +27,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { uploadFile } from '../../services/storage';
 import { createDocument } from '../../services/firestore';
+import { sanitizeFileName } from '../../utils/security';
 import { COLORS } from '../../constants/colors';
 import { GLASS } from '../../utils/glassmorphism';
 import { FILE_LIMITS, STORAGE_PATHS } from '../../constants/constants';
@@ -318,7 +319,9 @@ const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
             // Generate unique file path
             const fileExtension = selectedFile.name.split('.').pop();
             const uniqueId = Date.now();
-            const storagePath = `${STORAGE_PATHS.DOCUMENTS}/${user.uid}/${uniqueId}_${fileName}.${fileExtension}`;
+            // Sanitize user-provided file name to prevent path traversal
+            const sanitizedName = sanitizeFileName(fileName) || 'document';
+            const storagePath = `${STORAGE_PATHS.DOCUMENTS}/${user.uid}/${uniqueId}_${sanitizedName}.${fileExtension}`;
 
             // Upload file to Firebase Storage with progress callback
             const uploadResult = await uploadFile(
@@ -336,7 +339,7 @@ const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
             // Create document metadata in Firestore
             const documentData = {
                 userId: user.uid,
-                name: `${fileName}.${fileExtension}`,
+                name: `${sanitizedName}.${fileExtension}`,
                 type: selectedFile.type.includes('image') ? 'IMAGE' : 'DOCUMENT',
                 size: selectedFile.size,
                 category: category,
