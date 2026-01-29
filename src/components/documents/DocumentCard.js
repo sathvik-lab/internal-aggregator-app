@@ -7,8 +7,11 @@
 
 import React, { memo, useMemo, useCallback, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Animated } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../constants/colors';
+import { GLASS } from '../../utils/glassmorphism';
 
 /**
  * Get file type icon based on MIME type
@@ -26,23 +29,6 @@ const getFileIcon = (mimeType) => {
     if (mimeType.includes('text')) return 'file-document-outline';
     
     return 'file-document-outline';
-};
-
-/**
- * Get file type color based on MIME type
- * @param {string} mimeType - MIME type of the file
- * @returns {string} Color code
- */
-const getFileIconColor = (mimeType) => {
-    if (!mimeType) return COLORS.primary;
-    
-    if (mimeType.includes('pdf')) return '#DC2626'; // Red for PDF
-    if (mimeType.includes('word') || mimeType.includes('document')) return '#2563EB'; // Blue for Word
-    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return '#16A34A'; // Green for Excel
-    if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return '#DC2626'; // Red for PowerPoint
-    if (mimeType.includes('image')) return COLORS.accent;
-    
-    return COLORS.primary;
 };
 
 /**
@@ -90,9 +76,25 @@ const formatDate = (dateString) => {
  * @param {Function} props.onMenuPress - Callback when menu button is pressed (for actions)
  */
 const DocumentCard = ({ document, onPress, onMenuPress }) => {
+    const { colors } = useTheme();
+    const useGlass = colors.glassBackground != null;
+
+    // Get file type color based on MIME type (moved inside component to avoid module load-time COLORS reference)
+    const getFileIconColor = useCallback((mimeType) => {
+        if (!mimeType) return COLORS.primary;
+        
+        if (mimeType.includes('pdf')) return '#DC2626'; // Red for PDF
+        if (mimeType.includes('word') || mimeType.includes('document')) return '#2563EB'; // Blue for Word
+        if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return '#16A34A'; // Green for Excel
+        if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return '#DC2626'; // Red for PowerPoint
+        if (mimeType.includes('image')) return COLORS.accent;
+        
+        return COLORS.primary;
+    }, []);
+
     // Memoize icon and color calculations
     const fileIcon = useMemo(() => getFileIcon(document.mimeType), [document.mimeType]);
-    const fileIconColor = useMemo(() => getFileIconColor(document.mimeType), [document.mimeType]);
+    const fileIconColor = useMemo(() => getFileIconColor(document.mimeType), [document.mimeType, getFileIconColor]);
 
     // Fade-in animation for list items
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -134,6 +136,17 @@ const DocumentCard = ({ document, onPress, onMenuPress }) => {
     
     const accessibilityHint = onPress ? 'Double tap to view document details' : undefined;
 
+    const containerStyle = useGlass
+        ? [
+            styles.container,
+            styles.glassContainer,
+            {
+                backgroundColor: Platform.OS === 'android' ? (colors.glassBackground ?? GLASS.background) : 'transparent',
+                borderColor: colors.glassBorder ?? GLASS.border,
+            },
+        ]
+        : [styles.container, { backgroundColor: COLORS.surface, borderColor: COLORS.border }];
+
     return (
         <Animated.View
             style={{
@@ -142,13 +155,17 @@ const DocumentCard = ({ document, onPress, onMenuPress }) => {
             }}
         >
             <TouchableOpacity
-                style={styles.container}
+                style={containerStyle}
                 onPress={handleCardPress}
                 activeOpacity={0.7}
                 accessibilityLabel={accessibilityLabel}
                 accessibilityHint={accessibilityHint}
                 accessibilityRole="button"
             >
+            {useGlass && Platform.OS === 'ios' && (
+                <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />
+            )}
+            <View style={styles.contentWrapper} pointerEvents="box-none">
             {/* Header with Menu Button */}
             <View style={styles.header}>
                 <View 
@@ -173,7 +190,7 @@ const DocumentCard = ({ document, onPress, onMenuPress }) => {
                     <MaterialCommunityIcons
                         name="dots-vertical"
                         size={20}
-                        color={COLORS.textSecondary}
+                        color={colors.textSecondary ?? COLORS.textSecondary}
                     />
                 </TouchableOpacity>
             </View>
@@ -181,7 +198,7 @@ const DocumentCard = ({ document, onPress, onMenuPress }) => {
             {/* Content */}
             <View style={styles.content}>
                 {/* Document Name */}
-                <Text style={styles.name} numberOfLines={2}>
+                <Text style={[styles.name, { color: colors.text?.primary ?? COLORS.text }]} numberOfLines={2}>
                     {document.name}
                 </Text>
 
@@ -198,19 +215,20 @@ const DocumentCard = ({ document, onPress, onMenuPress }) => {
                         <MaterialCommunityIcons
                             name="file-outline"
                             size={14}
-                            color={COLORS.textLight}
+                            color={colors.textLight ?? COLORS.textLight}
                         />
-                        <Text style={styles.metaText}>{formatFileSize(document.size)}</Text>
+                        <Text style={[styles.metaText, { color: colors.textSecondary ?? COLORS.textSecondary }]}>{formatFileSize(document.size)}</Text>
                     </View>
                     <View style={styles.metaItem}>
                         <MaterialCommunityIcons
                             name="calendar-outline"
                             size={14}
-                            color={COLORS.textLight}
+                            color={colors.textLight ?? COLORS.textLight}
                         />
-                        <Text style={styles.metaText}>{formatDate(document.uploadDate)}</Text>
+                        <Text style={[styles.metaText, { color: colors.textSecondary ?? COLORS.textSecondary }]}>{formatDate(document.uploadDate)}</Text>
                     </View>
                 </View>
+            </View>
             </View>
         </TouchableOpacity>
         </Animated.View>
@@ -219,13 +237,12 @@ const DocumentCard = ({ document, onPress, onMenuPress }) => {
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: COLORS.surface,
         borderRadius: 12,
         padding: 16,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: COLORS.border,
-        // Shadow for depth
+        overflow: 'hidden',
+        position: 'relative',
         ...Platform.select({
             ios: {
                 shadowColor: '#000',
@@ -238,6 +255,12 @@ const styles = StyleSheet.create({
             },
         }),
     },
+    glassContainer: {
+        borderRadius: 24,
+    },
+    contentWrapper: {
+        flex: 1,
+    },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -248,7 +271,7 @@ const styles = StyleSheet.create({
         width: 64,
         height: 64,
         borderRadius: 12,
-        backgroundColor: COLORS.backgroundSecondary,
+        backgroundColor: 'rgba(255,255,255,0.08)',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -258,7 +281,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: COLORS.backgroundSecondary,
+        backgroundColor: 'rgba(255,255,255,0.08)',
     },
     content: {
         flex: 1,
@@ -266,7 +289,6 @@ const styles = StyleSheet.create({
     name: {
         fontSize: 16,
         fontWeight: '600',
-        color: COLORS.text,
         marginBottom: 8,
         lineHeight: 22,
         minHeight: 44, // Ensure consistent height for 2 lines
@@ -295,7 +317,6 @@ const styles = StyleSheet.create({
     },
     metaText: {
         fontSize: 12,
-        color: COLORS.textSecondary,
     },
 });
 

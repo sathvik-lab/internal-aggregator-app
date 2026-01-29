@@ -24,9 +24,12 @@ import {
     RadioButton,
     Checkbox,
 } from 'react-native-paper';
+import { BlurView } from 'expo-blur';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../constants/colors';
+import { GLASS } from '../../utils/glassmorphism';
 import { MOCK_CHECKLIST_CATEGORIES } from '../../utils/mockData';
 import { createDocument } from '../../services/firestore';
 
@@ -77,6 +80,14 @@ const getDateOptions = () => {
  */
 const AddChecklistItemModal = ({ visible, onClose, onSuccess }) => {
     const { user } = useAuth();
+    const { colors } = useTheme();
+    const useGlass = colors.glassBackground != null;
+    const glassColors = colors.glassBackground
+        ? {
+            background: colors.glassBackground,
+            border: colors.glassBorder,
+        }
+        : GLASS;
 
     // Form state
     const [title, setTitle] = useState('');
@@ -508,7 +519,22 @@ const AddChecklistItemModal = ({ visible, onClose, onSuccess }) => {
                 transparent={true}
             >
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
+                    {useGlass && Platform.OS === 'ios' && (
+                        <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+                    )}
+                    <View
+                        style={[
+                            styles.modalContent,
+                            {
+                                backgroundColor: useGlass && Platform.OS === 'android' ? glassColors.background : COLORS.surface,
+                                borderColor: useGlass ? glassColors.border : COLORS.border,
+                                borderWidth: useGlass ? 1 : 0,
+                            },
+                        ]}
+                    >
+                        {useGlass && Platform.OS === 'ios' && (
+                            <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+                        )}
                         {/* Header */}
                         <View style={styles.header}>
                             <Text style={styles.headerTitle}>Add Checklist Item</Text>

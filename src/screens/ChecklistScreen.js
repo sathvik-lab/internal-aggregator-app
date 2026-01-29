@@ -21,6 +21,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FAB, ProgressBar } from 'react-native-paper';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { COLORS } from '../constants/colors';
 import ChecklistItem from '../components/checklist/ChecklistItem';
 import AddChecklistItemModal from '../components/checklist/AddChecklistItemModal';
@@ -94,6 +95,7 @@ const groupItemsByDate = (items) => {
 
 const ChecklistScreen = () => {
     const { user } = useAuth();
+    const { colors } = useTheme();
     const [activeTab, setActiveTab] = useState(TABS.TODAY);
     const [refreshing, setRefreshing] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -699,8 +701,11 @@ const ChecklistScreen = () => {
         }
     };
 
+    // Use dark background for glassmorphism
+    const backgroundColor = colors.zinc950 || colors.background;
+    
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor }]}>
             {/* Header with Progress Bar (Today tab only) */}
             {activeTab === TABS.TODAY && (
                 <View style={styles.progressContainer}>

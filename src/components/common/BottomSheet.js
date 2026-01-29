@@ -20,7 +20,10 @@ import {
     Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { COLORS } from '../../constants/colors';
+import { useTheme } from '../../context/ThemeContext';
+import { GLASS, sanitizeStyleForGestures } from '../../utils/glassmorphism';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -46,12 +49,21 @@ const BottomSheet = ({
     showHandle = true,
     title,
     style,
+    useGlass = true,
 }) => {
+    const { colors } = useTheme();
     const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
     const backdropOpacity = useRef(new Animated.Value(0)).current;
     const panY = useRef(new Animated.Value(0)).current;
     const lastGestureDy = useRef(0);
     const [internalVisible, setInternalVisible] = useState(false);
+    
+    const glassColors = colors.glassBackground
+        ? {
+            background: colors.glassBackground,
+            border: colors.glassBorder,
+        }
+        : GLASS;
 
     // Memoize sheet height calculation
     const sheetHeight = useMemo(() => {
@@ -201,7 +213,11 @@ const BottomSheet = ({
                             },
                         ]}
                         accessible={false}
-                    />
+                    >
+                        {useGlass && Platform.OS === 'ios' && (
+                            <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+                        )}
+                    </Animated.View>
                 </TouchableWithoutFeedback>
 
                 {/* Bottom Sheet */}
@@ -212,10 +228,19 @@ const BottomSheet = ({
                         {
                             transform: [{ translateY }],
                         },
-                        style,
-                    ]}
+                        useGlass && {
+                            backgroundColor: Platform.OS === 'android' ? glassColors.background : 'transparent',
+                            borderTopWidth: 1,
+                            borderTopColor: glassColors.border,
+                        },
+                        // Sanitize style prop to ensure numeric positioning values
+                        style ? sanitizeStyleForGestures(style) : null,
+                    ].filter(Boolean)}
                     {...(showHandle ? panResponder.panHandlers : {})}
                 >
+                    {useGlass && Platform.OS === 'ios' && (
+                        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+                    )}
                     {/* Handle */}
                     {showHandle && (
                         <View 

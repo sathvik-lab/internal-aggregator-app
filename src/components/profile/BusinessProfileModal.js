@@ -24,9 +24,11 @@ import {
     Dialog,
     Checkbox,
 } from 'react-native-paper';
+import { BlurView } from 'expo-blur';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { GLASS } from '../../utils/glassmorphism';
 import { getDocument, updateDocument } from '../../services/firestore';
 import {
     TRUCK_TYPES,
@@ -51,6 +53,13 @@ import {
 const BusinessProfileModal = ({ visible, onClose, onSuccess }) => {
     const { user } = useAuth();
     const { colors } = useTheme();
+    const useGlass = colors.glassBackground != null;
+    const glassColors = colors.glassBackground
+        ? {
+            background: colors.glassBackground,
+            border: colors.glassBorder,
+        }
+        : GLASS;
 
     // Form state
     const [truckType, setTruckType] = useState(null);
@@ -506,7 +515,22 @@ const BusinessProfileModal = ({ visible, onClose, onSuccess }) => {
                 onRequestClose={handleCancel}
             >
                 <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
-                    <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+                    {useGlass && Platform.OS === 'ios' && (
+                        <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+                    )}
+                    <View
+                        style={[
+                            styles.modalContent,
+                            {
+                                backgroundColor: useGlass && Platform.OS === 'android' ? glassColors.background : colors.surface,
+                                borderColor: useGlass ? glassColors.border : colors.border,
+                                borderWidth: useGlass ? 1 : 0,
+                            },
+                        ]}
+                    >
+                        {useGlass && Platform.OS === 'ios' && (
+                            <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+                        )}
                         {/* Header */}
                         <View style={[styles.header, { borderBottomColor: colors.border }]}>
                             <Text style={[styles.headerTitle, { color: colors.text }]}>Business Profile</Text>

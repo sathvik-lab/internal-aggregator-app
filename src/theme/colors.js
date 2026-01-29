@@ -112,6 +112,37 @@ export const statusColors = {
   nonCompliant: '#E53E3E',   // Red
 };
 
+// Zinc palette (glassmorphism / dark UI)
+export const zincColors = {
+  zinc950: '#18181B',
+  zinc900: '#27272A',
+  zinc800: '#3F3F46',
+  zinc700: '#52525B',
+  zinc600: '#71717A',
+  zinc500: '#71717A',
+  zinc400: '#A1A1AA',
+  zinc300: '#D4D4D8',
+  zinc200: '#E4E4E7',
+  zinc100: '#F4F4F5',
+  zinc50: '#FAFAFA',
+};
+
+// Glassmorphism color utilities
+export const glassColors = {
+  glassBackground: 'rgba(255, 255, 255, 0.05)',
+  glassBorder: 'rgba(255, 255, 255, 0.1)',
+  glassHover: 'rgba(255, 255, 255, 0.1)',
+  glassSurface: 'rgba(255, 255, 255, 0.08)',
+  glassElevated: 'rgba(255, 255, 255, 0.12)',
+};
+
+// Gradient color arrays for text/surfaces
+export const gradientColors = {
+  whiteToZinc: ['#FFFFFF', '#A1A1AA'],
+  whiteToYellow: ['#FFFFFF', '#FFCD75'],
+  heroGradient: ['#FFFFFF', '#FFFFFF', '#FFCD75'],
+};
+
 // Border and divider colors
 export const borderColors = {
   light: {
@@ -131,6 +162,9 @@ export const lightThemeColors = {
   ...primaryColors,
   ...semanticColors,
   ...neutralColors,
+  ...zincColors,
+  ...glassColors,
+  gradient: gradientColors,
   surface: surfaceColors.light,
   text: textColors.light,
   status: statusColors,
@@ -149,11 +183,14 @@ export const lightThemeColors = {
   divider: borderColors.light.default,
 };
 
-// Complete dark theme colors
+// Complete dark theme colors (glassmorphism-friendly: zinc-950 primary background)
 export const darkThemeColors = {
   ...primaryColors,
   ...semanticColors,
   ...neutralColors,
+  ...zincColors,
+  ...glassColors,
+  gradient: gradientColors,
   surface: surfaceColors.dark,
   text: textColors.dark,
   status: statusColors,
@@ -164,8 +201,8 @@ export const darkThemeColors = {
   secondaryLight: neutralColors.gray300,
   accent: semanticColors.infoLight,
   accentLight: '#90CDF4',
-  background: surfaceColors.dark.background,
-  backgroundSecondary: surfaceColors.dark.backgroundSecondary,
+  background: zincColors.zinc950,
+  backgroundSecondary: zincColors.zinc900,
   textSecondary: textColors.dark.secondary,
   textLight: textColors.dark.tertiary,
   textInverse: textColors.dark.inverse,

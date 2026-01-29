@@ -7,6 +7,7 @@
 
 import React, { memo, useMemo, useCallback, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -140,13 +141,21 @@ const Header = ({
         }
     }, [onProfilePress]);
 
+    // Use dark background for glassmorphism
+    const useGlass = colors.glassBackground != null;
+    const containerBg = useGlass ? (colors.zinc950 || colors.background) : (colors.surface?.surface ?? colors.background);
+    const containerBorder = useGlass ? (colors.glassBorder ?? 'rgba(255,255,255,0.1)') : (colors.border?.default ?? colors.divider);
+
     return (
-        <View style={[styles.container, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <View style={[styles.container, { backgroundColor: containerBg, borderBottomColor: containerBorder, borderBottomWidth: 1 }]}>
+            {useGlass && Platform.OS === 'ios' && (
+                <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+            )}
             <View style={styles.headerContent}>
                 {/* Left section - Greeting and Date */}
                 <View style={styles.leftSection}>
                     <Text 
-                        style={[styles.greeting, { color: colors.text }]}
+                        style={[styles.greeting, { color: colors.text?.primary ?? colors.text }]}
                         accessibilityRole="header"
                         accessibilityLevel={1}
                     >
@@ -154,7 +163,7 @@ const Header = ({
                     </Text>
                     {showDate && (
                         <Text 
-                            style={[styles.date, { color: colors.textSecondary }]}
+                            style={[styles.date, { color: colors.textSecondary ?? colors.text?.secondary }]}
                             accessibilityLabel={`Today is ${currentDate}`}
                         >
                             {currentDate}
@@ -167,7 +176,7 @@ const Header = ({
                     {/* Notification Bell */}
                     {showNotifications && (
                         <TouchableOpacity
-                            style={[styles.iconButton, { backgroundColor: colors.backgroundSecondary }]}
+                            style={[styles.iconButton, { backgroundColor: useGlass ? (colors.glassBackground ?? 'rgba(255,255,255,0.05)') : colors.backgroundSecondary }]}
                             onPress={handleNotificationPress}
                             activeOpacity={0.7}
                             accessibilityLabel={notificationLabel}
@@ -175,16 +184,19 @@ const Header = ({
                             accessibilityRole="button"
                             accessibilityState={{ disabled: false }}
                         >
-                            <MaterialCommunityIcons
+                            {useGlass && Platform.OS === 'ios' && (
+                                <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+                            )}
+                                <MaterialCommunityIcons
                                 name="bell-outline"
                                 size={24}
-                                color={colors.text}
+                                color={colors.text?.primary ?? colors.text}
                                 accessibilityElementsHidden={true}
                                 importantForAccessibility="no-hide-descendants"
                             />
                             {notificationCount > 0 && (
                                 <View 
-                                    style={[styles.notificationBadge, { backgroundColor: colors.error, borderColor: colors.surface }]}
+                                    style={[styles.notificationBadge, { backgroundColor: colors.error, borderColor: containerBg }]}
                                     accessibilityElementsHidden={true}
                                     importantForAccessibility="no-hide-descendants"
                                 >

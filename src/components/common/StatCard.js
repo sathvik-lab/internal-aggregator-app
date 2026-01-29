@@ -7,9 +7,11 @@
 
 import React, { memo, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Animated } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { moderateScale, PADDING, SPACING, isTablet, getCardWidth } from '../../utils/responsive';
+import { GLASS } from '../../utils/glassmorphism';
 
 /**
  * StatCard Component
@@ -89,6 +91,27 @@ const StatCard = ({
         return () => pulseAnimation.stop();
     }, []);
 
+    const useGlass = colors.glassBackground != null;
+    const cardContainerStyle = useGlass
+        ? [
+            styles.card,
+            styles.glassCard,
+            {
+                borderColor: colors.glassBorder ?? GLASS.border,
+                backgroundColor: Platform.OS === 'android' ? (colors.glassBackground ?? GLASS.background) : 'transparent',
+            },
+            style,
+        ]
+        : [
+            styles.card,
+            {
+                backgroundColor: colors.surface.surface,
+                borderColor: colors.border.default,
+                ...shadows.shadows[2],
+            },
+            style,
+        ];
+
     return (
         <Animated.View
             style={[
@@ -96,15 +119,7 @@ const StatCard = ({
             ]}
         >
             <CardComponent
-                style={[
-                    styles.card,
-                    { 
-                        backgroundColor: colors.surface.surface,
-                        borderColor: colors.border.default,
-                        ...shadows.shadows[2],
-                    },
-                    style
-                ]}
+                style={cardContainerStyle}
                 onPress={onPress}
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
@@ -115,12 +130,23 @@ const StatCard = ({
                 accessibilityRole={onPress ? "button" : "text"}
                 accessibilityState={{ disabled: !onPress }}
             >
+            {useGlass && Platform.OS === 'ios' && (
+                <BlurView
+                    intensity={80}
+                    tint="dark"
+                    style={StyleSheet.absoluteFill}
+                />
+            )}
+            {useGlass && (
+                <View style={styles.glow} pointerEvents="none" />
+            )}
+            <View style={styles.contentInner} pointerEvents="box-none">
             {/* Icon Container with gradient effect */}
             <Animated.View 
                 style={[
                     styles.iconContainer, 
                     { 
-                        backgroundColor: `${cardColor}20`,
+                        backgroundColor: useGlass ? (colors.glassHover ?? GLASS.hover) : `${cardColor}20`,
                         transform: [{ scale: iconPulseAnim }],
                     }
                 ]}
@@ -191,6 +217,7 @@ const StatCard = ({
                     )}
                 </View>
             )}
+            </View>
         </CardComponent>
         </Animated.View>
     );
@@ -206,6 +233,27 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         position: 'relative',
         overflow: 'hidden',
+    },
+    glassCard: {
+        borderRadius: 24,
+        padding: SPACING.BASE,
+    },
+    glow: {
+        position: 'absolute',
+        top: Number(0),
+        right: Number(0),
+        width: 160,
+        height: 160,
+        marginRight: -64,
+        marginTop: -64,
+        borderRadius: 80,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+    },
+    contentInner: {
+        ...StyleSheet.absoluteFillObject,
+        padding: SPACING.BASE,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     iconContainer: {
         width: isTablet ? moderateScale(64) : moderateScale(56),

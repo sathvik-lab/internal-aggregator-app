@@ -27,6 +27,7 @@ export const ROUTES = {
     DOCUMENTS: 'Documents',
     CHECKLIST: 'Checklist',
     PROFILE: 'Profile',
+    MEDIA_LOGS: 'MediaLogs',
   },
   
   // Documents Stack
@@ -72,6 +73,7 @@ export const DEEP_LINKING_CONFIG = {
       },
       Checklist: 'checklist',
       Profile: 'profile',
+      MediaLogs: 'logs',
       
       // Future screens
       Reports: 'reports',

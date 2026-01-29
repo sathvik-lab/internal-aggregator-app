@@ -20,8 +20,11 @@ import {
   Text,
   Surface,
 } from 'react-native-paper';
+import { BlurView } from 'expo-blur';
 import { resetPassword } from '../../services/auth';
+import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../constants/colors';
+import { GLASS } from '../../utils/glassmorphism';
 
 /**
  * Email validation regex pattern
@@ -38,6 +41,9 @@ const RESEND_COOLDOWN = 60;
  * @param {Object} navigation - Navigation object from React Navigation
  */
 const ForgotPasswordScreen = ({ navigation }) => {
+  const { colors } = useTheme();
+  const useGlass = colors.glassBackground != null;
+  
   // Form state
   const [email, setEmail] = useState('');
   
@@ -186,9 +192,25 @@ const ForgotPasswordScreen = ({ navigation }) => {
         navigation.navigate(ROUTES.AUTH.LOGIN);
     };
 
+  // Use dark background for glassmorphism
+  const backgroundColor = useGlass ? (colors.zinc950 || colors.background) : (colors.background ?? COLORS.background);
+  const surfaceStyle = useGlass
+    ? [
+        styles.surface,
+        styles.glassSurface,
+        {
+          backgroundColor: Platform.OS === 'android' ? (colors.glassBackground ?? GLASS.background) : 'transparent',
+          borderColor: colors.glassBorder ?? GLASS.border,
+          borderWidth: 1,
+          overflow: 'hidden',
+          position: 'relative',
+        },
+      ]
+    : [styles.surface, { backgroundColor: colors.surface?.surface ?? COLORS.surface, borderWidth: 0 }];
+
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
@@ -197,7 +219,10 @@ const ForgotPasswordScreen = ({ navigation }) => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Surface style={styles.surface}>
+        <Surface style={surfaceStyle}>
+          {useGlass && Platform.OS === 'ios' && (
+            <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          )}
           {/* Logo Placeholder */}
           <View style={styles.logoContainer}>
             <View style={styles.logoPlaceholder}>
@@ -342,6 +367,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  glassSurface: {
+    borderRadius: 20,
   },
   scrollContent: {
     flexGrow: 1,

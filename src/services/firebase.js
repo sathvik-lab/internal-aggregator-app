@@ -248,14 +248,22 @@ const getAuthInstance = () => {
     throw new Error('Firebase app is not initialized. Using mock services in development.');
   }
   
-  // Use initializeAuth() with AsyncStorage - REQUIRED for React Native
-  // getAuth() doesn't work reliably in React Native because it doesn't register the component
+  // Use initializeAuth() with AsyncStorage for React Native
+  // On web, use getAuth() which automatically uses browser localStorage
   try {
-    _authInstance = initializeAuth(app, {
-      persistence: getReactNativePersistence(AsyncStorage),
-    });
-    console.log('✅ Firebase Auth initialized with AsyncStorage persistence (lazy)');
-    return _authInstance;
+    if (Platform.OS === 'web') {
+      // Web platform: use getAuth() which handles persistence automatically via localStorage
+      _authInstance = getAuth(app);
+      console.log('✅ Firebase Auth initialized for web (lazy)');
+      return _authInstance;
+    } else {
+      // React Native: use initializeAuth() with AsyncStorage persistence
+      _authInstance = initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage),
+      });
+      console.log('✅ Firebase Auth initialized with AsyncStorage persistence (lazy)');
+      return _authInstance;
+    }
   } catch (error) {
     // If auth is already initialized, get the existing instance
     if (error.code === 'auth/already-initialized' || 

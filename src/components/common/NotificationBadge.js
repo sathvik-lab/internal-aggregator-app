@@ -8,6 +8,7 @@
 
 import React, { memo, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../constants/colors';
 
 /**
@@ -23,18 +24,24 @@ import { COLORS } from '../../constants/colors';
  * @param {Object} props.style - Additional styles for the badge container
  * @param {string} props.position - Position: 'top-right', 'top-left', 'bottom-right', 'bottom-left' (default: 'top-right')
  * @param {string} props.size - Size of the badge: 'small', 'medium', 'large' (default: 'small')
+ * @param {string} props.variant - 'default' | 'glass' for glassmorphism style (default: 'default')
  */
 const NotificationBadge = ({
     count = 0,
     maxCount = 99,
     showDot = false,
-    color = COLORS.error,
-    textColor = COLORS.textInverse,
+    color,
+    textColor,
     showWhenZero = false,
     style,
     position = 'top-right',
     size = 'small',
+    variant = 'default',
 }) => {
+    const { colors } = useTheme();
+    const useGlass = variant === 'glass' && colors.glassBackground != null;
+    const badgeColor = color ?? (useGlass ? (colors.glassBackground ?? 'rgba(255,255,255,0.05)') : COLORS.error);
+    const badgeTextColor = textColor ?? (useGlass ? (colors.text?.primary ?? colors.textInverse) : COLORS.textInverse);
     // Memoize size dimensions
     const sizeStyles = useMemo(() => {
         switch (size) {
@@ -119,10 +126,14 @@ const NotificationBadge = ({
             style={[
                 styles.badge,
                 {
-                    backgroundColor: color,
+                    backgroundColor: badgeColor,
                     minWidth: sizeStyles.minWidth,
                     height: sizeStyles.height,
                     ...positionStyles,
+                },
+                useGlass && {
+                    borderWidth: 1,
+                    borderColor: colors.glassBorder ?? 'rgba(255,255,255,0.1)',
                 },
                 style,
             ]}
@@ -132,7 +143,7 @@ const NotificationBadge = ({
                     style={[
                         styles.text,
                         {
-                            color: textColor,
+                            color: badgeTextColor,
                             fontSize: sizeStyles.fontSize,
                         },
                     ]}

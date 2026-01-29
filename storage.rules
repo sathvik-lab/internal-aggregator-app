@@ -49,5 +49,14 @@ service firebase.storage {
         && request.resource.size < 10485760 // 10MB max
         && request.resource.contentType.matches('(image/.*|application/pdf)');
     }
+    
+    // Media logs - users can only access their own photo/video logs
+    match /media_logs/{userId}/{allPaths=**} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAuthenticated() && request.auth.uid == userId
+        && request.resource != null
+        && request.resource.size < 20971520 // 20MB max for photos/videos
+        && request.resource.contentType.matches('(image/.*|video/.*)');
+    }
   }
 }

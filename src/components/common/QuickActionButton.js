@@ -52,8 +52,10 @@ const QuickActionButton = ({
     icon,
     label,
     onPress,
-    color = COLORS.primary,
+    color,
 }) => {
+    // Use default value inside function body to avoid module load-time evaluation
+    const iconColor = color || COLORS.primary;
     const scaleAnim = useRef(new Animated.Value(1)).current;
 
     const handlePressIn = () => {
@@ -90,11 +92,11 @@ const QuickActionButton = ({
                 accessibilityHint={`Double tap to ${label.toLowerCase()}`}
                 accessibilityRole="button"
             >
-            <View style={[styles.iconContainer, { backgroundColor: getTranslucentColor(color, 0.08) }]}>
+            <View style={[styles.iconContainer, { backgroundColor: getTranslucentColor(iconColor, 0.08) }]}>
                 <MaterialCommunityIcons
                     name={icon}
                     size={isTablet ? ICON_SIZES.MD : ICON_SIZES.SM}
-                    color={color}
+                    color={iconColor}
                 />
             </View>
             <Text style={styles.label} numberOfLines={2}>

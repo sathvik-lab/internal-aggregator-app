@@ -46,6 +46,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import DocumentCard from '../components/documents/DocumentCard';
 import SearchBar from '../components/documents/SearchBar';
@@ -126,6 +127,7 @@ const filterDocuments = (documents, searchQuery, selectedCategory) => {
 const DocumentsScreen = () => {
     const navigation = useNavigation();
     const { user } = useAuth();
+    const { colors } = useTheme();
 
     // State management
     const [documents, setDocuments] = useState([]);
@@ -375,8 +377,11 @@ const DocumentsScreen = () => {
         );
     }, [loading, searchQuery, selectedCategory, handleUploadPress]);
 
+    // Use dark background for glassmorphism
+    const backgroundColor = colors.zinc950 || colors.background;
+    
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor }]}>
             <FlatList
                 data={filteredAndSortedDocuments}
                 renderItem={renderDocument}

@@ -48,7 +48,7 @@ const AuthNavigator = () => {
         gestureDirection: 'horizontal',
         // Prevent going back to authenticated screens
         gestureResponseDistance: {
-          horizontal: Platform.OS === 'ios' ? 20 : 0,
+          horizontal: Number(Platform.OS === 'ios' ? 20 : 0),
         },
         // Enhanced animation configuration for smoother transitions
         transitionSpec: {

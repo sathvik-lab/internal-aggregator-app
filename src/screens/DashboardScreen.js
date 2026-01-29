@@ -391,8 +391,11 @@ const DashboardScreen = () => {
         navigation.navigate(ROUTES.MAIN.DOCUMENTS);
     }, [navigation]);
 
+    // Use dark background for glassmorphism
+    const backgroundColor = colors.zinc950 || colors.background;
+    
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor }]}>
             <Header
                 notificationCount={notificationCount}
                 onNotificationPress={handleNotificationPress}

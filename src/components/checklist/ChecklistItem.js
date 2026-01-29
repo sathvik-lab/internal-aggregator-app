@@ -16,43 +16,15 @@ import {
     PanResponder,
     Dimensions,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../constants/colors';
+import { GLASS } from '../../utils/glassmorphism';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 100; // Minimum swipe distance to trigger action
 const ACTION_WIDTH = 80; // Width of action buttons
-
-/**
- * Get due date color based on date
- * @param {string} dueDate - ISO date string
- * @param {boolean} completed - Whether the item is completed
- * @returns {string} Color code
- */
-const getDueDateColor = (dueDate, completed) => {
-    if (completed) {
-        return COLORS.textLight; // Gray for completed items
-    }
-
-    if (!dueDate) {
-        return COLORS.textSecondary;
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const due = new Date(dueDate);
-    due.setHours(0, 0, 0, 0);
-    const diffTime = due - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays < 0) {
-        return COLORS.error; // Red for overdue
-    } else if (diffDays === 0) {
-        return COLORS.warning; // Orange for due today
-    } else {
-        return COLORS.textSecondary; // Gray for upcoming
-    }
-};
 
 /**
  * Format due date for display
@@ -82,25 +54,6 @@ const formatDueDate = (dueDate) => {
     }
 };
 
-/**
- * Get priority color
- * @param {string} priority - Priority level (high, medium, low, critical)
- * @returns {string} Color code
- */
-const getPriorityColor = (priority) => {
-    switch (priority?.toLowerCase()) {
-        case 'critical':
-            return COLORS.error;
-        case 'high':
-            return COLORS.warning;
-        case 'medium':
-            return COLORS.info;
-        case 'low':
-            return COLORS.textLight;
-        default:
-            return COLORS.textSecondary;
-    }
-};
 
 /**
  * Get priority label
@@ -141,6 +94,8 @@ const getRegulatoryReference = (category) => {
  * @param {Function} props.onSnooze - Callback when item is snoozed
  */
 const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
+    const { colors } = useTheme();
+    const useGlass = colors.glassBackground != null;
     const [expanded, setExpanded] = useState(false);
     const [swipeOffset, setSwipeOffset] = useState(0);
     const [isSwiping, setIsSwiping] = useState(false);
@@ -150,6 +105,48 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
     const opacityAnimation = useRef(new Animated.Value(item.completed ? 0.6 : 1)).current;
     const checkmarkScale = useRef(new Animated.Value(item.completed ? 1 : 0)).current;
     const successPulse = useRef(new Animated.Value(0)).current;
+
+    // Get due date color based on date (moved inside component to avoid module load-time COLORS reference)
+    const getDueDateColor = useCallback((dueDate, completed) => {
+        if (completed) {
+            return COLORS.textLight; // Gray for completed items
+        }
+
+        if (!dueDate) {
+            return COLORS.textSecondary;
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const due = new Date(dueDate);
+        due.setHours(0, 0, 0, 0);
+        const diffTime = due - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            return COLORS.error; // Red for overdue
+        } else if (diffDays === 0) {
+            return COLORS.warning; // Orange for due today
+        } else {
+            return COLORS.textSecondary; // Gray for upcoming
+        }
+    }, []);
+
+    // Get priority color (moved inside component to avoid module load-time COLORS reference)
+    const getPriorityColor = useCallback((priority) => {
+        switch (priority?.toLowerCase()) {
+            case 'critical':
+                return COLORS.error;
+            case 'high':
+                return COLORS.warning;
+            case 'medium':
+                return COLORS.info;
+            case 'low':
+                return COLORS.textLight;
+            default:
+                return COLORS.textSecondary;
+        }
+    }, []);
 
     const dueDateColor = getDueDateColor(item.dueDate, item.completed);
     const priorityColor = getPriorityColor(item.priority);
@@ -350,15 +347,15 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
         >
             {/* Swipe Action: Complete (left) */}
             <Animated.View
-                style={[
-                    styles.swipeAction,
-                    styles.completeAction,
-                    {
-                        opacity: completeActionOpacity,
-                        transform: [{ translateX: swipeAnimation }],
-                    },
-                ]}
-            >
+    style={sanitizeStyleForGestures([
+        styles.swipeAction,
+        styles.completeAction,
+        {
+            opacity: completeActionOpacity,
+            transform: [{ translateX: swipeAnimation }],
+        },
+    ])}
+>
                 <MaterialCommunityIcons name="check-circle" size={32} color={COLORS.textInverse} />
                 <Text style={styles.actionText}>Complete</Text>
             </Animated.View>
@@ -382,7 +379,15 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
             <Animated.View
                 style={[
                     styles.container,
-                    item.completed && styles.containerCompleted,
+                    useGlass && styles.glassContainer,
+                    useGlass && {
+                        backgroundColor: Platform.OS === 'android' ? (colors.glassBackground ?? GLASS.background) : 'transparent',
+                        borderColor: item.completed ? COLORS.success + '40' : (colors.glassBorder ?? GLASS.border),
+                    },
+                    !useGlass && {
+                        backgroundColor: COLORS.surface,
+                        borderColor: item.completed ? COLORS.success + '40' : COLORS.border,
+                    },
                     {
                         opacity: opacityAnimation,
                         transform: [{ translateX: swipeAnimation }],
@@ -390,6 +395,9 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
                 ]}
                 {...panResponder.panHandlers}
             >
+                {useGlass && Platform.OS === 'ios' && (
+                    <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />
+                )}
                 <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={handleCardPress}
@@ -613,21 +621,21 @@ const styles = StyleSheet.create({
     },
     swipeAction: {
         position: 'absolute',
-        top: 0,
-        bottom: 0,
-        width: ACTION_WIDTH,
+        top: Number(0),
+        bottom: Number(0),
+        width: Number(ACTION_WIDTH),
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 1,
     },
     completeAction: {
-        left: 0,
+        left: Number(0),
         backgroundColor: COLORS.success,
         borderTopLeftRadius: 12,
         borderBottomLeftRadius: 12,
     },
     snoozeAction: {
-        right: 0,
+        right: Number(0),
         backgroundColor: COLORS.warning,
         borderTopRightRadius: 12,
         borderBottomRightRadius: 12,
@@ -639,13 +647,11 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
     container: {
-        backgroundColor: COLORS.surface,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: COLORS.border,
         overflow: 'hidden',
         zIndex: 2,
-        // Shadow for depth
+        position: 'relative',
         ...Platform.select({
             ios: {
                 shadowColor: '#000',
@@ -658,9 +664,8 @@ const styles = StyleSheet.create({
             },
         }),
     },
-    containerCompleted: {
-        borderColor: COLORS.success + '40',
-        backgroundColor: COLORS.surface,
+    glassContainer: {
+        borderRadius: 24,
     },
     cardContent: {
         padding: 16,

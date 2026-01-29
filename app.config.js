@@ -6,7 +6,6 @@
  */
 
 // Load environment variables from .env file
-let envLoaded = false;
 let envFileMissing = false;
 
 try {
@@ -19,9 +18,6 @@ try {
       // Other error loading .env file
       console.warn('Warning: Error loading .env file:', result.error.message);
     }
-  } else {
-    // .env file loaded successfully
-    envLoaded = true;
   }
 } catch (error) {
   // Fallback: dotenv.config() shouldn't throw, but handle it just in case

@@ -15,8 +15,11 @@ import {
     ScrollView,
     Platform,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../constants/colors';
+import { GLASS } from '../../utils/glassmorphism';
 
 const DOCUMENT_CATEGORIES = [
     'Certifications',
@@ -35,6 +38,15 @@ const DOCUMENT_CATEGORIES = [
  * @param {Function} props.onSave - Callback when save is pressed (receives updated data)
  */
 const EditDocumentModal = ({ visible, document, onClose, onSave }) => {
+    const { colors } = useTheme();
+    const useGlass = colors.glassBackground != null;
+    const glassColors = colors.glassBackground
+        ? {
+            background: colors.glassBackground,
+            border: colors.glassBorder,
+        }
+        : GLASS;
+    
     const [name, setName] = useState('');
     const [category, setCategory] = useState('');
     const [notes, setNotes] = useState('');
@@ -84,7 +96,22 @@ const EditDocumentModal = ({ visible, document, onClose, onSave }) => {
                 activeOpacity={1}
                 onPress={onClose}
             >
-                <View style={styles.modalContainer}>
+                {useGlass && Platform.OS === 'ios' && (
+                    <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+                )}
+                <View
+                    style={[
+                        styles.modalContainer,
+                        {
+                            backgroundColor: useGlass && Platform.OS === 'android' ? glassColors.background : COLORS.surface,
+                            borderColor: useGlass ? glassColors.border : COLORS.border,
+                            borderWidth: useGlass ? 1 : 0,
+                        },
+                    ]}
+                >
+                    {useGlass && Platform.OS === 'ios' && (
+                        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+                    )}
                     <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
                         {/* Header */}
                         <View style={styles.header}>

@@ -76,6 +76,7 @@ export const STORAGE_PATHS = {
   CHECKLIST_PHOTOS: 'checklist_photos',
   INCIDENT_PHOTOS: 'incident_photos',
   CERTIFICATIONS: 'certifications',
+  MEDIA_LOGS: 'media_logs',
 };
 
 // File upload limits
@@ -85,6 +86,7 @@ export const FILE_LIMITS = {
   MAX_SIZE_BYTES: 10 * 1024 * 1024,  // 10MB in bytes
   ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/jpg'],
   ALLOWED_DOCUMENT_TYPES: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  ALLOWED_VIDEO_TYPES: ['video/mp4', 'video/quicktime', 'video/x-m4v'],
 };
 
 // Pagination defaults

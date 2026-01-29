@@ -21,11 +21,14 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import { BlurView } from 'expo-blur';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { uploadFile } from '../../services/storage';
 import { createDocument } from '../../services/firestore';
 import { COLORS } from '../../constants/colors';
+import { GLASS } from '../../utils/glassmorphism';
 import { FILE_LIMITS, STORAGE_PATHS } from '../../constants/constants';
 
 // Document categories (matching DocumentsScreen)
@@ -122,6 +125,14 @@ const SuccessAnimation = ({ message, onAnimationComplete }) => {
  */
 const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
     const { user } = useAuth();
+    const { colors } = useTheme();
+    const useGlass = colors.glassBackground != null;
+    const glassColors = colors.glassBackground
+        ? {
+            background: colors.glassBackground,
+            border: colors.glassBorder,
+        }
+        : GLASS;
 
     // State management
     const [step, setStep] = useState('selection'); // 'selection' | 'form' | 'uploading' | 'success'
@@ -392,12 +403,23 @@ const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
                 activeOpacity={1}
                 onPress={onClose}
             >
+                {useGlass && Platform.OS === 'ios' && (
+                    <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+                )}
                 <Animated.View
                     style={[
                         styles.modalContainer,
-                        { transform: [{ translateY }] },
+                        {
+                            transform: [{ translateY }],
+                            backgroundColor: useGlass && Platform.OS === 'android' ? glassColors.background : COLORS.surface,
+                            borderColor: useGlass ? glassColors.border : COLORS.border,
+                            borderWidth: useGlass ? 1 : 0,
+                        },
                     ]}
                 >
+                    {useGlass && Platform.OS === 'ios' && (
+                        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+                    )}
                     <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
                         {/* Header */}
                         <View style={styles.header}>

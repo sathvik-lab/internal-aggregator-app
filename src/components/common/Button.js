@@ -15,7 +15,7 @@ import { TOUCH_TARGETS, PADDING, moderateScale } from '../../utils/responsive';
  * Button Component
  * 
  * @param {Object} props
- * @param {string} props.variant - Button variant: 'primary', 'secondary', 'outline', 'text' (default: 'primary')
+ * @param {string} props.variant - Button variant: 'primary', 'secondary', 'outline', 'text', 'glass' (default: 'primary')
  * @param {string} props.size - Button size: 'small', 'medium', 'large' (default: 'medium')
  * @param {boolean} props.loading - Shows loading spinner and disables button
  * @param {boolean} props.disabled - Disables the button
@@ -58,36 +58,49 @@ const Button = ({
                     backgroundColor: isDisabled ? colors.border : customColor,
                     borderWidth: 0,
                     borderColor: 'transparent',
+                    borderRadius: 8,
                 };
             case 'secondary':
                 return {
                     backgroundColor: isDisabled ? colors.border : colors.secondary,
                     borderWidth: 0,
                     borderColor: 'transparent',
+                    borderRadius: 8,
                 };
             case 'outline':
                 return {
                     backgroundColor: 'transparent',
                     borderWidth: 2,
                     borderColor: isDisabled ? colors.border : customColor,
+                    borderRadius: 8,
                 };
             case 'text':
                 return {
                     backgroundColor: 'transparent',
                     borderWidth: 0,
                     borderColor: 'transparent',
+                    borderRadius: 8,
                 };
             case 'danger':
                 return {
                     backgroundColor: isDisabled ? colors.border : colors.error,
                     borderWidth: 0,
                     borderColor: 'transparent',
+                    borderRadius: 8,
+                };
+            case 'glass':
+                return {
+                    backgroundColor: isDisabled ? colors.border : (colors.glassBackground ?? 'rgba(255,255,255,0.05)'),
+                    borderWidth: 1,
+                    borderColor: isDisabled ? colors.border : (colors.glassBorder ?? 'rgba(255,255,255,0.1)'),
+                    borderRadius: 9999,
                 };
             default:
                 return {
                     backgroundColor: isDisabled ? colors.border : customColor,
                     borderWidth: 0,
                     borderColor: 'transparent',
+                    borderRadius: 8,
                 };
         }
     };
@@ -108,6 +121,8 @@ const Button = ({
             case 'outline':
             case 'text':
                 return customColor;
+            case 'glass':
+                return colors.text?.primary ?? colors.textInverse;
             default:
                 return colors.textInverse;
         }
@@ -267,7 +282,7 @@ const Button = ({
                     variantStyles,
                     sizeStyles,
                     // Add shadow for non-text variants
-                    variant !== 'text' && !isDisabled && shadows.shadows[2],
+                    variant !== 'text' && variant !== 'glass' && !isDisabled && shadows.shadows[2],
                     fullWidth && styles.fullWidth,
                     style,
                 ]}
@@ -304,7 +319,6 @@ const Button = ({
 
 const styles = StyleSheet.create({
     button: {
-        borderRadius: 8,
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'row',

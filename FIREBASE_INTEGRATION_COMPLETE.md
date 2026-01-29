@@ -123,6 +123,21 @@ All services are **already implemented** with real Firebase methods:
 - `queryDocuments()` - Queries documents with filters
 - `setupRealtimeListener()` - Sets up real-time listeners
 
+##### Media Logs Collection (`mediaLogs`)
+
+Used for **daily/weekly/monthly photo & video logs with notes**. Each document represents a single log entry.
+
+Schema:
+- `id: string` – Document ID
+- `userId: string` – Owner (must match `request.auth.uid`)
+- `createdAt: Timestamp` – When the log was created (server timestamp)
+- `logDate: string` – Normalized date string (e.g. `"2026-01-24"`) used for daily/weekly/monthly grouping
+- `mediaType: 'photo' | 'video'` – Type of media
+- `storagePath: string` – Firebase Storage path for the file (e.g. `media_logs/{userId}/{logId}/file.jpg`)
+- `thumbnailPath: string | null` – Optional thumbnail path (for videos or future optimization)
+- `note: string | null` – Optional text note attached to the log
+- `tags: string[] | null` – Optional tags for future filtering (e.g. `"truck_1"`, `"pre_trip"`)
+
 #### ✅ Storage Service (`src/services/storage.js`)
 - `uploadFile()` - Uploads file with progress tracking
 - `downloadFile()` - Downloads file

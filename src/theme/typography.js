@@ -31,12 +31,13 @@ export const fontFamilies = {
   }),
 };
 
-// Font sizes
+// Font sizes (glassmorphism: larger headings per ui.md)
 export const fontSizes = {
-  h1: 32,
-  h2: 24,
-  h3: 20,
-  h4: 18,
+  h1: 48,
+  h2: 36,
+  h3: 28,
+  h4: 22,
+  h5: 20,
   body: 16,
   bodySmall: 14,
   caption: 12,
@@ -45,6 +46,9 @@ export const fontSizes = {
   input: 16,
   small: 12,
   tiny: 10,
+  // Hero-style sizes
+  hero: 64,
+  heroSmall: 48,
 };
 
 // Font weights
@@ -64,22 +68,26 @@ export const fontWeights = {
   boldAndroid: 'bold',
 };
 
-// Line heights
+// Line heights (match larger heading sizes)
 export const lineHeights = {
-  h1: 40,
-  h2: 32,
-  h3: 28,
-  h4: 24,
+  h1: 52,
+  h2: 42,
+  h3: 34,
+  h4: 28,
+  h5: 26,
   body: 24,
   bodySmall: 20,
   caption: 16,
   label: 16,
   button: 24,
   input: 24,
+  hero: 1,
+  heroSmall: 1,
 };
 
-// Letter spacing
+// Letter spacing (tracking-tighter for glassmorphism headings)
 export const letterSpacing = {
+  tighter: -1,
   tight: -0.5,
   normal: 0,
   wide: 0.5,
@@ -89,27 +97,27 @@ export const letterSpacing = {
 
 // Text styles for consistent typography
 export const textStyles = {
-  // Headings
+  // Headings (glassmorphism: tracking-tighter, medium weight option)
   h1: {
     fontFamily: fontFamilies.heading,
     fontSize: fontSizes.h1,
     fontWeight: fontWeights.bold,
     lineHeight: lineHeights.h1,
-    letterSpacing: letterSpacing.tight,
+    letterSpacing: letterSpacing.tighter,
   },
   h2: {
     fontFamily: fontFamilies.heading,
     fontSize: fontSizes.h2,
     fontWeight: fontWeights.bold,
     lineHeight: lineHeights.h2,
-    letterSpacing: letterSpacing.normal,
+    letterSpacing: letterSpacing.tight,
   },
   h3: {
     fontFamily: fontFamilies.heading,
     fontSize: fontSizes.h3,
     fontWeight: fontWeights.semibold,
     lineHeight: lineHeights.h3,
-    letterSpacing: letterSpacing.normal,
+    letterSpacing: letterSpacing.tight,
   },
   h4: {
     fontFamily: fontFamilies.heading,
@@ -117,6 +125,27 @@ export const textStyles = {
     fontWeight: fontWeights.semibold,
     lineHeight: lineHeights.h4,
     letterSpacing: letterSpacing.normal,
+  },
+  h5: {
+    fontFamily: fontFamilies.heading,
+    fontSize: fontSizes.h5,
+    fontWeight: fontWeights.semibold,
+    lineHeight: lineHeights.h5,
+    letterSpacing: letterSpacing.normal,
+  },
+  hero: {
+    fontFamily: fontFamilies.heading,
+    fontSize: fontSizes.hero,
+    fontWeight: fontWeights.medium,
+    lineHeight: lineHeights.hero,
+    letterSpacing: letterSpacing.tighter,
+  },
+  heroSmall: {
+    fontFamily: fontFamilies.heading,
+    fontSize: fontSizes.heroSmall,
+    fontWeight: fontWeights.medium,
+    lineHeight: lineHeights.heroSmall,
+    letterSpacing: letterSpacing.tighter,
   },
   
   // Body text

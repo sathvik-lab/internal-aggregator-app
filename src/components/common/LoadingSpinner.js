@@ -21,9 +21,11 @@ import { COLORS } from '../../constants/colors';
 const LoadingSpinner = ({ 
     text, 
     fullScreen = false, 
-    color = COLORS.primary,
+    color,
     size = 'large'
 }) => {
+    // Use default value inside function body to avoid module load-time evaluation
+    const spinnerColor = color || COLORS.primary;
     const accessibilityLabel = text || 'Loading';
     
     const spinner = (
@@ -35,7 +37,7 @@ const LoadingSpinner = ({
         >
             <ActivityIndicator 
                 size={size} 
-                color={color}
+                color={spinnerColor}
                 accessibilityElementsHidden={true}
                 importantForAccessibility="no-hide-descendants"
             />
@@ -68,7 +70,7 @@ const LoadingSpinner = ({
                     <View style={styles.fullScreenContainer}>
                         <ActivityIndicator 
                             size={size} 
-                            color={color}
+                            color={spinnerColor}
                             accessibilityElementsHidden={true}
                             importantForAccessibility="no-hide-descendants"
                         />

@@ -28,13 +28,15 @@
  * - Proper back button handling
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 import { COLORS } from '../constants/colors';
 import { ROUTES } from './navigationConfig';
+import { sanitizeStyleForGestures } from '../utils/glassmorphism';
 
 // Import screens
 import DashboardScreen from '../screens/DashboardScreen';
@@ -42,6 +44,7 @@ import DocumentsScreen from '../screens/DocumentsScreen';
 import DocumentDetailScreen from '../screens/DocumentDetailScreen';
 import ChecklistScreen from '../screens/ChecklistScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import MediaLogScreen from '../screens/MediaLogScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -96,16 +99,17 @@ const screenOptions = {
 };
 
 /**
- * Badge Component
- * 
- * Displays a badge with a count on the tab icon
+ * Badge component for tab icon. Uses theme when available.
  */
-const TabBarBadge = ({ count }) => {
+const TabBarBadge = ({ count, useGlass, colors }) => {
   if (!count || count === 0) return null;
+  const bg = useGlass ? (colors.glassBackground ?? 'rgba(255,255,255,0.15)') : COLORS.error;
+  const border = useGlass ? (colors.glassBorder ?? 'rgba(255,255,255,0.2)') : COLORS.surface;
+  const textColor = useGlass ? (colors.text?.primary ?? '#FFF') : COLORS.textInverse;
 
   return (
-    <View style={styles.badge}>
-      <Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Text>
+    <View style={[styles.badge, { backgroundColor: bg, borderColor: border }]}>
+      <Text style={[styles.badgeText, { color: textColor }]}>{count > 99 ? '99+' : count}</Text>
     </View>
   );
 };
@@ -150,32 +154,67 @@ const DocumentsStack = () => {
 
 /**
  * MainNavigator Component
- * 
- * Bottom tab navigator with 4 tabs and professional styling
+ *
+ * Bottom tab navigator with main tabs and glassmorphism-friendly styling.
  */
 const MainNavigator = () => {
-  // Mock count for incomplete checklist items
-  // This will be replaced with actual data from context/state management later
+  const { colors } = useTheme();
+  const useGlass = colors.glassBackground != null;
   const incompleteChecklistCount = 7;
+
+  const tabBarStyle = useMemo(() => {
+    const raw = useGlass
+      ? {
+          backgroundColor: colors.background ?? colors.zinc950 ?? COLORS.background,
+          borderTopColor: colors.glassBorder ?? 'rgba(255,255,255,0.1)',
+          borderTopWidth: 1,
+          paddingBottom: Platform.OS === 'ios' ? 20 : 8,
+          paddingTop: 8,
+          height: Platform.OS === 'ios' ? 88 : 64,
+          elevation: 0,
+          shadowColor: 'transparent',
+          shadowOpacity: 0,
+        }
+      : {
+          backgroundColor: COLORS.surface,
+          borderTopColor: COLORS.border,
+          borderTopWidth: 1,
+          paddingBottom: Platform.OS === 'ios' ? 20 : 8,
+          paddingTop: 8,
+          height: Platform.OS === 'ios' ? 88 : 64,
+          elevation: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 3,
+        };
+    return sanitizeStyleForGestures(raw);
+  }, [useGlass, colors.background, colors.zinc950, colors.glassBorder]);
 
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
+        tabBarStyle,
+        tabBarActiveTintColor: useGlass ? (colors.text?.primary ?? '#FFF') : COLORS.primary,
+        tabBarInactiveTintColor: useGlass ? (colors.textLight ?? colors.zinc400) : COLORS.textLight,
         // Tab bar icon configuration
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
 
           switch (route.name) {
-            case 'Dashboard':
+            case ROUTES.MAIN.DASHBOARD:
               iconName = focused ? 'home' : 'home-outline';
               break;
-            case 'Documents':
+            case ROUTES.MAIN.DOCUMENTS:
               iconName = focused ? 'folder' : 'folder-outline';
               break;
-            case 'Checklist':
+            case ROUTES.MAIN.CHECKLIST:
               iconName = focused ? 'checkbox-marked' : 'checkbox-marked-outline';
               break;
-            case 'Profile':
+            case ROUTES.MAIN.MEDIA_LOGS:
+              iconName = focused ? 'image-multiple' : 'image-multiple-outline';
+              break;
+            case ROUTES.MAIN.PROFILE:
               iconName = focused ? 'account' : 'account-outline';
               break;
             default:
@@ -185,51 +224,32 @@ const MainNavigator = () => {
           return (
             <View style={styles.iconContainer}>
               <MaterialCommunityIcons name={iconName} size={size} color={color} />
-              {route.name === 'Checklist' && (
-                <TabBarBadge count={incompleteChecklistCount} />
+              {route.name === ROUTES.MAIN.CHECKLIST && (
+                <TabBarBadge
+                  count={incompleteChecklistCount}
+                  useGlass={useGlass}
+                  colors={colors}
+                />
               )}
             </View>
           );
         },
 
-        // Tab bar styling
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textLight,
-        tabBarStyle: {
-          backgroundColor: COLORS.surface,
-          borderTopColor: COLORS.border,
-          borderTopWidth: 1,
-          paddingBottom: Platform.OS === 'ios' ? 20 : 8,
-          paddingTop: 8,
-          height: Platform.OS === 'ios' ? 88 : 64,
-          elevation: 8,
-          shadowColor: '#000',
-          shadowOffset: {
-            width: 0,
-            height: -2,
-          },
-          shadowOpacity: 0.1,
-          shadowRadius: 3,
-        },
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '600',
           marginTop: 4,
         },
 
-        // Header styling
         headerStyle: {
-          backgroundColor: COLORS.primary,
+          backgroundColor: useGlass ? (colors.background ?? colors.zinc950) : COLORS.primary,
           elevation: 4,
           shadowColor: '#000',
-          shadowOffset: {
-            width: 0,
-            height: 2,
-          },
+          shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.2,
           shadowRadius: 3,
         },
-        headerTintColor: COLORS.textInverse,
+        headerTintColor: useGlass ? (colors.text?.primary ?? '#FFF') : COLORS.textInverse,
         headerTitleStyle: {
           fontWeight: 'bold',
           fontSize: 18,
@@ -272,6 +292,15 @@ const MainNavigator = () => {
           headerTitle: 'My Profile',
         }}
       />
+
+      <Tab.Screen
+        name={ROUTES.MAIN.MEDIA_LOGS}
+        component={MediaLogScreen}
+        options={{
+          title: 'Logs',
+          headerTitle: 'Media Logs',
+        }}
+      />
     </Tab.Navigator>
   );
 };
@@ -286,7 +315,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -12,
-    backgroundColor: COLORS.error,
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -294,10 +322,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: COLORS.surface,
   },
   badgeText: {
-    color: COLORS.textInverse,
     fontSize: 11,
     fontWeight: 'bold',
   },

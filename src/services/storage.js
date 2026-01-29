@@ -86,7 +86,11 @@ export const uploadFile = async (file, path, onProgress = null) => {
   }
 
   // Validate file type
-  const allowedTypes = [...FILE_LIMITS.ALLOWED_IMAGE_TYPES, ...FILE_LIMITS.ALLOWED_DOCUMENT_TYPES];
+  const allowedTypes = [
+    ...FILE_LIMITS.ALLOWED_IMAGE_TYPES,
+    ...FILE_LIMITS.ALLOWED_DOCUMENT_TYPES,
+    ...(FILE_LIMITS.ALLOWED_VIDEO_TYPES || []),
+  ];
   if (file.type && !allowedTypes.includes(file.type)) {
     return {
       url: null,

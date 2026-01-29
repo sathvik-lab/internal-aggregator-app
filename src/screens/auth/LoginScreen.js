@@ -23,13 +23,14 @@ import {
   Text,
   Checkbox,
   ActivityIndicator,
-  Surface,
 } from 'react-native-paper';
+import { BlurView } from 'expo-blur';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { signInUser } from '../../services/auth';
 import { useTheme } from '../../context/ThemeContext';
+import { COLORS } from '../../constants/colors';
 import { ROUTES } from '../../navigation/navigationConfig';
-import ButtonComponent from '../../components/common/Button';
+import { GLASS } from '../../utils/glassmorphism';
 
 /**
  * Email validation regex pattern
@@ -41,7 +42,8 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * @param {Object} navigation - Navigation object from React Navigation
  */
 const LoginScreen = ({ navigation }) => {
-  const { colors, typography, spacing, shadows } = useTheme();
+  const { colors, typography, spacing, shadows, isDark } = useTheme();
+  const useGlass = colors.glassBackground != null;
   
   // Form state
   const [email, setEmail] = useState('');
@@ -238,9 +240,26 @@ const LoginScreen = ({ navigation }) => {
     navigation.navigate(ROUTES.AUTH.SIGNUP);
   };
 
+  const surfaceStyle = useGlass
+    ? [
+        styles.surface,
+        styles.glassSurface,
+        {
+          backgroundColor: Platform.OS === 'android' ? (colors.glassBackground ?? GLASS.background) : 'transparent',
+          borderColor: colors.glassBorder ?? GLASS.border,
+          borderWidth: 1,
+          overflow: 'hidden',
+          position: 'relative',
+        },
+      ]
+    : [styles.surface, { backgroundColor: colors.surface?.surface ?? COLORS.surface, borderWidth: 0 }];
+
+  // Use dark background for glassmorphism
+  const backgroundColor = useGlass ? (colors.zinc950 || colors.background) : (colors.background ?? COLORS.background);
+  
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
@@ -249,7 +268,11 @@ const LoginScreen = ({ navigation }) => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Surface style={styles.surface}>
+        <View style={surfaceStyle}>
+          {useGlass && Platform.OS === 'ios' && (
+            <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          )}
+          <View style={styles.surfaceContent} pointerEvents="box-none">
           {/* Logo Placeholder */}
           <View style={styles.logoContainer}>
             <View style={styles.logoPlaceholder}>
@@ -379,7 +402,8 @@ const LoginScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           </View>
-        </Surface>
+          </View>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -397,13 +421,17 @@ const styles = StyleSheet.create({
   },
   surface: {
     borderRadius: 12,
-    padding: 24,
-    backgroundColor: COLORS.surface,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+  },
+  glassSurface: {
+    borderRadius: 24,
+  },
+  surfaceContent: {
+    padding: 24,
   },
   logoContainer: {
     alignItems: 'center',
