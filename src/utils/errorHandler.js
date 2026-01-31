@@ -186,9 +186,10 @@ export const getErrorMessage = (error, defaultMessage = ERROR_MESSAGES.GENERIC_E
   }
   
   // Map Firebase error codes
+  // We genericize user-not-found and wrong-password to prevent account enumeration
   const firebaseErrorMap = {
-    'auth/user-not-found': 'No account found with this email',
-    'auth/wrong-password': 'Incorrect password',
+    'auth/user-not-found': 'Invalid email or password',
+    'auth/wrong-password': 'Invalid email or password',
     'auth/email-already-in-use': 'This email is already registered',
     'auth/invalid-email': 'Invalid email address',
     'auth/weak-password': 'Password must be at least 6 characters',
