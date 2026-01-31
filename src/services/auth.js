@@ -69,9 +69,10 @@ export const signInUser = async (email, password) => {
     return { user: userCredential.user, error: null };
   } catch (error) {
     // Map Firebase error codes to user-friendly messages
+    // We genericize user-not-found and wrong-password to prevent account enumeration
     const errorMessages = {
-      'auth/user-not-found': 'No account found with this email',
-      'auth/wrong-password': 'Incorrect password',
+      'auth/user-not-found': 'Invalid email or password',
+      'auth/wrong-password': 'Invalid email or password',
       'auth/invalid-email': 'Invalid email address',
       'auth/user-disabled': 'This account has been disabled',
       'auth/too-many-requests': 'Too many failed attempts. Please try again later',
@@ -121,9 +122,14 @@ export const resetPassword = async (email) => {
     await sendPasswordResetEmail(authInstance, email);
     return { error: null };
   } catch (error) {
+    // We genericize user-not-found to prevent account enumeration
+    // If user is not found, we still return success to the UI
+    if (error.code === 'auth/user-not-found') {
+      return { error: null };
+    }
+
     // Map Firebase error codes to user-friendly messages
     const errorMessages = {
-      'auth/user-not-found': 'No account found with this email',
       'auth/invalid-email': 'Invalid email address',
     };
 

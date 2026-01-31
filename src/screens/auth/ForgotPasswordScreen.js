@@ -146,10 +146,15 @@ const ForgotPasswordScreen = ({ navigation }) => {
         let errorMessage = result.error.message;
 
         // Map Firebase error codes to user-friendly messages
+        // We handle user-not-found by showing the success state to prevent account enumeration
         switch (errorCode) {
           case 'auth/user-not-found':
-            errorMessage = 'No account found with this email address';
-            break;
+            // This should ideally be handled by the service returning success
+            // but we handle it here too just in case
+            setEmailSent(true);
+            setLoading(false);
+            startResendCooldown();
+            return;
           case 'auth/invalid-email':
             errorMessage = 'Invalid email address';
             break;
