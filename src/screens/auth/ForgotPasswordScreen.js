@@ -141,23 +141,8 @@ const ForgotPasswordScreen = ({ navigation }) => {
       const result = await resetPassword(email.trim());
 
       if (result.error) {
-        // Handle Firebase-specific errors
-        const errorCode = result.error.code;
-        let errorMessage = result.error.message;
-
-        // Map Firebase error codes to user-friendly messages
-        switch (errorCode) {
-          case 'auth/user-not-found':
-            errorMessage = 'No account found with this email address';
-            break;
-          case 'auth/invalid-email':
-            errorMessage = 'Invalid email address';
-            break;
-          default:
-            errorMessage = result.error.message || 'An error occurred sending the reset email';
-        }
-
-        setAuthError(errorMessage);
+        // Use user-friendly error message from auth service
+        setAuthError(result.error.message);
         setLoading(false);
         return;
       }

@@ -114,6 +114,7 @@ export const APP_CONFIG = {
 // NOTE: FILE_LIMITS must be defined before this since FILE_TOO_LARGE references it
 export const ERROR_MESSAGES = {
   NETWORK_ERROR: 'Network error. Please check your connection.',
+  INVALID_CREDENTIALS: 'Invalid email or password.',
   AUTH_REQUIRED: 'Please sign in to continue.',
   PERMISSION_DENIED: 'You do not have permission to perform this action.',
   FILE_TOO_LARGE: `File size exceeds ${FILE_LIMITS.MAX_SIZE_MB}MB limit.`,

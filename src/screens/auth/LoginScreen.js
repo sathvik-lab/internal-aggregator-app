@@ -180,35 +180,8 @@ const LoginScreen = ({ navigation }) => {
       const result = await signInUser(email.trim(), password);
 
       if (result.error) {
-        // Handle Firebase-specific errors
-        const errorCode = result.error.code;
-        let errorMessage = result.error.message;
-
-        // Map Firebase error codes to user-friendly messages
-        switch (errorCode) {
-          case 'auth/user-not-found':
-            errorMessage = 'No account found with this email address';
-            break;
-          case 'auth/wrong-password':
-            errorMessage = 'Incorrect password. Please try again';
-            break;
-          case 'auth/invalid-email':
-            errorMessage = 'Invalid email address';
-            break;
-          case 'auth/user-disabled':
-            errorMessage = 'This account has been disabled';
-            break;
-          case 'auth/too-many-requests':
-            errorMessage = 'Too many failed attempts. Please try again later';
-            break;
-          case 'auth/network-request-failed':
-            errorMessage = 'Network error. Please check your connection';
-            break;
-          default:
-            errorMessage = result.error.message || 'An error occurred during login';
-        }
-
-        setAuthError(errorMessage);
+        // Use user-friendly error message from auth service
+        setAuthError(result.error.message);
         setLoading(false);
         return;
       }
@@ -216,7 +189,6 @@ const LoginScreen = ({ navigation }) => {
       // Success - user is logged in
       // Auth state will be updated automatically via onAuthStateChanged
       // AppNavigator will automatically navigate to MainNavigator
-      console.log('User logged in:', result.user);
       setLoading(false);
     } catch (error) {
       // Handle unexpected errors
