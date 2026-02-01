@@ -5,6 +5,7 @@
  */
 
 import { getFirebaseAuth } from './firebase';
+import { ERROR_MESSAGES } from '../constants/constants';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -70,8 +71,8 @@ export const signInUser = async (email, password) => {
   } catch (error) {
     // Map Firebase error codes to user-friendly messages
     const errorMessages = {
-      'auth/user-not-found': 'No account found with this email',
-      'auth/wrong-password': 'Incorrect password',
+      'auth/user-not-found': ERROR_MESSAGES.INVALID_CREDENTIALS,
+      'auth/wrong-password': ERROR_MESSAGES.INVALID_CREDENTIALS,
       'auth/invalid-email': 'Invalid email address',
       'auth/user-disabled': 'This account has been disabled',
       'auth/too-many-requests': 'Too many failed attempts. Please try again later',
@@ -121,9 +122,13 @@ export const resetPassword = async (email) => {
     await sendPasswordResetEmail(authInstance, email);
     return { error: null };
   } catch (error) {
+    // For security, return success even if user is not found to prevent account enumeration
+    if (error.code === 'auth/user-not-found') {
+      return { error: null };
+    }
+
     // Map Firebase error codes to user-friendly messages
     const errorMessages = {
-      'auth/user-not-found': 'No account found with this email',
       'auth/invalid-email': 'Invalid email address',
     };
 
