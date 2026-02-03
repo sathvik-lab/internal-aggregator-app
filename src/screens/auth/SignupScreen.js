@@ -345,7 +345,6 @@ const SignupScreen = ({ navigation }) => {
       // Success - account created
       // Auth state will be updated automatically via onAuthStateChanged
       // AppNavigator will automatically navigate to MainNavigator
-      console.log('User signed up and profile created:', user);
       setLoading(false);
     } catch (error) {
       // Handle unexpected errors

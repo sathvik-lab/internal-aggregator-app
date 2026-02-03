@@ -147,9 +147,6 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
         // Map Firebase error codes to user-friendly messages
         switch (errorCode) {
-          case 'auth/user-not-found':
-            errorMessage = 'No account found with this email address';
-            break;
           case 'auth/invalid-email':
             errorMessage = 'Invalid email address';
             break;
