@@ -187,10 +187,8 @@ const LoginScreen = ({ navigation }) => {
         // Map Firebase error codes to user-friendly messages
         switch (errorCode) {
           case 'auth/user-not-found':
-            errorMessage = 'No account found with this email address';
-            break;
           case 'auth/wrong-password':
-            errorMessage = 'Incorrect password. Please try again';
+            errorMessage = 'Invalid email or password';
             break;
           case 'auth/invalid-email':
             errorMessage = 'Invalid email address';
@@ -216,7 +214,6 @@ const LoginScreen = ({ navigation }) => {
       // Success - user is logged in
       // Auth state will be updated automatically via onAuthStateChanged
       // AppNavigator will automatically navigate to MainNavigator
-      console.log('User logged in:', result.user);
       setLoading(false);
     } catch (error) {
       // Handle unexpected errors
