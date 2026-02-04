@@ -239,9 +239,9 @@ const styles = StyleSheet.create({
   },
   dots: {
     position: 'absolute',
-    bottom: -32,
-    left: 0,
-    right: 0,
+    bottom: Number(-32),
+    left: Number(0),
+    right: Number(0),
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 8,

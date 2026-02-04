@@ -17,7 +17,6 @@
 
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Platform } from 'react-native';
 import LoginScreen from '../screens/auth/LoginScreen';
 import SignupScreen from '../screens/auth/SignupScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
@@ -41,61 +40,11 @@ const AuthNavigator = () => {
     <Stack.Navigator
       initialRouteName={ROUTES.AUTH.LOGIN}
       screenOptions={{
-        headerShown: false, // Hide header for auth screens
-        cardStyle: { backgroundColor: '#F7FAFC' }, // Match app background
+        headerShown: false,
+        cardStyle: { backgroundColor: '#F7FAFC' },
         animationEnabled: true,
-        gestureEnabled: true, // Enable swipe back on iOS
-        gestureDirection: 'horizontal',
-        // Prevent going back to authenticated screens
-        gestureResponseDistance: {
-          horizontal: Number(Platform.OS === 'ios' ? 20 : 0),
-        },
-        // Enhanced animation configuration for smoother transitions
-        transitionSpec: {
-          open: {
-            animation: 'spring',
-            config: {
-              stiffness: 1000,
-              damping: 500,
-              mass: 3,
-              overshootClamping: true,
-              restDisplacementThreshold: 0.01,
-              restSpeedThreshold: 0.01,
-            },
-          },
-          close: {
-            animation: 'spring',
-            config: {
-              stiffness: 1000,
-              damping: 500,
-              mass: 3,
-              overshootClamping: true,
-              restDisplacementThreshold: 0.01,
-              restSpeedThreshold: 0.01,
-            },
-          },
-        },
-        // Card style interpolation for slide animation
-        cardStyleInterpolator: ({ current, next, layouts }) => {
-          return {
-            cardStyle: {
-              transform: [
-                {
-                  translateX: current.progress.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [layouts.screen.width, 0],
-                  }),
-                },
-              ],
-            },
-            overlayStyle: {
-              opacity: current.progress.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 0.5],
-              }),
-            },
-          };
-        },
+        // Disable native gesture handler to avoid "right cannot be cast from String to double" on Android
+        gestureEnabled: false,
       }}
     >
       <Stack.Screen

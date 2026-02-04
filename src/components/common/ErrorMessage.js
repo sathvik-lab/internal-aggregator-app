@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
         maxWidth: 400,
         // Shadow for depth
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: Number(0), height: Number(2) },
         shadowOpacity: 0.25,
         shadowRadius: 4,
         elevation: 5,

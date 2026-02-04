@@ -79,28 +79,28 @@ const NotificationBadge = ({
         switch (position) {
             case 'top-right':
                 return {
-                    top: baseOffset,
-                    right: baseOffset,
+                    top: Number(baseOffset),
+                    right: Number(baseOffset),
                 };
             case 'top-left':
                 return {
-                    top: baseOffset,
-                    left: baseOffset,
+                    top: Number(baseOffset),
+                    left: Number(baseOffset),
                 };
             case 'bottom-right':
                 return {
-                    bottom: baseOffset,
-                    right: baseOffset,
+                    bottom: Number(baseOffset),
+                    right: Number(baseOffset),
                 };
             case 'bottom-left':
                 return {
-                    bottom: baseOffset,
-                    left: baseOffset,
+                    bottom: Number(baseOffset),
+                    left: Number(baseOffset),
                 };
             default:
                 return {
-                    top: baseOffset,
-                    right: baseOffset,
+                    top: Number(baseOffset),
+                    right: Number(baseOffset),
                 };
         }
     }, [position, size]);
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
         zIndex: 1000, // Ensure it appears on top
         // Shadow for visibility
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
+        shadowOffset: { width: Number(0), height: Number(1) },
         shadowOpacity: 0.3,
         shadowRadius: 2,
         elevation: 3, // Android shadow

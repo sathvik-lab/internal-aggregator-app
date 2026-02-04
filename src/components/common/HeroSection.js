@@ -417,7 +417,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   backgroundImage: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    left: Number(0),
+    right: Number(0),
+    top: Number(0),
+    bottom: Number(0),
     opacity: 0.4,
   },
   content: {

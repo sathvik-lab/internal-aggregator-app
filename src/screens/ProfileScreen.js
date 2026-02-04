@@ -779,8 +779,8 @@ const styles = StyleSheet.create({
     },
     editProfileBadge: {
         position: 'absolute',
-        bottom: 0,
-        right: 0,
+        bottom: Number(0),
+        right: Number(0),
         width: 32,
         height: 32,
         borderRadius: 16,
@@ -790,7 +790,7 @@ const styles = StyleSheet.create({
         ...Platform.select({
             ios: {
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
+                shadowOffset: { width: Number(0), height: Number(2) },
                 shadowOpacity: 0.2,
                 shadowRadius: 4,
             },

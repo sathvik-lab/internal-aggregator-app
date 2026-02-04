@@ -274,7 +274,7 @@ const BottomSheet = ({
                                 <TouchableOpacity
                                     onPress={closeSheet}
                                     style={styles.closeButton}
-                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    hitSlop={{ top: Number(10), bottom: Number(10), left: Number(10), right: Number(10) }}
                                     accessibilityLabel="Close"
                                     accessibilityHint="Double tap to close the bottom sheet"
                                     accessibilityRole="button"
@@ -305,7 +305,11 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     backdrop: {
-        ...StyleSheet.absoluteFillObject,
+        position: 'absolute',
+        left: Number(0),
+        right: Number(0),
+        top: Number(0),
+        bottom: Number(0),
         backgroundColor: COLORS.overlay,
     },
     sheet: {
@@ -315,7 +319,7 @@ const styles = StyleSheet.create({
         ...Platform.select({
             ios: {
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: -2 },
+                shadowOffset: { width: Number(0), height: Number(-2) },
                 shadowOpacity: 0.1,
                 shadowRadius: 8,
             },

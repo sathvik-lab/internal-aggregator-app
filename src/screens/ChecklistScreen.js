@@ -797,7 +797,7 @@ const styles = StyleSheet.create({
         ...Platform.select({
             ios: {
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: 1 },
+                shadowOffset: { width: Number(0), height: Number(1) },
                 shadowOpacity: 0.05,
                 shadowRadius: 2,
             },
@@ -934,13 +934,13 @@ const styles = StyleSheet.create({
     },
     fab: {
         position: 'absolute',
-        right: 16,
-        bottom: 16,
+        right: Number(16),
+        bottom: Number(16),
         backgroundColor: COLORS.primary,
         ...Platform.select({
             ios: {
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
+                shadowOffset: { width: Number(0), height: Number(2) },
                 shadowOpacity: 0.3,
                 shadowRadius: 4,
             },

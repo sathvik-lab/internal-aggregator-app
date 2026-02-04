@@ -577,7 +577,7 @@ const styles = StyleSheet.create({
         ...Platform.select({
             ios: {
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: -2 },
+                shadowOffset: { width: Number(0), height: Number(-2) },
                 shadowOpacity: 0.1,
                 shadowRadius: 4,
             },
@@ -632,8 +632,8 @@ const styles = StyleSheet.create({
     },
     editPictureBadge: {
         position: 'absolute',
-        bottom: 0,
-        right: 0,
+        bottom: Number(0),
+        right: Number(0),
         width: 36,
         height: 36,
         borderRadius: 18,
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
         ...Platform.select({
             ios: {
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
+                shadowOffset: { width: Number(0), height: Number(2) },
                 shadowOpacity: 0.2,
                 shadowRadius: 4,
             },
@@ -656,10 +656,10 @@ const styles = StyleSheet.create({
     },
     uploadingOverlay: {
         position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+        top: Number(0),
+        left: Number(0),
+        right: Number(0),
+        bottom: Number(0),
         borderRadius: 60,
         backgroundColor: COLORS.overlay,
         justifyContent: 'center',

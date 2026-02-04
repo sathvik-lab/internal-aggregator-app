@@ -14,7 +14,7 @@ export const shadows = {
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 0 },
+        shadowOffset: { width: Number(0), height: Number(0) },
         shadowOpacity: 0,
         shadowRadius: 0,
       },
@@ -29,7 +29,7 @@ export const shadows = {
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
+        shadowOffset: { width: Number(0), height: Number(1) },
         shadowOpacity: 0.05,
         shadowRadius: 2,
       },
@@ -44,7 +44,7 @@ export const shadows = {
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: Number(0), height: Number(2) },
         shadowOpacity: 0.1,
         shadowRadius: 4,
       },
@@ -59,7 +59,7 @@ export const shadows = {
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: Number(0), height: Number(4) },
         shadowOpacity: 0.15,
         shadowRadius: 8,
       },
@@ -74,7 +74,7 @@ export const shadows = {
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
+        shadowOffset: { width: Number(0), height: Number(8) },
         shadowOpacity: 0.2,
         shadowRadius: 16,
       },
@@ -89,7 +89,7 @@ export const shadows = {
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 12 },
+        shadowOffset: { width: Number(0), height: Number(12) },
         shadowOpacity: 0.25,
         shadowRadius: 24,
       },

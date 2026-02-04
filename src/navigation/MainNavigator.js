@@ -49,53 +49,10 @@ import MediaLogScreen from '../screens/MediaLogScreen';
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-// Enhanced transition configuration for smoother animations
+// Stack options: no custom interpolator or gesture to avoid native "right" casting errors on Android
 const screenOptions = {
     headerShown: false,
-    cardStyleInterpolator: ({ current, next, layouts }) => {
-        return {
-            cardStyle: {
-                transform: [
-                    {
-                        translateX: current.progress.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [layouts.screen.width, 0],
-                        }),
-                    },
-                ],
-            },
-            overlayStyle: {
-                opacity: current.progress.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, 0.5],
-                }),
-            },
-        };
-    },
-    transitionSpec: {
-        open: {
-            animation: 'spring',
-            config: {
-                stiffness: 1000,
-                damping: 500,
-                mass: 3,
-                overshootClamping: true,
-                restDisplacementThreshold: 0.01,
-                restSpeedThreshold: 0.01,
-            },
-        },
-        close: {
-            animation: 'spring',
-            config: {
-                stiffness: 1000,
-                damping: 500,
-                mass: 3,
-                overshootClamping: true,
-                restDisplacementThreshold: 0.01,
-                restSpeedThreshold: 0.01,
-            },
-        },
-    },
+    gestureEnabled: false,
 };
 
 /**
@@ -108,7 +65,7 @@ const TabBarBadge = ({ count, useGlass, colors }) => {
   const textColor = useGlass ? (colors.text?.primary ?? '#FFF') : COLORS.textInverse;
 
   return (
-    <View style={[styles.badge, { backgroundColor: bg, borderColor: border }]}>
+    <View style={sanitizeStyleForGestures([styles.badge, { backgroundColor: bg, borderColor: border }])}>
       <Text style={[styles.badgeText, { color: textColor }]}>{count > 99 ? '99+' : count}</Text>
     </View>
   );
@@ -184,7 +141,7 @@ const MainNavigator = () => {
           height: Platform.OS === 'ios' ? 88 : 64,
           elevation: 8,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
+          shadowOffset: { width: Number(Number(0)), height: Number(Number(-2)) },
           shadowOpacity: 0.1,
           shadowRadius: 3,
         };
@@ -224,6 +181,7 @@ const MainNavigator = () => {
           return (
             <View style={styles.iconContainer}>
               <MaterialCommunityIcons name={iconName} size={size} color={color} />
+              {/* 
               {route.name === ROUTES.MAIN.CHECKLIST && (
                 <TabBarBadge
                   count={incompleteChecklistCount}
@@ -231,6 +189,7 @@ const MainNavigator = () => {
                   colors={colors}
                 />
               )}
+                */}
             </View>
           );
         },
@@ -245,7 +204,7 @@ const MainNavigator = () => {
           backgroundColor: useGlass ? (colors.background ?? colors.zinc950) : COLORS.primary,
           elevation: 4,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
+          shadowOffset: { width: Number(Number(0)), height: Number(Number(2)) },
           shadowOpacity: 0.2,
           shadowRadius: 3,
         },
@@ -313,8 +272,8 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    top: -4,
-    right: -12,
+    top: Number(-4),
+    right: Number(-12),
     borderRadius: 10,
     minWidth: 20,
     height: 20,

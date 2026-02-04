@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
         ...Platform.select({
             ios: {
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
+                shadowOffset: { width: Number(0), height: Number(2) },
                 shadowOpacity: 0.1,
                 shadowRadius: 3,
             },
@@ -287,8 +287,8 @@ const styles = StyleSheet.create({
     },
     notificationBadge: {
         position: 'absolute',
-        top: 2,
-        right: 2,
+        top: Number(2),
+        right: Number(2),
         borderRadius: 10,
         minWidth: 20,
         height: 20,
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
         ...Platform.select({
             ios: {
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
+                shadowOffset: { width: Number(0), height: Number(2) },
                 shadowOpacity: 0.3,
                 shadowRadius: 3,
             },

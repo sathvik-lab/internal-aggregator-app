@@ -256,7 +256,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   backgroundContainer: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    left: Number(0),
+    right: Number(0),
+    top: Number(0),
+    bottom: Number(0),
     opacity: 0.6,
   },
   cardContent: {
