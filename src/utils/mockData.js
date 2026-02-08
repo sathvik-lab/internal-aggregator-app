@@ -27,6 +27,7 @@ export const MOCK_USER = {
   displayName: 'John Doe',
   photoURL: null,
   role: USER_ROLES.OWNER,
+  jobTitle: 'Business Owner',
   createdAt: '2024-01-15T10:30:00.000Z',
 };
 
