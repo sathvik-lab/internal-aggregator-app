@@ -28,7 +28,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../constants/colors';
 import { GLASS } from '../../utils/glassmorphism';
 import { uploadFile } from '../../services/storage';
-import { updateDocument } from '../../services/firestore';
+import { updateDocument, getDocument } from '../../services/firestore';
 import { updateUserProfile } from '../../services/auth';
 import { STORAGE_PATHS } from '../../constants/constants';
 
@@ -56,7 +56,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
     const [email, setEmail] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [company, setCompany] = useState('');
-    const [role, setRole] = useState('');
+    const [jobTitle, setJobTitle] = useState('');
 
     // Profile picture state
     const [profilePicture, setProfilePicture] = useState(null);
@@ -71,16 +71,32 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
      * Initialize form with user data
      */
     useEffect(() => {
-        if (user && visible) {
-            setDisplayName(user.displayName || '');
-            setEmail(user.email || '');
-            setPhoneNumber(user.phoneNumber || '');
-            setCompany(user.company || '');
-            setRole(user.role || '');
-            setProfilePicture(user.photoURL ? { uri: user.photoURL } : null);
-            setProfilePictureChanged(false);
-            setNameError('');
-        }
+        const fetchUserData = async () => {
+            if (user && visible) {
+                // Set initial data from AuthContext (basic info)
+                setDisplayName(user.displayName || '');
+                setEmail(user.email || '');
+                setProfilePicture(user.photoURL ? { uri: user.photoURL } : null);
+                setProfilePictureChanged(false);
+                setNameError('');
+
+                // Fetch additional details from Firestore
+                try {
+                    const result = await getDocument('users', user.uid);
+                    if (result.data) {
+                        const userData = result.data;
+                        setPhoneNumber(userData.phoneNumber || '');
+                        setCompany(userData.company || '');
+                        // Use jobTitle, fallback to role for older accounts
+                        setJobTitle(userData.jobTitle || userData.role || '');
+                    }
+                } catch (error) {
+                    console.error('Error fetching user data for modal:', error);
+                }
+            }
+        };
+
+        fetchUserData();
     }, [user, visible]);
 
     /**
@@ -319,7 +335,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
                 displayName: updatedDisplayName,
                 phoneNumber: phoneNumber.trim() || null,
                 company: company.trim() || null,
-                role: role.trim() || null,
+                jobTitle: jobTitle.trim() || null,
                 updatedAt: new Date().toISOString(), // Mock serverTimestamp
             };
 
@@ -365,11 +381,9 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
      * Handle cancel
      */
     const handleCancel = () => {
+        // Simple change detection
         const hasChanges =
             displayName !== (user?.displayName || '') ||
-            phoneNumber !== (user?.phoneNumber || '') ||
-            company !== (user?.company || '') ||
-            role !== (user?.role || '') ||
             profilePictureChanged;
 
         if (hasChanges) {
@@ -527,8 +541,8 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
                             {/* Role/Title */}
                             <TextInput
                                 label="Role/Title"
-                                value={role}
-                                onChangeText={setRole}
+                                value={jobTitle}
+                                onChangeText={setJobTitle}
                                 mode="outlined"
                                 style={styles.input}
                                 autoCapitalize="words"
