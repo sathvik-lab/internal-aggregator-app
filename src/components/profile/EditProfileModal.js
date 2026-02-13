@@ -2,11 +2,11 @@
  * EditProfileModal Component
  * 
  * Modal for editing user profile information.
- * Includes profile picture upload, name, email, phone, company, and role editing.
+ * Includes profile picture upload, name, email, phone, company, and job title editing.
  * Integrates with Firebase Auth and Firestore.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -28,7 +28,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../constants/colors';
 import { GLASS } from '../../utils/glassmorphism';
 import { uploadFile } from '../../services/storage';
-import { updateDocument } from '../../services/firestore';
+import { updateDocument, getDocument } from '../../services/firestore';
 import { updateUserProfile } from '../../services/auth';
 import { STORAGE_PATHS } from '../../constants/constants';
 
@@ -56,7 +56,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
     const [email, setEmail] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [company, setCompany] = useState('');
-    const [role, setRole] = useState('');
+    const [jobTitle, setJobTitle] = useState('');
 
     // Profile picture state
     const [profilePicture, setProfilePicture] = useState(null);
@@ -66,21 +66,41 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
     // UI state
     const [saving, setSaving] = useState(false);
     const [nameError, setNameError] = useState('');
+    const initialDataRef = useRef({});
 
     /**
      * Initialize form with user data
      */
     useEffect(() => {
-        if (user && visible) {
-            setDisplayName(user.displayName || '');
-            setEmail(user.email || '');
-            setPhoneNumber(user.phoneNumber || '');
-            setCompany(user.company || '');
-            setRole(user.role || '');
-            setProfilePicture(user.photoURL ? { uri: user.photoURL } : null);
-            setProfilePictureChanged(false);
-            setNameError('');
-        }
+        let isMounted = true;
+        const fetchUserData = async () => {
+            if (user?.uid && visible) {
+                const result = await getDocument('users', user.uid);
+                if (!isMounted) return;
+
+                const userData = result.data || {};
+                const initial = {
+                    displayName: userData.displayName || user.displayName || '',
+                    phoneNumber: userData.phoneNumber || '',
+                    company: userData.company || '',
+                    jobTitle: userData.jobTitle || userData.role || '',
+                };
+                initialDataRef.current = initial;
+
+                setDisplayName(initial.displayName);
+                setEmail(userData.email || user.email || '');
+                setPhoneNumber(initial.phoneNumber);
+                setCompany(initial.company);
+                setJobTitle(initial.jobTitle);
+                setProfilePicture(userData.photoURL ? { uri: userData.photoURL } : (user.photoURL ? { uri: user.photoURL } : null));
+
+                setProfilePictureChanged(false);
+                setNameError('');
+            }
+        };
+
+        fetchUserData();
+        return () => { isMounted = false; };
     }, [user, visible]);
 
     /**
@@ -319,7 +339,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
                 displayName: updatedDisplayName,
                 phoneNumber: phoneNumber.trim() || null,
                 company: company.trim() || null,
-                role: role.trim() || null,
+                jobTitle: jobTitle.trim() || null,
                 updatedAt: new Date().toISOString(), // Mock serverTimestamp
             };
 
@@ -365,11 +385,12 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
      * Handle cancel
      */
     const handleCancel = () => {
+        const initial = initialDataRef.current;
         const hasChanges =
-            displayName !== (user?.displayName || '') ||
-            phoneNumber !== (user?.phoneNumber || '') ||
-            company !== (user?.company || '') ||
-            role !== (user?.role || '') ||
+            displayName !== (initial.displayName || '') ||
+            phoneNumber !== (initial.phoneNumber || '') ||
+            company !== (initial.company || '') ||
+            jobTitle !== (initial.jobTitle || '') ||
             profilePictureChanged;
 
         if (hasChanges) {
@@ -524,11 +545,11 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
                                 placeholder="Your company name"
                             />
 
-                            {/* Role/Title */}
+                            {/* Job Title */}
                             <TextInput
-                                label="Role/Title"
-                                value={role}
-                                onChangeText={setRole}
+                                label="Job Title"
+                                value={jobTitle}
+                                onChangeText={setJobTitle}
                                 mode="outlined"
                                 style={styles.input}
                                 autoCapitalize="words"
