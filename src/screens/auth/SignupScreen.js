@@ -311,13 +311,12 @@ const SignupScreen = ({ navigation }) => {
       const user = signupResult.user;
 
       // Create user profile in Firestore
+      // createdAt and updatedAt are handled automatically by createDocument service
       const profileData = {
         userId: user.uid,
         displayName: fullName.trim(),
         email: email.trim(),
         role: USER_ROLES.STAFF, // Default role
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       };
 
       const profileResult = await createDocument('users', profileData, user.uid);
