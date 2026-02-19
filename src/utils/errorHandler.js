@@ -187,8 +187,9 @@ export const getErrorMessage = (error, defaultMessage = ERROR_MESSAGES.GENERIC_E
   
   // Map Firebase error codes
   const firebaseErrorMap = {
-    'auth/user-not-found': 'No account found with this email',
-    'auth/wrong-password': 'Incorrect password',
+    // Genericize authentication errors to prevent account enumeration
+    'auth/user-not-found': 'Invalid email or password',
+    'auth/wrong-password': 'Invalid email or password',
     'auth/email-already-in-use': 'This email is already registered',
     'auth/invalid-email': 'Invalid email address',
     'auth/weak-password': 'Password must be at least 6 characters',
@@ -258,7 +259,7 @@ export const handleAsyncOperation = async (asyncFn, options = {}) => {
       error: {
         code: error.code || 'unknown-error',
         message: getErrorMessage(error, defaultMessage),
-        originalError: error,
+        // Removed originalError to prevent leaking internal details/stack traces to UI
       },
     };
   }
