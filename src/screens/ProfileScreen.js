@@ -125,9 +125,10 @@ const ProfileScreen = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showBusinessProfileModal, setShowBusinessProfileModal] = useState(false);
     const [businessProfile, setBusinessProfile] = useState(null);
+    const [jobTitle, setJobTitle] = useState('');
 
     /**
-     * Fetch user preferences from Firestore
+     * Fetch user preferences and profile data from Firestore
      */
     const fetchUserPreferences = useCallback(async () => {
         if (!user?.uid) {
@@ -141,11 +142,15 @@ const ProfileScreen = () => {
             // const preferences = userDoc?.preferences || {};
 
             const result = await getDocument('users', user.uid);
-            if (result.data && result.data.preferences) {
-                setUserPreferences((prev) => ({
-                    ...prev,
-                    ...result.data.preferences,
-                }));
+            if (result.data) {
+                if (result.data.preferences) {
+                    setUserPreferences((prev) => ({
+                        ...prev,
+                        ...result.data.preferences,
+                    }));
+                }
+                // Fetch job title/role
+                setJobTitle(result.data.jobTitle || result.data.role || '');
             }
         } catch (error) {
             console.error('Error fetching user preferences:', error);
@@ -420,12 +425,11 @@ const ProfileScreen = () => {
         );
     }
 
+    // Use dark background for glassmorphism
+    const backgroundColor = colors.zinc950 || colors.background;
+
     return (
         <>
-        // Use dark background for glassmorphism
-        const backgroundColor = colors.zinc950 || colors.background;
-        
-        return (
         <ScrollView style={[styles.container, { backgroundColor }]} showsVerticalScrollIndicator={false}>
             {/* Header Section */}
             <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
@@ -452,6 +456,11 @@ const ProfileScreen = () => {
                     <View style={styles.userInfo}>
                         <Text style={[styles.userName, { color: colors.text }]}>{user?.displayName || 'User'}</Text>
                         <Text style={[styles.userEmail, { color: colors.textSecondary }]}>{user?.email || ''}</Text>
+                        {jobTitle ? (
+                            <View style={[styles.roleBadge, { backgroundColor: `${colors.primary}15` }]}>
+                                <Text style={[styles.roleText, { color: colors.primary }]}>{jobTitle}</Text>
+                            </View>
+                        ) : null}
                     </View>
 
                     {/* Edit Button */}
@@ -810,6 +819,20 @@ const styles = StyleSheet.create({
     },
     userEmail: {
         fontSize: 16,
+        marginBottom: 8,
+    },
+    roleBadge: {
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    roleText: {
+        fontSize: 12,
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
     editButton: {
         flexDirection: 'row',

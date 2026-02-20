@@ -28,7 +28,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../constants/colors';
 import { GLASS } from '../../utils/glassmorphism';
 import { uploadFile } from '../../services/storage';
-import { updateDocument } from '../../services/firestore';
+import { updateDocument, getDocument } from '../../services/firestore';
 import { updateUserProfile } from '../../services/auth';
 import { STORAGE_PATHS } from '../../constants/constants';
 
@@ -56,7 +56,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
     const [email, setEmail] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [company, setCompany] = useState('');
-    const [role, setRole] = useState('');
+    const [jobTitle, setJobTitle] = useState('');
 
     // Profile picture state
     const [profilePicture, setProfilePicture] = useState(null);
@@ -68,19 +68,40 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
     const [nameError, setNameError] = useState('');
 
     /**
-     * Initialize form with user data
+     * Initialize form with user data from Firebase Auth and Firestore
      */
     useEffect(() => {
+        let isMounted = true;
+
         if (user && visible) {
+            // Initial load from Firebase Auth
             setDisplayName(user.displayName || '');
             setEmail(user.email || '');
-            setPhoneNumber(user.phoneNumber || '');
-            setCompany(user.company || '');
-            setRole(user.role || '');
             setProfilePicture(user.photoURL ? { uri: user.photoURL } : null);
             setProfilePictureChanged(false);
             setNameError('');
+
+            // Fetch additional fields from Firestore
+            const fetchFirestoreData = async () => {
+                try {
+                    const result = await getDocument('users', user.uid);
+                    if (isMounted && !result.error && result.data) {
+                        setPhoneNumber(result.data.phoneNumber || '');
+                        setCompany(result.data.company || '');
+                        // Fallback to role if jobTitle doesn't exist yet (for older accounts)
+                        setJobTitle(result.data.jobTitle || result.data.role || '');
+                    }
+                } catch (error) {
+                    console.error('Error fetching additional profile data:', error);
+                }
+            };
+
+            fetchFirestoreData();
         }
+
+        return () => {
+            isMounted = false;
+        };
     }, [user, visible]);
 
     /**
@@ -319,7 +340,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
                 displayName: updatedDisplayName,
                 phoneNumber: phoneNumber.trim() || null,
                 company: company.trim() || null,
-                role: role.trim() || null,
+                jobTitle: jobTitle.trim() || null,
                 updatedAt: new Date().toISOString(), // Mock serverTimestamp
             };
 
@@ -365,11 +386,13 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
      * Handle cancel
      */
     const handleCancel = () => {
+        // Note: Simple comparison against user object might be inaccurate for
+        // Firestore fields not in Auth, but works for basic change detection
         const hasChanges =
             displayName !== (user?.displayName || '') ||
             phoneNumber !== (user?.phoneNumber || '') ||
             company !== (user?.company || '') ||
-            role !== (user?.role || '') ||
+            jobTitle !== (user?.jobTitle || '') ||
             profilePictureChanged;
 
         if (hasChanges) {
@@ -524,15 +547,15 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
                                 placeholder="Your company name"
                             />
 
-                            {/* Role/Title */}
+                            {/* Role/Title (Stored as jobTitle in Firestore) */}
                             <TextInput
-                                label="Role/Title"
-                                value={role}
-                                onChangeText={setRole}
+                                label="Job Title"
+                                value={jobTitle}
+                                onChangeText={setJobTitle}
                                 mode="outlined"
                                 style={styles.input}
                                 autoCapitalize="words"
-                                placeholder="Your job title"
+                                placeholder="Your job title (e.g. Manager, Chef)"
                             />
                         </ScrollView>
 

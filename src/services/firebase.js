@@ -39,7 +39,7 @@ console.log('Firebase config check:', {
   hasStorageBucket: !!firebaseStorageBucket,
   hasMessagingSenderId: !!firebaseMessagingSenderId,
   hasAppId: !!firebaseAppId,
-  projectId: firebaseProjectId ? `${firebaseProjectId.substring(0, 10)}...` : 'missing',
+  projectId: typeof firebaseProjectId === 'string' ? `${firebaseProjectId.substring(0, 10)}...` : 'missing',
 });
 
 // Check if Firebase configuration is missing
@@ -106,7 +106,7 @@ try {
     // fallback placeholders (placeholder-*-key, placeholder-*-id)
     // This catches cases where users copy .env.example without updating values
     const isPlaceholderValue = (value) => {
-      if (!value) return true;
+      if (!value || typeof value !== 'string') return true;
       const lowerValue = value.toLowerCase();
       // Check for common placeholder patterns
       return (
