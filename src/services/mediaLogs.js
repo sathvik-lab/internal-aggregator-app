@@ -5,7 +5,7 @@
  * photo/video logs with optional notes.
  */
 
-import { auth } from './firebase';
+import { getFirebaseAuth } from './firebase';
 import { createDocument, deleteDocument, queryDocuments } from './firestore';
 import { uploadFile, deleteFile } from './storage';
 import { STORAGE_PATHS, DATE_FORMATS, PAGINATION } from '../constants/constants';
@@ -79,6 +79,7 @@ const getDateRangeForType = (rangeType) => {
  * @returns {Promise<{id: string|null, error: {code: string, message: string}|null}>}
  */
 export const uploadMediaLog = async ({ uri, mediaType, note = null, onProgress }) => {
+  const auth = getFirebaseAuth();
   const user = auth?.currentUser;
 
   if (!user?.uid) {
@@ -156,6 +157,7 @@ export const uploadMediaLog = async ({ uri, mediaType, note = null, onProgress }
  * @returns {Promise<{data: Array, error: {code: string, message: string}|null}>}
  */
 export const fetchMediaLogs = async (rangeType = 'daily') => {
+  const auth = getFirebaseAuth();
   const user = auth?.currentUser;
 
   if (!user?.uid) {
@@ -198,6 +200,7 @@ export const fetchMediaLogs = async (rangeType = 'daily') => {
  * @returns {Promise<{error: {code: string, message: string}|null}>}
  */
 export const deleteMediaLog = async ({ id, storagePath }) => {
+  const auth = getFirebaseAuth();
   const user = auth?.currentUser;
 
   if (!user?.uid) {

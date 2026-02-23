@@ -39,7 +39,7 @@ console.log('Firebase config check:', {
   hasStorageBucket: !!firebaseStorageBucket,
   hasMessagingSenderId: !!firebaseMessagingSenderId,
   hasAppId: !!firebaseAppId,
-  projectId: firebaseProjectId ? `${firebaseProjectId.substring(0, 10)}...` : 'missing',
+  projectId: (typeof firebaseProjectId === 'string') ? `${firebaseProjectId.substring(0, 10)}...` : 'missing',
 });
 
 // Check if Firebase configuration is missing
