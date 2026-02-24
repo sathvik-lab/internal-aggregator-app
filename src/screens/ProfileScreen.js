@@ -420,12 +420,10 @@ const ProfileScreen = () => {
         );
     }
 
+    const backgroundColor = colors.zinc950 || colors.background;
+
     return (
         <>
-        // Use dark background for glassmorphism
-        const backgroundColor = colors.zinc950 || colors.background;
-        
-        return (
         <ScrollView style={[styles.container, { backgroundColor }]} showsVerticalScrollIndicator={false}>
             {/* Header Section */}
             <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
