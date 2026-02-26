@@ -29,6 +29,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { signInUser } from '../../services/auth';
 import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../constants/colors';
+import { ERROR_MESSAGES } from '../../constants/constants';
 import { ROUTES } from '../../navigation/navigationConfig';
 import { GLASS } from '../../utils/glassmorphism';
 
@@ -188,7 +189,7 @@ const LoginScreen = ({ navigation }) => {
         switch (errorCode) {
           case 'auth/user-not-found':
           case 'auth/wrong-password':
-            errorMessage = 'Invalid email or password';
+            errorMessage = ERROR_MESSAGES.INVALID_CREDENTIALS;
             break;
           case 'auth/invalid-email':
             errorMessage = 'Invalid email address';
