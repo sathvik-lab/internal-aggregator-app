@@ -420,12 +420,10 @@ const ProfileScreen = () => {
         );
     }
 
+    // Use dark background for glassmorphism
+    const backgroundColor = colors.zinc950 || colors.background;
+
     return (
-        <>
-        // Use dark background for glassmorphism
-        const backgroundColor = colors.zinc950 || colors.background;
-        
-        return (
         <ScrollView style={[styles.container, { backgroundColor }]} showsVerticalScrollIndicator={false}>
             {/* Header Section */}
             <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
@@ -720,22 +718,21 @@ const ProfileScreen = () => {
 
             {/* Bottom spacing */}
             <View style={styles.bottomSpacing} />
+
+            {/* Edit Profile Modal */}
+            <EditProfileModal
+                visible={showEditModal}
+                onClose={handleEditModalClose}
+                onSuccess={handleProfileUpdated}
+            />
+
+            {/* Business Profile Modal */}
+            <BusinessProfileModal
+                visible={showBusinessProfileModal}
+                onClose={handleBusinessProfileModalClose}
+                onSuccess={handleBusinessProfileUpdated}
+            />
         </ScrollView>
-
-        {/* Edit Profile Modal */}
-        <EditProfileModal
-            visible={showEditModal}
-            onClose={handleEditModalClose}
-            onSuccess={handleProfileUpdated}
-        />
-
-        {/* Business Profile Modal */}
-        <BusinessProfileModal
-            visible={showBusinessProfileModal}
-            onClose={handleBusinessProfileModalClose}
-            onSuccess={handleBusinessProfileUpdated}
-        />
-        </>
     );
 };
 
