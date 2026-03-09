@@ -477,6 +477,14 @@ const ProfileScreen = () => {
                 />
                 <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
                 <SettingsRow
+                    icon="briefcase-outline"
+                    title="Job Title"
+                    subtitle={user?.jobTitle || 'Not set'}
+                    onPress={() => setShowEditModal(true)}
+                    colors={colors}
+                />
+                <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
+                <SettingsRow
                     icon="email-outline"
                     title="Email"
                     subtitle={user?.email || 'Not set'}
