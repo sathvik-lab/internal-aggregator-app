@@ -56,7 +56,8 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
     const [email, setEmail] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [company, setCompany] = useState('');
-    const [role, setRole] = useState('');
+    const [jobTitle, setJobTitle] = useState('');
+    const [securityRole, setSecurityRole] = useState('');
 
     // Profile picture state
     const [profilePicture, setProfilePicture] = useState(null);
@@ -76,7 +77,8 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
             setEmail(user.email || '');
             setPhoneNumber(user.phoneNumber || '');
             setCompany(user.company || '');
-            setRole(user.role || '');
+            setJobTitle(user.jobTitle || '');
+            setSecurityRole(user.role || 'staff');
             setProfilePicture(user.photoURL ? { uri: user.photoURL } : null);
             setProfilePictureChanged(false);
             setNameError('');
@@ -319,7 +321,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
                 displayName: updatedDisplayName,
                 phoneNumber: phoneNumber.trim() || null,
                 company: company.trim() || null,
-                role: role.trim() || null,
+                jobTitle: jobTitle.trim() || null,
                 updatedAt: new Date().toISOString(), // Mock serverTimestamp
             };
 
@@ -369,7 +371,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
             displayName !== (user?.displayName || '') ||
             phoneNumber !== (user?.phoneNumber || '') ||
             company !== (user?.company || '') ||
-            role !== (user?.role || '') ||
+            jobTitle !== (user?.jobTitle || '') ||
             profilePictureChanged;
 
         if (hasChanges) {
@@ -524,15 +526,35 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
                                 placeholder="Your company name"
                             />
 
-                            {/* Role/Title */}
+                            {/* Job Title */}
                             <TextInput
-                                label="Role/Title"
-                                value={role}
-                                onChangeText={setRole}
+                                label="Job Title"
+                                value={jobTitle}
+                                onChangeText={setJobTitle}
                                 mode="outlined"
                                 style={styles.input}
                                 autoCapitalize="words"
                                 placeholder="Your job title"
+                            />
+
+                            {/* Security Role (Read-only) */}
+                            <TextInput
+                                label="System Role"
+                                value={securityRole}
+                                editable={false}
+                                mode="outlined"
+                                style={[styles.input, styles.inputDisabled]}
+                                right={
+                                    <TextInput.Icon
+                                        icon="shield-check-outline"
+                                        onPress={() => {
+                                            Alert.alert(
+                                                'Security Role',
+                                                'Your system role is managed by administrators and cannot be changed here.'
+                                            );
+                                        }}
+                                    />
+                                }
                             />
                         </ScrollView>
 
