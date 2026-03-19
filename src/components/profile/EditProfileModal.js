@@ -6,7 +6,7 @@
  * Integrates with Firebase Auth and Firestore.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -56,7 +56,10 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
     const [email, setEmail] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [company, setCompany] = useState('');
-    const [role, setRole] = useState('');
+    const [jobTitle, setJobTitle] = useState('');
+
+    // Persistence state
+    const initialDataRef = useRef({});
 
     // Profile picture state
     const [profilePicture, setProfilePicture] = useState(null);
@@ -71,16 +74,41 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
      * Initialize form with user data
      */
     useEffect(() => {
+        let isMounted = true;
         if (user && visible) {
             setDisplayName(user.displayName || '');
             setEmail(user.email || '');
-            setPhoneNumber(user.phoneNumber || '');
-            setCompany(user.company || '');
-            setRole(user.role || '');
             setProfilePicture(user.photoURL ? { uri: user.photoURL } : null);
             setProfilePictureChanged(false);
             setNameError('');
+
+            // Fetch custom Firestore fields (phoneNumber, company, jobTitle)
+            // because AuthContext only provides base Auth data
+            const fetchCustomData = async () => {
+                try {
+                    const result = await getDocument('users', user.uid);
+                    if (isMounted && !result.error && result.data) {
+                        const data = result.data;
+                        const initialData = {
+                            displayName: user.displayName || '',
+                            phoneNumber: data.phoneNumber || '',
+                            company: data.company || '',
+                            jobTitle: data.jobTitle || '',
+                            photoURL: user.photoURL || null
+                        };
+                        initialDataRef.current = initialData;
+
+                        setPhoneNumber(initialData.phoneNumber);
+                        setCompany(initialData.company);
+                        setJobTitle(initialData.jobTitle);
+                    }
+                } catch (error) {
+                    console.error('Error fetching custom user data:', error);
+                }
+            };
+            fetchCustomData();
         }
+        return () => { isMounted = false; };
     }, [user, visible]);
 
     /**
@@ -319,7 +347,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
                 displayName: updatedDisplayName,
                 phoneNumber: phoneNumber.trim() || null,
                 company: company.trim() || null,
-                role: role.trim() || null,
+                jobTitle: jobTitle.trim() || null,
                 updatedAt: new Date().toISOString(), // Mock serverTimestamp
             };
 
@@ -366,10 +394,10 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
      */
     const handleCancel = () => {
         const hasChanges =
-            displayName !== (user?.displayName || '') ||
-            phoneNumber !== (user?.phoneNumber || '') ||
-            company !== (user?.company || '') ||
-            role !== (user?.role || '') ||
+            displayName.trim() !== (initialDataRef.current.displayName || '') ||
+            phoneNumber.trim() !== (initialDataRef.current.phoneNumber || '') ||
+            company.trim() !== (initialDataRef.current.company || '') ||
+            jobTitle.trim() !== (initialDataRef.current.jobTitle || '') ||
             profilePictureChanged;
 
         if (hasChanges) {
@@ -524,11 +552,11 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
                                 placeholder="Your company name"
                             />
 
-                            {/* Role/Title */}
+                            {/* Job Title */}
                             <TextInput
-                                label="Role/Title"
-                                value={role}
-                                onChangeText={setRole}
+                                label="Job Title"
+                                value={jobTitle}
+                                onChangeText={setJobTitle}
                                 mode="outlined"
                                 style={styles.input}
                                 autoCapitalize="words"
