@@ -315,6 +315,7 @@ const SignupScreen = ({ navigation }) => {
         userId: user.uid,
         displayName: fullName.trim(),
         email: email.trim(),
+        jobTitle: '', // Initial empty job title
         role: USER_ROLES.STAFF, // Default role
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

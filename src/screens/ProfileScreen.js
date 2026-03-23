@@ -125,6 +125,7 @@ const ProfileScreen = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showBusinessProfileModal, setShowBusinessProfileModal] = useState(false);
     const [businessProfile, setBusinessProfile] = useState(null);
+    const [jobTitle, setJobTitle] = useState(null);
 
     /**
      * Fetch user preferences from Firestore
@@ -136,10 +137,6 @@ const ProfileScreen = () => {
         }
 
         try {
-            // Real Firestore:
-            // const userDoc = await getDocument('users', user.uid);
-            // const preferences = userDoc?.preferences || {};
-
             const result = await getDocument('users', user.uid);
             if (result.data && result.data.preferences) {
                 setUserPreferences((prev) => ({
@@ -164,14 +161,6 @@ const ProfileScreen = () => {
         }
 
         try {
-            // Real Firestore:
-            // const docsQuery = query(
-            //   collection(db, 'documents'),
-            //   where('userId', '==', user.uid)
-            // );
-            // const docs = await getDocs(docsQuery);
-            // const totalSize = docs.docs.reduce((sum, doc) => sum + (doc.data().size || 0), 0);
-
             const conditions = [{ field: 'userId', operator: '==', value: user.uid }];
             const result = await queryDocuments('documents', conditions);
 
@@ -196,10 +185,12 @@ const ProfileScreen = () => {
 
         try {
             const result = await getDocument('users', user.uid);
-            if (result.data && result.data.businessProfile) {
-                setBusinessProfile(result.data.businessProfile);
+            if (result.data) {
+                setBusinessProfile(result.data.businessProfile || null);
+                setJobTitle(result.data.jobTitle || null);
             } else {
                 setBusinessProfile(null);
+                setJobTitle(null);
             }
         } catch (error) {
             console.error('Error fetching business profile:', error);
@@ -301,6 +292,11 @@ const ProfileScreen = () => {
      * Handle account settings navigation
      */
     const handleAccountSettings = (type) => {
+        if (type === 'edit') {
+            setShowEditModal(true);
+            return;
+        }
+
         Alert.alert(
             type === 'name' ? 'Edit Name' : type === 'email' ? 'Change Email' : 'Change Password',
             `${type === 'name' ? 'Name' : type === 'email' ? 'Email' : 'Password'} editing will be implemented in a future update.`,
@@ -325,11 +321,6 @@ const ProfileScreen = () => {
         setUserPreferences(updatedPreferences);
 
         try {
-            // Real Firestore:
-            // await updateDocument('users', user.uid, {
-            //   preferences: updatedPreferences,
-            // });
-
             const result = await updateDocument('users', user.uid, {
                 preferences: updatedPreferences,
             });
@@ -420,12 +411,11 @@ const ProfileScreen = () => {
         );
     }
 
+    // Use dark background for glassmorphism
+    const backgroundColor = colors.zinc950 || colors.background;
+
     return (
-        <>
-        // Use dark background for glassmorphism
-        const backgroundColor = colors.zinc950 || colors.background;
-        
-        return (
+        <View style={{ flex: 1, backgroundColor }}>
         <ScrollView style={[styles.container, { backgroundColor }]} showsVerticalScrollIndicator={false}>
             {/* Header Section */}
             <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
@@ -461,7 +451,7 @@ const ProfileScreen = () => {
                         activeOpacity={0.7}
                     >
                         <MaterialCommunityIcons name="pencil" size={20} color={colors.primary} />
-                        <Text style={[styles.editButtonText, { color: colors.primary }]}>Edit</Text>
+                        <Text style={[styles.editButtonText, { color: colors.primary }]}>Edit Profile</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -473,6 +463,14 @@ const ProfileScreen = () => {
                     title="Name"
                     subtitle={user?.displayName || 'Not set'}
                     onPress={() => handleAccountSettings('name')}
+                    colors={colors}
+                />
+                <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
+                <SettingsRow
+                    icon="briefcase-outline"
+                    title="Job Title"
+                    subtitle={jobTitle || 'Not set'}
+                    onPress={() => handleAccountSettings('edit')}
                     colors={colors}
                 />
                 <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -735,7 +733,7 @@ const ProfileScreen = () => {
             onClose={handleBusinessProfileModalClose}
             onSuccess={handleBusinessProfileUpdated}
         />
-        </>
+        </View>
     );
 };
 
