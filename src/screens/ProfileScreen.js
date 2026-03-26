@@ -420,12 +420,11 @@ const ProfileScreen = () => {
         );
     }
 
+    // Use dark background for glassmorphism
+    const backgroundColor = colors.zinc950 || colors.background;
+
     return (
         <>
-        // Use dark background for glassmorphism
-        const backgroundColor = colors.zinc950 || colors.background;
-        
-        return (
         <ScrollView style={[styles.container, { backgroundColor }]} showsVerticalScrollIndicator={false}>
             {/* Header Section */}
             <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
@@ -474,6 +473,14 @@ const ProfileScreen = () => {
                     subtitle={user?.displayName || 'Not set'}
                     onPress={() => handleAccountSettings('name')}
                     colors={colors}
+                />
+                <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
+                <SettingsRow
+                    icon="briefcase-outline"
+                    title="Job Title"
+                    subtitle={user?.jobTitle || 'Not set'}
+                    colors={colors}
+                    showChevron={false}
                 />
                 <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
                 <SettingsRow
