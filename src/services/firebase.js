@@ -31,16 +31,18 @@ const firebaseStorageBucket = Constants.expoConfig?.extra?.firebaseStorageBucket
 const firebaseMessagingSenderId = Constants.expoConfig?.extra?.firebaseMessagingSenderId;
 const firebaseAppId = Constants.expoConfig?.extra?.firebaseAppId;
 
-// Debug: Log config values (without exposing sensitive data)
-console.log('Firebase config check:', {
-  hasApiKey: !!firebaseApiKey,
-  hasAuthDomain: !!firebaseAuthDomain,
-  hasProjectId: !!firebaseProjectId,
-  hasStorageBucket: !!firebaseStorageBucket,
-  hasMessagingSenderId: !!firebaseMessagingSenderId,
-  hasAppId: !!firebaseAppId,
-  projectId: firebaseProjectId ? `${firebaseProjectId.substring(0, 10)}...` : 'missing',
-});
+// Debug: Log config values (only in development)
+if (__DEV__) {
+  console.log('Firebase config check:', {
+    hasApiKey: !!firebaseApiKey,
+    hasAuthDomain: !!firebaseAuthDomain,
+    hasProjectId: !!firebaseProjectId,
+    hasStorageBucket: !!firebaseStorageBucket,
+    hasMessagingSenderId: !!firebaseMessagingSenderId,
+    hasAppId: !!firebaseAppId,
+    projectId: firebaseProjectId ? `${firebaseProjectId.substring(0, 10)}...` : 'missing',
+  });
+}
 
 // Check if Firebase configuration is missing
 const isConfigMissing = !firebaseApiKey || !firebaseAuthDomain || !firebaseProjectId || 
@@ -144,18 +146,20 @@ try {
         // Use existing app instance (default app)
         try {
           app = getApp(); // Get default app
-          console.log('✅ Using existing Firebase app instance (hot reload)');
+          if (__DEV__) console.log('✅ Using existing Firebase app instance (hot reload)');
         } catch (e) {
           app = existingApps[0];
-          console.log('✅ Using existing Firebase app instance');
+          if (__DEV__) console.log('✅ Using existing Firebase app instance');
         }
       } else {
         // Initialize new app instance (this creates the default app)
         app = initializeApp(firebaseConfig);
-        console.log('✅ Firebase app initialized successfully');
+        if (__DEV__) console.log('✅ Firebase app initialized successfully');
       }
-      console.log(`   Project: ${firebaseProjectId}`);
-      console.log(`   App name: ${app.name}`);
+      if (__DEV__) {
+        console.log(`   Project: ${firebaseProjectId}`);
+        console.log(`   App name: ${app.name}`);
+      }
       
       // Ensure app is fully initialized before accessing services
       // Verify app instance is valid
@@ -167,29 +171,34 @@ try {
       // This prevents "component not registered" errors that occur when
       // trying to initialize auth immediately after app initialization
       // Auth initialization happens via getAuthInstance() when first accessed
-      console.log('⚠️  Firebase Auth will be initialized on first access (lazy initialization)');
+      if (__DEV__) console.log('⚠️  Firebase Auth will be initialized on first access (lazy initialization)');
       
       // Initialize Firestore
       db = getFirestore(app);
-      console.log('✅ Firestore initialized successfully');
+      if (__DEV__) console.log('✅ Firestore initialized successfully');
       
       // Initialize Firebase Storage
       storage = getStorage(app);
-      console.log('✅ Firebase Storage initialized successfully');
+      if (__DEV__) console.log('✅ Firebase Storage initialized successfully');
     }
   }
 } catch (error) {
-  console.error('Firebase initialization error:', error);
-  console.error('Error details:', {
-    hasApiKey: !!firebaseApiKey,
-    hasAuthDomain: !!firebaseAuthDomain,
-    hasProjectId: !!firebaseProjectId,
-    hasStorageBucket: !!firebaseStorageBucket,
-    hasMessagingSenderId: !!firebaseMessagingSenderId,
-    hasAppId: !!firebaseAppId,
-    errorCode: error.code,
-    errorMessage: error.message,
-  });
+  if (__DEV__) {
+    console.error('Firebase initialization error:', error);
+    console.error('Error details:', {
+      hasApiKey: !!firebaseApiKey,
+      hasAuthDomain: !!firebaseAuthDomain,
+      hasProjectId: !!firebaseProjectId,
+      hasStorageBucket: !!firebaseStorageBucket,
+      hasMessagingSenderId: !!firebaseMessagingSenderId,
+      hasAppId: !!firebaseAppId,
+      errorCode: error.code,
+      errorMessage: error.message,
+    });
+  } else {
+    // Minimal error logging in production
+    console.error('Firebase initialization failed');
+  }
   
   // In production, re-throw to prevent deployment
   // In development, allow app to continue with mock services
@@ -228,7 +237,9 @@ if (db && Platform.OS === 'web') {
   // For React Native/Expo, offline persistence is not available with Firebase JS SDK
   // To enable offline persistence in React Native, use @react-native-firebase instead
   // This is expected behavior and not an error
-  console.log('Firestore offline persistence: Not available in React Native with Firebase JS SDK. Use @react-native-firebase for native offline support.');
+    if (__DEV__) {
+      console.log('Firestore offline persistence: Not available in React Native with Firebase JS SDK. Use @react-native-firebase for native offline support.');
+    }
 }
 
 // Lazy initialization function for auth with retry mechanism
@@ -254,14 +265,14 @@ const getAuthInstance = () => {
     if (Platform.OS === 'web') {
       // Web platform: use getAuth() which handles persistence automatically via localStorage
       _authInstance = getAuth(app);
-      console.log('✅ Firebase Auth initialized for web (lazy)');
+    if (__DEV__) console.log('✅ Firebase Auth initialized for web (lazy)');
       return _authInstance;
     } else {
       // React Native: use initializeAuth() with AsyncStorage persistence
       _authInstance = initializeAuth(app, {
         persistence: getReactNativePersistence(AsyncStorage),
       });
-      console.log('✅ Firebase Auth initialized with AsyncStorage persistence (lazy)');
+    if (__DEV__) console.log('✅ Firebase Auth initialized with AsyncStorage persistence (lazy)');
       return _authInstance;
     }
   } catch (error) {
@@ -269,9 +280,9 @@ const getAuthInstance = () => {
     if (error.code === 'auth/already-initialized' || 
         error.message?.includes('already-initialized') ||
         error.message?.includes('already been initialized')) {
-      console.log('Auth already initialized, retrieving existing instance...');
+    if (__DEV__) console.log('Auth already initialized, retrieving existing instance...');
       _authInstance = getAuth(app);
-      console.log('✅ Firebase Auth retrieved (already initialized)');
+    if (__DEV__) console.log('✅ Firebase Auth retrieved (already initialized)');
       return _authInstance;
     } else if (error.message?.includes('has not been registered yet') ||
                error.message?.includes('component has not been registered')) {
