@@ -125,6 +125,7 @@ const ProfileScreen = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showBusinessProfileModal, setShowBusinessProfileModal] = useState(false);
     const [businessProfile, setBusinessProfile] = useState(null);
+    const [jobTitle, setJobTitle] = useState('');
 
     /**
      * Fetch user preferences from Firestore
@@ -187,7 +188,7 @@ const ProfileScreen = () => {
     }, [user]);
 
     /**
-     * Fetch business profile from Firestore
+     * Fetch business profile and job title from Firestore
      */
     const fetchBusinessProfile = useCallback(async () => {
         if (!user?.uid) {
@@ -196,10 +197,12 @@ const ProfileScreen = () => {
 
         try {
             const result = await getDocument('users', user.uid);
-            if (result.data && result.data.businessProfile) {
-                setBusinessProfile(result.data.businessProfile);
+            if (result.data) {
+                setBusinessProfile(result.data.businessProfile || null);
+                setJobTitle(result.data.jobTitle || '');
             } else {
                 setBusinessProfile(null);
+                setJobTitle('');
             }
         } catch (error) {
             console.error('Error fetching business profile:', error);
@@ -302,8 +305,8 @@ const ProfileScreen = () => {
      */
     const handleAccountSettings = (type) => {
         Alert.alert(
-            type === 'name' ? 'Edit Name' : type === 'email' ? 'Change Email' : 'Change Password',
-            `${type === 'name' ? 'Name' : type === 'email' ? 'Email' : 'Password'} editing will be implemented in a future update.`,
+            type === 'name' ? 'Edit Name' : type === 'email' ? 'Change Email' : type === 'jobTitle' ? 'Edit Job Title' : 'Change Password',
+            `${type === 'name' ? 'Name' : type === 'email' ? 'Email' : type === 'jobTitle' ? 'Job Title' : 'Password'} editing will be implemented via the main Edit Profile modal.`,
             [{ text: 'OK' }]
         );
     };
@@ -420,12 +423,11 @@ const ProfileScreen = () => {
         );
     }
 
+    // Use dark background for glassmorphism
+    const backgroundColor = colors.zinc950 || colors.background;
+
     return (
         <>
-        // Use dark background for glassmorphism
-        const backgroundColor = colors.zinc950 || colors.background;
-        
-        return (
         <ScrollView style={[styles.container, { backgroundColor }]} showsVerticalScrollIndicator={false}>
             {/* Header Section */}
             <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
@@ -481,6 +483,14 @@ const ProfileScreen = () => {
                     title="Email"
                     subtitle={user?.email || 'Not set'}
                     onPress={() => handleAccountSettings('email')}
+                    colors={colors}
+                />
+                <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
+                <SettingsRow
+                    icon="briefcase-outline"
+                    title="Job Title"
+                    subtitle={jobTitle || 'Not set'}
+                    onPress={() => handleAccountSettings('jobTitle')}
                     colors={colors}
                 />
                 <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -697,6 +707,7 @@ const ProfileScreen = () => {
                     title="Terms of Service"
                     onPress={() => handleAppInfo('terms')}
                     colors={colors}
+                    showChevron={true}
                 />
                 <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
                 <SettingsRow
