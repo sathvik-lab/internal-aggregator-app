@@ -125,6 +125,7 @@ const ProfileScreen = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showBusinessProfileModal, setShowBusinessProfileModal] = useState(false);
     const [businessProfile, setBusinessProfile] = useState(null);
+    const [jobTitle, setJobTitle] = useState(null);
 
     /**
      * Fetch user preferences from Firestore
@@ -187,7 +188,7 @@ const ProfileScreen = () => {
     }, [user]);
 
     /**
-     * Fetch business profile from Firestore
+     * Fetch business profile and job title from Firestore
      */
     const fetchBusinessProfile = useCallback(async () => {
         if (!user?.uid) {
@@ -196,10 +197,18 @@ const ProfileScreen = () => {
 
         try {
             const result = await getDocument('users', user.uid);
-            if (result.data && result.data.businessProfile) {
-                setBusinessProfile(result.data.businessProfile);
-            } else {
-                setBusinessProfile(null);
+            if (result.data) {
+                if (result.data.businessProfile) {
+                    setBusinessProfile(result.data.businessProfile);
+                } else {
+                    setBusinessProfile(null);
+                }
+
+                if (result.data.jobTitle) {
+                    setJobTitle(result.data.jobTitle);
+                } else {
+                    setJobTitle(null);
+                }
             }
         } catch (error) {
             console.error('Error fetching business profile:', error);
@@ -420,12 +429,10 @@ const ProfileScreen = () => {
         );
     }
 
+    // Use dark background for glassmorphism
+    const backgroundColor = colors.zinc950 || colors.background;
+
     return (
-        <>
-        // Use dark background for glassmorphism
-        const backgroundColor = colors.zinc950 || colors.background;
-        
-        return (
         <ScrollView style={[styles.container, { backgroundColor }]} showsVerticalScrollIndicator={false}>
             {/* Header Section */}
             <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
@@ -473,6 +480,14 @@ const ProfileScreen = () => {
                     title="Name"
                     subtitle={user?.displayName || 'Not set'}
                     onPress={() => handleAccountSettings('name')}
+                    colors={colors}
+                />
+                <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
+                <SettingsRow
+                    icon="briefcase-outline"
+                    title="Job Title"
+                    subtitle={jobTitle || 'Not set'}
+                    onPress={() => handleEditProfile()}
                     colors={colors}
                 />
                 <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -735,7 +750,6 @@ const ProfileScreen = () => {
             onClose={handleBusinessProfileModalClose}
             onSuccess={handleBusinessProfileUpdated}
         />
-        </>
     );
 };
 
