@@ -134,7 +134,7 @@ const SearchBar = ({
                 clearButtonMode="never" // We handle clear button manually
                 accessibilityLabel={placeholder}
                 accessibilityHint="Type to search. Results will update as you type."
-                accessibilityRole="searchbox"
+                accessibilityRole="search"
             />
 
             {/* Clear Button (shown when text is entered) */}

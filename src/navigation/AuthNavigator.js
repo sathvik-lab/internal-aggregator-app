@@ -61,7 +61,7 @@ const AuthNavigator = () => {
         component={SignupScreen}
         options={{
           title: 'Sign Up',
-          gestureEnabled: true, // Allow swipe back to login
+          gestureEnabled: false, // Disabled: avoids "right cannot be cast from String to double" on Android
         }}
       />
       <Stack.Screen
@@ -69,7 +69,7 @@ const AuthNavigator = () => {
         component={ForgotPasswordScreen}
         options={{
           title: 'Forgot Password',
-          gestureEnabled: true, // Allow swipe back to login
+          gestureEnabled: false, // Disabled: avoids "right cannot be cast from String to double" on Android
         }}
       />
     </Stack.Navigator>

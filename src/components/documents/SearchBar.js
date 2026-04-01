@@ -45,7 +45,7 @@ const SearchBar = ({ value, onChangeText, onClear, placeholder = 'Search documen
                 autoCorrect={false}
                 accessibilityLabel="Search input"
                 accessibilityHint={`Type to search. ${value ? `Current search: ${value}` : ''}`}
-                accessibilityRole="searchbox"
+                accessibilityRole="search"
             />
             {value.length > 0 && (
                 <TouchableOpacity

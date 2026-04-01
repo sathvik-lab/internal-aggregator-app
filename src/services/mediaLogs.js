@@ -153,12 +153,13 @@ export const uploadMediaLog = async ({ uri, mediaType, note = null, onProgress }
  * Fetch media logs for the current user by range type.
  *
  * @param {'daily'|'weekly'|'monthly'|'all'} rangeType
+ * @param {{ userId?: string }} [opts] - Optional; pass userId to avoid auth timing issues
  * @returns {Promise<{data: Array, error: {code: string, message: string}|null}>}
  */
-export const fetchMediaLogs = async (rangeType = 'daily') => {
-  const user = auth?.currentUser;
+export const fetchMediaLogs = async (rangeType = 'daily', opts = {}) => {
+  const userId = opts.userId ?? auth?.currentUser?.uid;
 
-  if (!user?.uid) {
+  if (!userId) {
     return {
       data: [],
       error: {
@@ -171,7 +172,7 @@ export const fetchMediaLogs = async (rangeType = 'daily') => {
   const { startDate, endDate } = getDateRangeForType(rangeType);
 
   const conditions = [
-    { field: 'userId', operator: '==', value: user.uid },
+    { field: 'userId', operator: '==', value: userId },
   ];
 
   if (startDate && endDate) {

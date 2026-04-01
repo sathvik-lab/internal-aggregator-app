@@ -25,6 +25,7 @@ import { resetPassword } from '../../services/auth';
 import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../constants/colors';
 import { GLASS } from '../../utils/glassmorphism';
+import { ROUTES } from '../../navigation/navigationConfig';
 
 /**
  * Email validation regex pattern

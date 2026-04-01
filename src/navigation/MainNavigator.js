@@ -102,7 +102,7 @@ const DocumentsStack = () => {
         component={DocumentDetailScreen}
         options={{
           title: 'Document Details',
-          gestureEnabled: true, // Allow swipe back to list
+          gestureEnabled: false, // Disabled: avoids "right cannot be cast from String to double" on Android
         }}
       />
     </Stack.Navigator>
@@ -122,8 +122,8 @@ const MainNavigator = () => {
   const tabBarStyle = useMemo(() => {
     const raw = useGlass
       ? {
-          backgroundColor: colors.background ?? colors.zinc950 ?? COLORS.background,
-          borderTopColor: colors.glassBorder ?? 'rgba(255,255,255,0.1)',
+          backgroundColor: colors.background || colors.zinc950 || COLORS.background || '#18181B',
+          borderTopColor: colors.glassBorder || 'rgba(255,255,255,0.1)',
           borderTopWidth: 1,
           paddingBottom: Platform.OS === 'ios' ? 20 : 8,
           paddingTop: 8,
@@ -201,7 +201,7 @@ const MainNavigator = () => {
         },
 
         headerStyle: {
-          backgroundColor: useGlass ? (colors.background ?? colors.zinc950) : COLORS.primary,
+          backgroundColor: useGlass ? (colors.background || colors.zinc950 || '#18181B') : COLORS.primary,
           elevation: 4,
           shadowColor: '#000',
           shadowOffset: { width: Number(Number(0)), height: Number(Number(2)) },

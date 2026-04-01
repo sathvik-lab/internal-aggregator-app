@@ -52,7 +52,7 @@ const MediaLogScreen = () => {
         setLoading(true);
       }
 
-      const { data, error } = await fetchMediaLogs(type);
+      const { data, error } = await fetchMediaLogs(type, { userId: user?.uid });
 
       if (error) {
         console.error('Error fetching media logs:', error);
@@ -122,20 +122,20 @@ const MediaLogScreen = () => {
     const timestamp = formatTimestamp(item);
 
     return (
-      <View style={[styles.card, { backgroundColor: colors.surface.surface }]}>
+      <View style={[styles.card, { backgroundColor: colors.surface?.surface || COLORS.surface }]}>
         <View style={styles.cardHeader}>
           <View style={styles.mediaTypePill}>
             <Text style={[styles.mediaTypeText, { color: colors.textInverse }]}>
               {isPhoto ? 'Photo' : 'Video'}
             </Text>
           </View>
-          <Text style={[styles.timestamp, { color: colors.textSecondary }]}>
+            <Text style={[styles.timestamp, { color: colors.textSecondary || COLORS.textSecondary }]}>
             {timestamp}
           </Text>
         </View>
         {item.note && (
           <Text
-            style={[styles.noteText, { color: colors.text.primary }]}
+            style={[styles.noteText, { color: colors.text?.primary || COLORS.text }]}
             numberOfLines={3}
           >
             {item.note}
@@ -143,7 +143,7 @@ const MediaLogScreen = () => {
         )}
         {!item.note && (
           <Text
-            style={[styles.notePlaceholder, { color: colors.textSecondary }]}
+            style={[styles.notePlaceholder, { color: colors.textSecondary || colors.text?.secondary || COLORS.textSecondary }]}
           >
             No notes added
           </Text>
@@ -170,12 +170,12 @@ const MediaLogScreen = () => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background || COLORS.background }]}>
       <View style={styles.header}>
         <Text
           style={[
             styles.title,
-            { color: colors.text.primary, ...typography.textStyles.h2 },
+            { color: colors.text?.primary || COLORS.text, ...typography.textStyles.h2 },
           ]}
         >
           Media Logs
@@ -183,7 +183,7 @@ const MediaLogScreen = () => {
         <Text
           style={[
             styles.subtitle,
-            { color: colors.text.secondary, ...typography.textStyles.body },
+            { color: colors.text?.secondary || colors.textSecondary || COLORS.textSecondary, ...typography.textStyles.body },
           ]}
         >
           Capture photo & video logs with notes for your compliance records.
@@ -208,7 +208,7 @@ const MediaLogScreen = () => {
             tintColor={colors.primary}
             colors={[colors.primary]}
             progressViewOffset={Platform.OS === 'android' ? 20 : 0}
-            progressBackgroundColor={colors.surface.surface}
+            progressBackgroundColor={colors.surface?.surface || COLORS.surface}
           />
         }
         showsVerticalScrollIndicator={false}

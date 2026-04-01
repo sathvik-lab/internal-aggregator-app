@@ -277,7 +277,7 @@ const AddMediaLogModal = ({ visible, onClose, onCreateSuccess }) => {
         onPress={handleChooseVideo}
         activeOpacity={0.7}
       >
-        <MaterialCommunityIcons name="folder-video" size={32} color={COLORS.primary} />
+        <MaterialCommunityIcons name="video-box" size={32} color={COLORS.primary} />
         <Text style={styles.optionText}>Choose Video from Gallery</Text>
       </TouchableOpacity>
     </View>

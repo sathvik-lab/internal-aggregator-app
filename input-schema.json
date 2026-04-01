@@ -1,0 +1,142 @@
+{
+  "type": "object",
+  "properties": {
+    "results": {
+      "type": "array",
+      "description": "Array of extracted compliance tasks. Each item must match the required and optional fields below.",
+      "items": {
+        "type": "object",
+        "required": ["title", "description", "category", "priority", "applicableTo", "frequency", "defaultDueTime", "source", "version", "isActive"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Human-readable title for the task, e.g. from the regulation heading."
+          },
+          "description": {
+            "type": "string",
+            "description": "What needs to be done; plain language summary of the requirement."
+          },
+          "category": {
+            "type": "string",
+            "description": "Exactly one of: Food Safety, Fire Safety, Vehicle Safety, Worker Safety, Environmental.",
+            "enum": ["Food Safety", "Fire Safety", "Vehicle Safety", "Worker Safety", "Environmental"]
+          },
+          "priority": {
+            "type": "string",
+            "description": "Exactly one of: low, medium, high, critical.",
+            "enum": ["low", "medium", "high", "critical"]
+          },
+          "applicableTo": {
+            "type": "object",
+            "description": "Use null for 'all' or arrays for specific values. Do not invent values.",
+            "properties": {
+              "truckTypes": {
+                "oneOf": [
+                  { "type": "null" },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["refrigerated", "food_truck", "flatbed", "tanker", "dry_van"]
+                    }
+                  }
+                ]
+              },
+              "foodTypes": {
+                "oneOf": [
+                  { "type": "null" },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["perishable", "frozen", "prepared", "dry_goods", "beverages"]
+                    }
+                  }
+                ]
+              },
+              "businessTypes": {
+                "oneOf": [
+                  { "type": "null" },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["food_truck", "catering", "restaurant", "mobile_kitchen"]
+                    }
+                  }
+                ]
+              },
+              "locations": {
+                "oneOf": [
+                  { "type": "null" },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "states": {
+                        "oneOf": [
+                          { "type": "null" },
+                          { "type": "array", "items": { "type": "string" }}
+                        ]
+                      },
+                      "cities": {
+                        "oneOf": [
+                          { "type": "null" },
+                          { "type": "array", "items": { "type": "string" }
+                          }]
+                      }
+                    }
+                  }
+                ]
+              },
+              "complianceAreas": {
+                "oneOf": [
+                  { "type": "null" },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["food_safety", "fire_safety", "vehicle_safety", "environmental", "worker_safety"]
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "frequency": {
+            "type": "string",
+            "description": "Exactly one of: daily, weekly, monthly, quarterly, yearly, one_time.",
+            "enum": ["daily", "weekly", "monthly", "quarterly", "yearly", "one_time"]
+          },
+          "defaultDueTime": {
+            "type": "string",
+            "description": "24h time, e.g. 09:00, 14:30. Use this format only."
+          },
+          "source": {
+            "type": "string",
+            "description": "Always use: osha_generated",
+            "enum": ["osha_generated"]
+          },
+          "version": {
+            "type": "number",
+            "description": "Start at 1. Integer only."
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "true = shown to users. Use true unless the text says otherwise."
+          },
+          "regulationReference": {
+            "type": ["object", "null"],
+            "description": "Optional. From regulation number, URL, and section in the source text.",
+            "properties": {
+              "regulationNumber": { "type": "string" },
+              "url": { "type": "string" },
+              "section": { "type": "string" }
+            }
+          },
+          "startDate": { "type": ["string", "null"], "description": "Optional. ISO date or null." },
+          "endDate": { "type": ["string", "null"], "description": "Optional. ISO date or null." }
+        }
+      }
+    }
+  }
+}
