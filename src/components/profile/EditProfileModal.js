@@ -28,7 +28,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../constants/colors';
 import { GLASS } from '../../utils/glassmorphism';
 import { uploadFile } from '../../services/storage';
-import { updateDocument } from '../../services/firestore';
+import { updateDocument, getDocument } from '../../services/firestore';
 import { updateUserProfile } from '../../services/auth';
 import { STORAGE_PATHS } from '../../constants/constants';
 
@@ -56,7 +56,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
     const [email, setEmail] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [company, setCompany] = useState('');
-    const [role, setRole] = useState('');
+    const [jobTitle, setJobTitle] = useState('');
 
     // Profile picture state
     const [profilePicture, setProfilePicture] = useState(null);
@@ -69,18 +69,34 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
 
     /**
      * Initialize form with user data
+     * Custom fields must be fetched from Firestore since Auth user object is limited
      */
     useEffect(() => {
-        if (user && visible) {
-            setDisplayName(user.displayName || '');
-            setEmail(user.email || '');
-            setPhoneNumber(user.phoneNumber || '');
-            setCompany(user.company || '');
-            setRole(user.role || '');
-            setProfilePicture(user.photoURL ? { uri: user.photoURL } : null);
-            setProfilePictureChanged(false);
-            setNameError('');
-        }
+        const fetchUserData = async () => {
+            if (user && visible) {
+                setDisplayName(user.displayName || '');
+                setEmail(user.email || '');
+
+                // Fetch full user document for custom fields
+                try {
+                    const result = await getDocument('users', user.uid);
+                    if (result.data) {
+                        setPhoneNumber(result.data.phoneNumber || '');
+                        setCompany(result.data.company || '');
+                        // Fallback to role if jobTitle is missing (for older accounts)
+                        setJobTitle(result.data.jobTitle || result.data.role || '');
+                    }
+                } catch (error) {
+                    console.error('Error fetching user document:', error);
+                }
+
+                setProfilePicture(user.photoURL ? { uri: user.photoURL } : null);
+                setProfilePictureChanged(false);
+                setNameError('');
+            }
+        };
+
+        fetchUserData();
     }, [user, visible]);
 
     /**
@@ -315,11 +331,12 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
             }
 
             // Update Firestore user document
+            // We update jobTitle instead of role (which is a security field and immutable)
             const firestoreUpdateData = {
                 displayName: updatedDisplayName,
                 phoneNumber: phoneNumber.trim() || null,
                 company: company.trim() || null,
-                role: role.trim() || null,
+                jobTitle: jobTitle.trim() || null,
                 updatedAt: new Date().toISOString(), // Mock serverTimestamp
             };
 
@@ -369,7 +386,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
             displayName !== (user?.displayName || '') ||
             phoneNumber !== (user?.phoneNumber || '') ||
             company !== (user?.company || '') ||
-            role !== (user?.role || '') ||
+            jobTitle !== (user?.jobTitle || '') ||
             profilePictureChanged;
 
         if (hasChanges) {
@@ -526,9 +543,9 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
 
                             {/* Role/Title */}
                             <TextInput
-                                label="Role/Title"
-                                value={role}
-                                onChangeText={setRole}
+                                label="Job Title"
+                                value={jobTitle}
+                                onChangeText={setJobTitle}
                                 mode="outlined"
                                 style={styles.input}
                                 autoCapitalize="words"
