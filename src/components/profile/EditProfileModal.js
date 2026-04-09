@@ -2,11 +2,11 @@
  * EditProfileModal Component
  * 
  * Modal for editing user profile information.
- * Includes profile picture upload, name, email, phone, company, and role editing.
+ * Includes profile picture upload, name, email, phone, company, and job title editing.
  * Integrates with Firebase Auth and Firestore.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -28,7 +28,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../constants/colors';
 import { GLASS } from '../../utils/glassmorphism';
 import { uploadFile } from '../../services/storage';
-import { updateDocument } from '../../services/firestore';
+import { updateDocument, getDocument } from '../../services/firestore';
 import { updateUserProfile } from '../../services/auth';
 import { STORAGE_PATHS } from '../../constants/constants';
 
@@ -56,7 +56,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
     const [email, setEmail] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [company, setCompany] = useState('');
-    const [role, setRole] = useState('');
+    const [jobTitle, setJobTitle] = useState('');
 
     // Profile picture state
     const [profilePicture, setProfilePicture] = useState(null);
@@ -65,22 +65,62 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
 
     // UI state
     const [saving, setSaving] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [nameError, setNameError] = useState('');
 
+    // Ref for detecting unsaved changes
+    const initialDataRef = useRef({});
+
     /**
-     * Initialize form with user data
+     * Initialize form with user data from Auth and Firestore
      */
     useEffect(() => {
-        if (user && visible) {
-            setDisplayName(user.displayName || '');
-            setEmail(user.email || '');
-            setPhoneNumber(user.phoneNumber || '');
-            setCompany(user.company || '');
-            setRole(user.role || '');
-            setProfilePicture(user.photoURL ? { uri: user.photoURL } : null);
-            setProfilePictureChanged(false);
-            setNameError('');
+        let isMounted = true;
+
+        const fetchLatestProfile = async () => {
+            if (!user?.uid || !visible) return;
+
+            setLoading(true);
+            try {
+                // Get latest data from Firestore as AuthContext might be slightly delayed or missing custom fields
+                const result = await getDocument('users', user.uid);
+
+                if (isMounted && result.data) {
+                    const data = result.data;
+                    const initialData = {
+                        displayName: data.displayName || user.displayName || '',
+                        email: data.email || user.email || '',
+                        phoneNumber: data.phoneNumber || '',
+                        company: data.company || '',
+                        jobTitle: data.jobTitle || '',
+                        photoURL: data.photoURL || user.photoURL || null
+                    };
+
+                    setDisplayName(initialData.displayName);
+                    setEmail(initialData.email);
+                    setPhoneNumber(initialData.phoneNumber);
+                    setCompany(initialData.company);
+                    setJobTitle(initialData.jobTitle);
+                    setProfilePicture(initialData.photoURL ? { uri: initialData.photoURL } : null);
+
+                    initialDataRef.current = initialData;
+                    setProfilePictureChanged(false);
+                    setNameError('');
+                }
+            } catch (error) {
+                console.error('Error fetching latest profile:', error);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+
+        if (visible) {
+            fetchLatestProfile();
         }
+
+        return () => {
+            isMounted = false;
+        };
     }, [user, visible]);
 
     /**
@@ -267,7 +307,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
         setSaving(true);
 
         try {
-            let photoURL = user.photoURL || null;
+            let photoURL = initialDataRef.current.photoURL;
 
             // Upload profile picture if changed
             if (profilePictureChanged) {
@@ -283,7 +323,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
                                 text: 'Continue',
                                 onPress: async () => {
                                     // Continue without photo update
-                                    await saveProfileData(null);
+                                    await saveProfileData(initialDataRef.current.photoURL);
                                 },
                             },
                         ]
@@ -315,19 +355,14 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
             }
 
             // Update Firestore user document
+            // SECURITY: Explicitly exclude 'role' from update data
             const firestoreUpdateData = {
                 displayName: updatedDisplayName,
                 phoneNumber: phoneNumber.trim() || null,
                 company: company.trim() || null,
-                role: role.trim() || null,
+                jobTitle: jobTitle.trim() || null,
                 updatedAt: new Date().toISOString(), // Mock serverTimestamp
             };
-
-            // Real Firestore:
-            // await updateDocument('users', user.uid, {
-            //   ...firestoreUpdateData,
-            //   updatedAt: serverTimestamp(),
-            // });
 
             if (photoURL) {
                 firestoreUpdateData.photoURL = photoURL;
@@ -366,10 +401,10 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
      */
     const handleCancel = () => {
         const hasChanges =
-            displayName !== (user?.displayName || '') ||
-            phoneNumber !== (user?.phoneNumber || '') ||
-            company !== (user?.company || '') ||
-            role !== (user?.role || '') ||
+            displayName !== initialDataRef.current.displayName ||
+            phoneNumber !== initialDataRef.current.phoneNumber ||
+            company !== initialDataRef.current.company ||
+            jobTitle !== initialDataRef.current.jobTitle ||
             profilePictureChanged;
 
         if (hasChanges) {
@@ -426,115 +461,122 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
                         </View>
 
                         {/* Form */}
-                        <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
-                            {/* Profile Picture */}
-                            <View style={styles.profilePictureSection}>
-                                <TouchableOpacity
-                                    style={styles.profilePictureContainer}
-                                    onPress={handleSelectProfilePicture}
-                                    activeOpacity={0.7}
-                                    disabled={uploadingPhoto}
-                                >
-                                    {profilePicture ? (
-                                        <Image source={profilePicture} style={styles.profilePicture} />
-                                    ) : (
-                                        <View style={styles.profilePicturePlaceholder}>
-                                            <Text style={styles.profilePictureText}>
-                                                {getUserInitials()}
-                                            </Text>
-                                        </View>
-                                    )}
-                                    {uploadingPhoto ? (
-                                        <View style={styles.uploadingOverlay}>
-                                            <ActivityIndicator size="small" color={COLORS.textInverse} />
-                                        </View>
-                                    ) : (
-                                        <View style={styles.editPictureBadge}>
-                                            <MaterialCommunityIcons
-                                                name="camera"
-                                                size={16}
-                                                color={COLORS.textInverse}
-                                            />
-                                        </View>
-                                    )}
-                                </TouchableOpacity>
-                                <Text style={styles.profilePictureHint}>
-                                    Tap to change profile picture
-                                </Text>
+                        {loading ? (
+                            <View style={styles.loadingContainer}>
+                                <ActivityIndicator size="large" color={COLORS.primary} />
+                                <Text style={styles.loadingText}>Loading profile data...</Text>
                             </View>
+                        ) : (
+                            <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
+                                {/* Profile Picture */}
+                                <View style={styles.profilePictureSection}>
+                                    <TouchableOpacity
+                                        style={styles.profilePictureContainer}
+                                        onPress={handleSelectProfilePicture}
+                                        activeOpacity={0.7}
+                                        disabled={uploadingPhoto}
+                                    >
+                                        {profilePicture ? (
+                                            <Image source={profilePicture} style={styles.profilePicture} />
+                                        ) : (
+                                            <View style={styles.profilePicturePlaceholder}>
+                                                <Text style={styles.profilePictureText}>
+                                                    {getUserInitials()}
+                                                </Text>
+                                            </View>
+                                        )}
+                                        {uploadingPhoto ? (
+                                            <View style={styles.uploadingOverlay}>
+                                                <ActivityIndicator size="small" color={COLORS.textInverse} />
+                                            </View>
+                                        ) : (
+                                            <View style={styles.editPictureBadge}>
+                                                <MaterialCommunityIcons
+                                                    name="camera"
+                                                    size={16}
+                                                    color={COLORS.textInverse}
+                                                />
+                                            </View>
+                                        )}
+                                    </TouchableOpacity>
+                                    <Text style={styles.profilePictureHint}>
+                                        Tap to change profile picture
+                                    </Text>
+                                </View>
 
-                            {/* Display Name */}
-                            <TextInput
-                                label="Full Name *"
-                                value={displayName}
-                                onChangeText={(text) => {
-                                    setDisplayName(text);
-                                    if (nameError) validateForm();
-                                }}
-                                onBlur={validateForm}
-                                error={!!nameError}
-                                mode="outlined"
-                                style={styles.input}
-                                autoCapitalize="words"
-                            />
-                            {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
+                                {/* Display Name */}
+                                <TextInput
+                                    label="Full Name *"
+                                    value={displayName}
+                                    onChangeText={(text) => {
+                                        setDisplayName(text);
+                                        if (nameError) validateForm();
+                                    }}
+                                    onBlur={validateForm}
+                                    error={!!nameError}
+                                    mode="outlined"
+                                    style={styles.input}
+                                    autoCapitalize="words"
+                                />
+                                {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
 
-                            {/* Email (Read-only) */}
-                            <TextInput
-                                label="Email"
-                                value={email}
-                                editable={false}
-                                mode="outlined"
-                                style={[styles.input, styles.inputDisabled]}
-                                right={
-                                    <TextInput.Icon
-                                        icon="information-outline"
-                                        onPress={() => {
-                                            Alert.alert(
-                                                'Email Verification',
-                                                'Email cannot be changed here. Please contact support if you need to change your email address.'
-                                            );
-                                        }}
-                                    />
-                                }
-                            />
-                            <Text style={styles.hintText}>
-                                Email cannot be changed. Contact support if needed.
-                            </Text>
+                                {/* Email (Read-only) */}
+                                <TextInput
+                                    label="Email"
+                                    value={email}
+                                    editable={false}
+                                    mode="outlined"
+                                    style={[styles.input, styles.inputDisabled]}
+                                    right={
+                                        <TextInput.Icon
+                                            icon="information-outline"
+                                            onPress={() => {
+                                                Alert.alert(
+                                                    'Email Verification',
+                                                    'Email cannot be changed here. Please contact support if you need to change your email address.'
+                                                );
+                                            }}
+                                        />
+                                    }
+                                />
+                                <Text style={styles.hintText}>
+                                    Email cannot be changed. Contact support if needed.
+                                </Text>
 
-                            {/* Phone Number */}
-                            <TextInput
-                                label="Phone Number"
-                                value={phoneNumber}
-                                onChangeText={setPhoneNumber}
-                                mode="outlined"
-                                style={styles.input}
-                                keyboardType="phone-pad"
-                                placeholder="(555) 123-4567"
-                            />
+                                {/* Phone Number */}
+                                <TextInput
+                                    label="Phone Number"
+                                    value={phoneNumber}
+                                    onChangeText={setPhoneNumber}
+                                    mode="outlined"
+                                    style={styles.input}
+                                    keyboardType="phone-pad"
+                                    placeholder="(555) 123-4567"
+                                />
 
-                            {/* Company */}
-                            <TextInput
-                                label="Company/Organization"
-                                value={company}
-                                onChangeText={setCompany}
-                                mode="outlined"
-                                style={styles.input}
-                                autoCapitalize="words"
-                                placeholder="Your company name"
-                            />
+                                {/* Company */}
+                                <TextInput
+                                    label="Company/Organization"
+                                    value={company}
+                                    onChangeText={setCompany}
+                                    mode="outlined"
+                                    style={styles.input}
+                                    autoCapitalize="words"
+                                    placeholder="Your company name"
+                                />
 
-                            {/* Role/Title */}
-                            <TextInput
-                                label="Role/Title"
-                                value={role}
-                                onChangeText={setRole}
-                                mode="outlined"
-                                style={styles.input}
-                                autoCapitalize="words"
-                                placeholder="Your job title"
-                            />
-                        </ScrollView>
+                                {/* Job Title */}
+                                <TextInput
+                                    label="Job Title"
+                                    value={jobTitle}
+                                    onChangeText={setJobTitle}
+                                    mode="outlined"
+                                    style={styles.input}
+                                    autoCapitalize="words"
+                                    placeholder="Your job title"
+                                />
+                            </ScrollView>
+                        )}
 
                         {/* Actions */}
                         <View style={styles.actions}>
@@ -551,7 +593,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
                                 onPress={handleSave}
                                 style={styles.saveButton}
                                 loading={saving}
-                                disabled={saving || uploadingPhoto}
+                                disabled={saving || uploadingPhoto || loading}
                             >
                                 Save Changes
                             </Button>
@@ -669,6 +711,15 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: COLORS.textSecondary,
         textAlign: 'center',
+    },
+    loadingContainer: {
+        padding: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    loadingText: {
+        marginTop: 16,
+        color: COLORS.textSecondary,
     },
     input: {
         marginBottom: 16,
