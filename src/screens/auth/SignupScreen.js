@@ -316,8 +316,6 @@ const SignupScreen = ({ navigation }) => {
         displayName: fullName.trim(),
         email: email.trim(),
         role: USER_ROLES.STAFF, // Default role
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       };
 
       const profileResult = await createDocument('users', profileData, user.uid);
