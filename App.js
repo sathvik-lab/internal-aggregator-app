@@ -13,7 +13,7 @@
 
 import React, { useMemo, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Platform, StyleSheet } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
