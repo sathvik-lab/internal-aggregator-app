@@ -196,8 +196,9 @@ const ProfileScreen = () => {
 
         try {
             const result = await getDocument('users', user.uid);
-            if (result.data && result.data.businessProfile) {
-                setBusinessProfile(result.data.businessProfile);
+            if (result.data) {
+                // Store the full profile data including jobTitle
+                setBusinessProfile(result.data);
             } else {
                 setBusinessProfile(null);
             }
@@ -279,19 +280,20 @@ const ProfileScreen = () => {
      * Format business profile for display
      */
     const formatBusinessProfileDisplay = () => {
-        if (!businessProfile) {
+        const profile = businessProfile?.businessProfile;
+        if (!profile) {
             return 'Not set up';
         }
 
         const parts = [];
-        if (businessProfile.truckType) {
-            parts.push(`Truck: ${TRUCK_TYPE_LABELS[businessProfile.truckType]}`);
+        if (profile.truckType) {
+            parts.push(`Truck: ${TRUCK_TYPE_LABELS[profile.truckType]}`);
         }
-        if (businessProfile.location?.state) {
-            parts.push(`Location: ${businessProfile.location.state}${businessProfile.location.city ? `, ${businessProfile.location.city}` : ''}`);
+        if (profile.location?.state) {
+            parts.push(`Location: ${profile.location.state}${profile.location.city ? `, ${profile.location.city}` : ''}`);
         }
-        if (businessProfile.foodTypes && businessProfile.foodTypes.length > 0) {
-            parts.push(`Food: ${businessProfile.foodTypes.map(ft => FOOD_TYPE_LABELS[ft]).join(', ')}`);
+        if (profile.foodTypes && profile.foodTypes.length > 0) {
+            parts.push(`Food: ${profile.foodTypes.map(ft => FOOD_TYPE_LABELS[ft]).join(', ')}`);
         }
 
         return parts.length > 0 ? parts.join(' • ') : 'Incomplete';
@@ -420,13 +422,12 @@ const ProfileScreen = () => {
         );
     }
 
+    // Use dark background for glassmorphism
+    const backgroundColor = colors.zinc950 || colors.background;
+
     return (
         <>
-        // Use dark background for glassmorphism
-        const backgroundColor = colors.zinc950 || colors.background;
-        
-        return (
-        <ScrollView style={[styles.container, { backgroundColor }]} showsVerticalScrollIndicator={false}>
+            <ScrollView style={[styles.container, { backgroundColor }]} showsVerticalScrollIndicator={false}>
             {/* Header Section */}
             <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
                 <View style={styles.profileHeader}>
@@ -474,6 +475,14 @@ const ProfileScreen = () => {
                     subtitle={user?.displayName || 'Not set'}
                     onPress={() => handleAccountSettings('name')}
                     colors={colors}
+                />
+                <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
+                <SettingsRow
+                    icon="briefcase-outline"
+                    title="Job Title"
+                    subtitle={businessProfile?.jobTitle || user?.jobTitle || 'Not set'}
+                    colors={colors}
+                    showChevron={false}
                 />
                 <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
                 <SettingsRow
@@ -643,7 +652,7 @@ const ProfileScreen = () => {
                     icon="truck-outline"
                     title="Business Profile"
                     subtitle={formatBusinessProfileDisplay()}
-                    value={businessProfile?.lastTemplateSync ? `Last synced: ${new Date(businessProfile.lastTemplateSync).toLocaleDateString()}` : null}
+                    value={businessProfile?.businessProfile?.lastTemplateSync ? `Last synced: ${new Date(businessProfile.businessProfile.lastTemplateSync).toLocaleDateString()}` : null}
                     onPress={handleEditBusinessProfile}
                     colors={colors}
                 />
@@ -718,11 +727,11 @@ const ProfileScreen = () => {
                 <Text style={[styles.logoutButtonText, { color: colors.error }]}>Sign Out</Text>
             </TouchableOpacity>
 
-            {/* Bottom spacing */}
-            <View style={styles.bottomSpacing} />
-        </ScrollView>
+                {/* Bottom spacing */}
+                <View style={styles.bottomSpacing} />
+            </ScrollView>
 
-        {/* Edit Profile Modal */}
+            {/* Edit Profile Modal */}
         <EditProfileModal
             visible={showEditModal}
             onClose={handleEditModalClose}
