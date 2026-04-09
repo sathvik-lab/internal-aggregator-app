@@ -187,7 +187,7 @@ const ProfileScreen = () => {
     }, [user]);
 
     /**
-     * Fetch business profile from Firestore
+     * Fetch business profile and job title from Firestore
      */
     const fetchBusinessProfile = useCallback(async () => {
         if (!user?.uid) {
@@ -196,8 +196,11 @@ const ProfileScreen = () => {
 
         try {
             const result = await getDocument('users', user.uid);
-            if (result.data && result.data.businessProfile) {
-                setBusinessProfile(result.data.businessProfile);
+            if (result.data) {
+                setBusinessProfile({
+                    ...(result.data.businessProfile || {}),
+                    jobTitle: result.data.jobTitle || null
+                });
             } else {
                 setBusinessProfile(null);
             }
@@ -420,12 +423,11 @@ const ProfileScreen = () => {
         );
     }
 
+    // Use dark background for glassmorphism
+    const backgroundColor = colors.zinc950 || colors.background;
+
     return (
         <>
-        // Use dark background for glassmorphism
-        const backgroundColor = colors.zinc950 || colors.background;
-        
-        return (
         <ScrollView style={[styles.container, { backgroundColor }]} showsVerticalScrollIndicator={false}>
             {/* Header Section */}
             <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
@@ -473,6 +475,13 @@ const ProfileScreen = () => {
                     title="Name"
                     subtitle={user?.displayName || 'Not set'}
                     onPress={() => handleAccountSettings('name')}
+                    colors={colors}
+                />
+                <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
+                <SettingsRow
+                    icon="briefcase-outline"
+                    title="Job Title"
+                    subtitle={businessProfile?.jobTitle || 'Not set'}
                     colors={colors}
                 />
                 <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
