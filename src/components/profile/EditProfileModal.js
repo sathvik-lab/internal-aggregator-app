@@ -56,7 +56,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
     const [email, setEmail] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [company, setCompany] = useState('');
-    const [role, setRole] = useState('');
+    const [jobTitle, setJobTitle] = useState('');
 
     // Profile picture state
     const [profilePicture, setProfilePicture] = useState(null);
@@ -71,16 +71,38 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
      * Initialize form with user data
      */
     useEffect(() => {
+        let isMounted = true;
+
+        const fetchFirestoreData = async () => {
+            if (!user?.uid || !visible) return;
+
+            try {
+                const result = await getDocument('users', user.uid);
+                if (isMounted && result.data) {
+                    const data = result.data;
+                    setPhoneNumber(data.phoneNumber || '');
+                    setCompany(data.company || '');
+                    // Fallback to role if jobTitle is not set
+                    setJobTitle(data.jobTitle || data.role || '');
+                }
+            } catch (error) {
+                console.error('Error fetching additional profile data:', error);
+            }
+        };
+
         if (user && visible) {
             setDisplayName(user.displayName || '');
             setEmail(user.email || '');
-            setPhoneNumber(user.phoneNumber || '');
-            setCompany(user.company || '');
-            setRole(user.role || '');
             setProfilePicture(user.photoURL ? { uri: user.photoURL } : null);
             setProfilePictureChanged(false);
             setNameError('');
+
+            fetchFirestoreData();
         }
+
+        return () => {
+            isMounted = false;
+        };
     }, [user, visible]);
 
     /**
@@ -319,15 +341,9 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
                 displayName: updatedDisplayName,
                 phoneNumber: phoneNumber.trim() || null,
                 company: company.trim() || null,
-                role: role.trim() || null,
+                jobTitle: jobTitle.trim() || null,
                 updatedAt: new Date().toISOString(), // Mock serverTimestamp
             };
-
-            // Real Firestore:
-            // await updateDocument('users', user.uid, {
-            //   ...firestoreUpdateData,
-            //   updatedAt: serverTimestamp(),
-            // });
 
             if (photoURL) {
                 firestoreUpdateData.photoURL = photoURL;
@@ -369,7 +385,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
             displayName !== (user?.displayName || '') ||
             phoneNumber !== (user?.phoneNumber || '') ||
             company !== (user?.company || '') ||
-            role !== (user?.role || '') ||
+            jobTitle !== (user?.jobTitle || user?.role || '') ||
             profilePictureChanged;
 
         if (hasChanges) {
@@ -524,11 +540,11 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
                                 placeholder="Your company name"
                             />
 
-                            {/* Role/Title */}
+                            {/* Job Title */}
                             <TextInput
-                                label="Role/Title"
-                                value={role}
-                                onChangeText={setRole}
+                                label="Job Title"
+                                value={jobTitle}
+                                onChangeText={setJobTitle}
                                 mode="outlined"
                                 style={styles.input}
                                 autoCapitalize="words"
