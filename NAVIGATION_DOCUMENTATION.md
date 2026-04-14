@@ -1,50 +1,47 @@
 # Navigation Documentation
 
 ## Overview
-This document describes the complete navigation structure, flow, and implementation details for Food Truck Compliance.
 
-## Navigation Architecture
+This document describes the navigation structure and flow for the Food Truck Compliance app (Expo + React Navigation). Route name constants live in **`src/navigation/navigationConfig.js`**.
 
-### Navigation Tree
+---
+
+## Navigation tree (current)
 
 ```
-AppNavigator (Root - NavigationContainer)
+AppNavigator (Root — NavigationContainer + linking config)
 │
-├── AuthNavigator (when user is NOT authenticated)
+├── AuthNavigator — when user is NOT signed in
 │   ├── Login (initial route)
-│   │   └── Can navigate to: Signup, ForgotPassword
-│   │
 │   ├── Signup
-│   │   └── Can navigate to: Login (back)
-│   │
 │   └── ForgotPassword
-│       └── Can navigate to: Login (back)
 │
-└── MainNavigator (when user IS authenticated)
-    │
-    ├── Dashboard (Tab)
-    │   └── DashboardScreen
-    │       └── Can navigate to: Documents, Checklist, Profile
-    │
-    ├── Documents (Tab)
-    │   └── DocumentsStack
-    │       ├── DocumentsList (initial route)
-    │       │   └── Can navigate to: DocumentDetail
-    │       │
-    │       └── DocumentDetail
-    │           └── Can navigate to: DocumentsList (back)
-    │
-    ├── Checklist (Tab)
-    │   └── ChecklistScreen
-    │
-    └── Profile (Tab)
-        └── ProfileScreen
-            └── Can navigate to: Login (after logout)
+├── OnboardingNavigator — when signed in AND needsOwnerOnboarding === true
+│   └── OwnerOnboarding (initial route)  →  OwnerOnboardingScreen
+│
+└── MainNavigator — when signed in AND onboarding complete
+    └── Bottom tabs (order in MainNavigator.js):
+        ├── Dashboard          → DashboardScreen
+        ├── Documents          → DocumentsStack
+        │   ├── DocumentsList (initial)
+        │   └── DocumentDetail
+        ├── Checklist          → ChecklistScreen
+        ├── Profile            → ProfileStack
+        │   ├── ProfileMain (initial)  → ProfileScreen
+        │   └── Staff          → StaffScreen (placeholder “coming soon”)
+        ├── MediaLogs          → MediaLogScreen
+        └── InspectionReadiness → InspectionReadinessScreen
 ```
 
-## Route Names
+**Files:** `AppNavigator.js`, `AuthNavigator.js`, `OnboardingNavigator.js`, `MainNavigator.js`, `navigationConfig.js`.
 
-All route names are centralized in `src/navigation/navigationConfig.js`:
+**Guard (high level):** `src/context/AuthContext.js` exposes `needsOwnerOnboarding`; `AppNavigator.js` chooses Auth vs Onboarding vs Main. See **`shouldShowOwnerOnboarding`** in `src/services/userProfile.js`.
+
+---
+
+## Route names (`ROUTES`)
+
+Defined in `navigationConfig.js` (use these instead of string literals):
 
 ```javascript
 ROUTES = {
@@ -77,207 +74,113 @@ ROUTES = {
     SETTINGS: 'Settings',
     NOTIFICATIONS: 'Notifications',
   },
-}
+};
 ```
 
-**Always use these constants instead of hardcoded strings to prevent typos and ensure consistency.**
+**Note:** `ProfileStack` registers the staff screen with the name **`Staff`** (same string as `ROUTES.PROFILE.STAFF`). Prefer `ROUTES.PROFILE.STAFF` when navigating from profile.
 
-## Navigation Features
+---
 
-### 1. Authentication State Management
+## Navigation features
 
-- **AppNavigator** automatically switches between `AuthNavigator` and `MainNavigator` based on Firebase Auth state
-- When user logs out, navigation automatically resets to `AuthNavigator`
-- When user logs in, navigation automatically switches to `MainNavigator`
+### 1. Authentication and onboarding
 
-### 2. Navigation Guards
+- Unauthenticated users only see **`AuthNavigator`**.
+- Authenticated users with an incomplete owner business profile see **`OnboardingNavigator`** until requirements in `userProfile.js` are met.
+- Otherwise **`MainNavigator`** (tabs) is shown.
+- Log out from profile returns the tree to **`AuthNavigator`** (no back stack into main app).
 
-#### Android Back Button
-- Prevents going back to authenticated screens after logout
-- Implemented via `BackHandler` in `AppNavigator`
+### 2. Android back button
 
-#### Route Protection
-- Auth routes (Login, Signup, ForgotPassword) are only accessible when user is NOT authenticated
-- Main routes (Dashboard, Documents, Checklist, Profile) are only accessible when user IS authenticated
-- Navigation automatically handles this via `AppNavigator` state switching
+- `BackHandler` in `AppNavigator.js` reduces the chance of returning to authenticated screens immediately after logout.
 
-### 3. Gesture Navigation
+### 3. Gestures
 
-#### iOS Swipe Back
-- Enabled on all stack navigators
-- Can be disabled on initial routes (Login, DocumentsList)
-- Smooth animations with 300ms duration
+- Stack screen options in `MainNavigator.js` set **`gestureEnabled: false`** on document stack screens to avoid Android casting issues documented in code comments.
+- Auth and onboarding stacks also disable gestures in their navigators.
 
-#### Configuration
-```javascript
-gestureEnabled: true,
-gestureDirection: 'horizontal',
-gestureResponseDistance: {
-  horizontal: Platform.OS === 'ios' ? 20 : 0,
-}
-```
+### 4. Deep linking
 
-### 4. Back Button Handling
+`DEEP_LINKING_CONFIG` in `navigationConfig.js` defines paths such as:
 
-#### Stack Navigation
-- Default back button appears automatically in stack navigators
-- Styled with app theme colors
-- Properly handles navigation history
+| Path (prefix `foodtruckcompliance://` or configured https host) | Screen |
+|------------------------------------------------------------------|--------|
+| `login` | Login |
+| `signup` | Signup |
+| `forgot-password` | ForgotPassword |
+| `onboarding` | Owner onboarding |
+| `dashboard` | Dashboard |
+| `documents/list`, `documents/detail/:documentId` | Documents stack |
+| `checklist` | Checklist |
+| `profile`, `profile/staff` | Profile stack |
+| `logs` | Media logs |
+| `readiness` | Inspection readiness |
 
-#### Tab Navigation
-- Tabs maintain their own navigation state
-- Switching tabs preserves scroll position and state
-- Back button in tab screens navigates within the tab's stack
+Full product handling of incoming links may still need `app.config.js` scheme setup and testing; config is prepared in code.
 
-### 5. Deep Linking (Future Implementation)
+---
 
-Deep linking structure is configured in `navigationConfig.js`:
+## Common patterns
 
-```
-foodtruckcompliance://login
-foodtruckcompliance://signup
-foodtruckcompliance://forgot-password
-foodtruckcompliance://dashboard
-foodtruckcompliance://documents/list
-foodtruckcompliance://documents/detail/:documentId
-foodtruckcompliance://checklist
-foodtruckcompliance://profile
-```
-
-**Note:** Deep linking is configured but not yet fully implemented. To enable:
-1. Configure URL scheme in `app.config.js`
-2. Handle incoming links in `AppNavigator`
-3. Test with `npx uri-scheme open foodtruckcompliance://documents/list --ios`
-
-## Navigation Patterns
-
-### 1. Navigating Between Tabs
+### Tabs
 
 ```javascript
 import { useNavigation } from '@react-navigation/native';
 import { ROUTES } from '../navigation/navigationConfig';
 
-const navigation = useNavigation();
-
-// Navigate to another tab
 navigation.navigate(ROUTES.MAIN.DOCUMENTS);
-navigation.navigate(ROUTES.MAIN.CHECKLIST);
+navigation.navigate(ROUTES.MAIN.INSPECTION_READINESS);
 ```
 
-### 2. Navigating Within a Stack
+### Documents stack
 
 ```javascript
-// Navigate to detail screen
-navigation.navigate(ROUTES.DOCUMENTS.DETAIL, { 
-  documentId: document.id 
-});
-
-// Go back
-navigation.goBack();
+navigation.navigate(ROUTES.DOCUMENTS.DETAIL, { documentId: document.id });
 ```
 
-### 3. Resetting Navigation (After Logout)
+### Params used for focus (examples)
 
-```javascript
-import { NavigationHelpers } from '../navigation/navigationConfig';
+- Checklist: `{ initialTab: 'today' }` (from readiness / dashboard flows).
+- Documents: `{ highlightExpiring: true }`.
+- Media logs: `{ initialRangeType: 'all' }`.
 
-// Reset to login screen (prevents going back)
-NavigationHelpers.resetToRoute(navigation, ROUTES.AUTH.LOGIN);
-```
+Exact param handling is implemented on the target screens.
 
-### 4. Navigating from Dashboard
+### After logout
 
-```javascript
-// Navigate to Documents tab
-navigation.navigate(ROUTES.MAIN.DOCUMENTS);
+Use patterns from `NavigationHelpers` in `navigationConfig.js` if you need an explicit reset (e.g. `resetToRoute`).
 
-// Navigate to Checklist tab
-navigation.navigate(ROUTES.MAIN.CHECKLIST);
+---
 
-// Navigate to Profile tab
-navigation.navigate(ROUTES.MAIN.PROFILE);
-```
+## Manual testing checklist
 
-## Common Navigation Issues & Solutions
+- [ ] Login → Signup → back to Login  
+- [ ] Login → Forgot Password → back to Login  
+- [ ] Sign up → Owner onboarding (if profile incomplete) → main tabs  
+- [ ] Login → Dashboard (onboarding already complete)  
+- [ ] All tabs: Dashboard, Documents, Checklist, Profile, Logs, Readiness  
+- [ ] Documents list → detail → back  
+- [ ] Profile → Team / Staff → back  
+- [ ] Profile → Logout → cannot navigate back to main app  
+- [ ] Android back after logout  
+- [ ] Tab state preserved when switching tabs  
 
-### Issue 1: Can't navigate after logout
-**Solution:** Navigation automatically resets when `user` state changes in `AppNavigator`. The `AuthContext` handles this.
+---
 
-### Issue 2: Back button goes to wrong screen
-**Solution:** Use `navigation.reset()` or `NavigationHelpers.resetToRoute()` when you need to prevent back navigation.
+## Files reference
 
-### Issue 3: Tab state not preserved
-**Solution:** This is expected behavior. Each tab maintains its own navigation state. Use state management (Context/Redux) if you need to share state between tabs.
+| File | Role |
+|------|------|
+| `src/navigation/AppNavigator.js` | Root container, auth/onboarding/main switch |
+| `src/navigation/AuthNavigator.js` | Login, Signup, Forgot password |
+| `src/navigation/OnboardingNavigator.js` | Owner onboarding stack |
+| `src/navigation/MainNavigator.js` | Tabs + Documents stack + Profile stack |
+| `src/navigation/navigationConfig.js` | `ROUTES`, linking, helpers |
+| `src/context/AuthContext.js` | Auth + profile loading + `needsOwnerOnboarding` |
 
-### Issue 4: Gesture navigation not working
-**Solution:** 
-- Check that `gestureEnabled: true` is set in screen options
-- Ensure you're not on the initial route (gesture is disabled on initial routes)
-- Verify `gestureResponseDistance` is configured correctly
+---
 
-## Testing Navigation
+## Related docs
 
-### Manual Testing Checklist
-
-- [ ] Login → Signup → Back to Login
-- [ ] Login → Forgot Password → Back to Login
-- [ ] Login → Dashboard (after successful login)
-- [ ] Dashboard → Documents tab
-- [ ] Documents → Document Detail → Back
-- [ ] Dashboard → Checklist tab
-- [ ] Dashboard → Profile tab
-- [ ] Profile → Logout → Login (should not be able to go back)
-- [ ] Android back button on Login (should exit app)
-- [ ] Android back button after logout (should not go back to authenticated screens)
-- [ ] iOS swipe back on stack screens
-- [ ] Tab navigation preserves state
-
-### Testing Deep Links (Future)
-
-```bash
-# iOS
-npx uri-scheme open foodtruckcompliance://documents/list --ios
-
-# Android
-adb shell am start -W -a android.intent.action.VIEW -d "foodtruckcompliance://documents/list" com.internalaggregator.app
-```
-
-## Best Practices
-
-1. **Always use ROUTES constants** instead of hardcoded strings
-2. **Use navigation.navigate()** for forward navigation
-3. **Use navigation.goBack()** for backward navigation
-4. **Use NavigationHelpers.resetToRoute()** when you need to prevent back navigation
-5. **Test on both iOS and Android** - gesture navigation differs
-6. **Handle navigation errors** - wrap navigation calls in try-catch if needed
-7. **Use proper TypeScript types** (if migrating to TypeScript) for navigation params
-
-## Future Enhancements
-
-1. **Deep Linking Implementation**
-   - Handle incoming deep links
-   - Navigate to specific screens from external links
-   - Share links to documents/checklist items
-
-2. **Navigation Analytics**
-   - Track screen views
-   - Monitor navigation patterns
-   - Identify user flow issues
-
-3. **Advanced Navigation Guards**
-   - Role-based navigation (owner vs staff)
-   - Feature flag-based navigation
-   - Subscription-based navigation
-
-4. **Navigation State Persistence**
-   - Save navigation state on app close
-   - Restore navigation state on app open
-   - Handle deep links when app is closed
-
-## Files Reference
-
-- `src/navigation/AppNavigator.js` - Root navigator, handles auth state
-- `src/navigation/AuthNavigator.js` - Auth stack (Login, Signup, ForgotPassword)
-- `src/navigation/MainNavigator.js` - Main tabs (Dashboard, Documents, Checklist, Profile)
-- `src/navigation/navigationConfig.js` - Route names, deep linking config, helpers
-- `src/context/AuthContext.js` - Auth state management
+- [`docs/PRD_TRACEABILITY.md`](docs/PRD_TRACEABILITY.md) — PRD §6 mapped to files and status.  
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — Firebase-first architecture overview.
