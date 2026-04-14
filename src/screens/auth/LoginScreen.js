@@ -13,19 +13,15 @@ import {
   Platform,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Animated,
-  Dimensions,
 } from 'react-native';
 import {
   TextInput,
   Button,
   Text,
   Checkbox,
-  ActivityIndicator,
 } from 'react-native-paper';
 import { BlurView } from 'expo-blur';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { signInUser } from '../../services/auth';
 import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../constants/colors';
@@ -42,7 +38,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * @param {Object} navigation - Navigation object from React Navigation
  */
 const LoginScreen = ({ navigation }) => {
-  const { colors, typography, spacing, shadows, isDark } = useTheme();
+  const { colors } = useTheme();
   const useGlass = colors.glassBackground != null;
   
   // Form state
@@ -53,9 +49,6 @@ const LoginScreen = ({ navigation }) => {
   // UI state
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [emailFocused, setEmailFocused] = useState(false);
-  const [passwordFocused, setPasswordFocused] = useState(false);
-  
   // Validation errors
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -118,19 +111,6 @@ const LoginScreen = ({ navigation }) => {
       setPasswordError('Password is required');
       return false;
     }
-    // Match signup validation requirements: min 8 chars, number, and special character
-    if (passwordValue.length < 8) {
-      setPasswordError('Password must be at least 8 characters');
-      return false;
-    }
-    if (!/\d/.test(passwordValue)) {
-      setPasswordError('Password must include at least one number');
-      return false;
-    }
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(passwordValue)) {
-      setPasswordError('Password must include at least one special character');
-      return false;
-    }
     setPasswordError('');
     return true;
   };
@@ -180,46 +160,14 @@ const LoginScreen = ({ navigation }) => {
       const result = await signInUser(email.trim(), password);
 
       if (result.error) {
-        // Handle Firebase-specific errors
-        const errorCode = result.error.code;
-        let errorMessage = result.error.message;
-
-        // Map Firebase error codes to user-friendly messages
-        switch (errorCode) {
-          case 'auth/user-not-found':
-          case 'auth/wrong-password':
-            errorMessage = 'Invalid email or password';
-            break;
-          case 'auth/invalid-email':
-            errorMessage = 'Invalid email address';
-            break;
-          case 'auth/user-disabled':
-            errorMessage = 'This account has been disabled';
-            break;
-          case 'auth/too-many-requests':
-            errorMessage = 'Too many failed attempts. Please try again later';
-            break;
-          case 'auth/network-request-failed':
-            errorMessage = 'Network error. Please check your connection';
-            break;
-          default:
-            errorMessage = result.error.message || 'An error occurred during login';
-        }
-
-        setAuthError(errorMessage);
-        setLoading(false);
+        setAuthError(result.error.message || 'Unable to sign in right now. Please try again.');
         return;
       }
-
-      // Success - user is logged in
-      // Auth state will be updated automatically via onAuthStateChanged
-      // AppNavigator will automatically navigate to MainNavigator
-      setLoading(false);
     } catch (error) {
-      // Handle unexpected errors
-      setAuthError('An unexpected error occurred. Please try again');
-      setLoading(false);
+      setAuthError('Unable to sign in right now. Please try again.');
       console.error('Login error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -273,9 +221,9 @@ const LoginScreen = ({ navigation }) => {
           {/* Logo Placeholder */}
           <View style={styles.logoContainer}>
             <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoText}>IA</Text>
+              <Text style={styles.logoText}>FC</Text>
             </View>
-            <Text style={styles.appName}>Internal Aggregator</Text>
+            <Text style={styles.appName}>Food Truck Compliance</Text>
             <Text style={styles.tagline}>Compliance Management</Text>
           </View>
 
@@ -300,6 +248,7 @@ const LoginScreen = ({ navigation }) => {
               contentStyle={styles.inputContent}
               outlineColor={COLORS.border}
               activeOutlineColor={COLORS.primary}
+              editable={!loading}
               accessibilityLabel="Email input"
               accessibilityHint="Enter your email address"
             />
@@ -323,10 +272,12 @@ const LoginScreen = ({ navigation }) => {
               contentStyle={styles.inputContent}
               outlineColor={COLORS.border}
               activeOutlineColor={COLORS.primary}
+              editable={!loading}
               right={
                 <TextInput.Icon
                   icon={showPassword ? 'eye-off' : 'eye'}
                   onPress={() => setShowPassword(!showPassword)}
+                  disabled={loading}
                   accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
                 />
               }
@@ -343,11 +294,13 @@ const LoginScreen = ({ navigation }) => {
                 <Checkbox
                   status={rememberMe ? 'checked' : 'unchecked'}
                   onPress={() => setRememberMe(!rememberMe)}
+                  disabled={loading}
                   color={COLORS.primary}
                   accessibilityLabel="Remember me checkbox"
                 />
                 <TouchableOpacity
                   onPress={() => setRememberMe(!rememberMe)}
+                  disabled={loading}
                   style={styles.checkboxLabel}
                   accessibilityLabel="Remember me"
                 >
@@ -389,7 +342,7 @@ const LoginScreen = ({ navigation }) => {
 
             {/* Sign Up Link */}
             <View style={styles.signUpContainer}>
-              <Text style={styles.signUpText}>Don't have an account? </Text>
+              <Text style={styles.signUpText}>Don&apos;t have an account? </Text>
               <TouchableOpacity
                 onPress={handleSignUp}
                 disabled={loading}

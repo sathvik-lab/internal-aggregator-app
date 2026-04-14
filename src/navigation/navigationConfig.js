@@ -20,6 +20,10 @@ export const ROUTES = {
     SIGNUP: 'Signup',
     FORGOT_PASSWORD: 'ForgotPassword',
   },
+
+  ONBOARDING: {
+    OWNER_PROFILE: 'OwnerOnboarding',
+  },
   
   // Main Tabs
   MAIN: {
@@ -28,12 +32,19 @@ export const ROUTES = {
     CHECKLIST: 'Checklist',
     PROFILE: 'Profile',
     MEDIA_LOGS: 'MediaLogs',
+    INSPECTION_READINESS: 'InspectionReadiness',
   },
   
   // Documents Stack
   DOCUMENTS: {
     LIST: 'DocumentsList',
     DETAIL: 'DocumentDetail',
+  },
+
+  // Profile Stack
+  PROFILE: {
+    MAIN: 'ProfileMain',
+    STAFF: 'Staff',
   },
   
   // Future routes (for deep linking)
@@ -49,18 +60,19 @@ export const ROUTES = {
  * 
  * Structure for future deep linking implementation
  * Example URLs:
- * - internalaggregator://documents/123
- * - internalaggregator://checklist/today
- * - internalaggregator://profile
+ * - foodtruckcompliance://documents/123
+ * - foodtruckcompliance://checklist/today
+ * - foodtruckcompliance://profile
  */
 export const DEEP_LINKING_CONFIG = {
-  prefixes: ['internalaggregator://', 'https://internalaggregator.app'],
+  prefixes: ['foodtruckcompliance://', 'https://foodtruckcompliance.app'],
   config: {
     screens: {
       // Auth screens
       Login: 'login',
       Signup: 'signup',
       ForgotPassword: 'forgot-password',
+      OwnerOnboarding: 'onboarding',
       
       // Main tabs
       Dashboard: 'dashboard',
@@ -72,8 +84,15 @@ export const DEEP_LINKING_CONFIG = {
         },
       },
       Checklist: 'checklist',
-      Profile: 'profile',
+      Profile: {
+        path: 'profile',
+        screens: {
+          ProfileMain: '',
+          Staff: 'staff',
+        },
+      },
       MediaLogs: 'logs',
+      InspectionReadiness: 'readiness',
       
       // Future screens
       Reports: 'reports',
@@ -101,6 +120,8 @@ export const NavigationGuards = {
       ROUTES.MAIN.DOCUMENTS,
       ROUTES.MAIN.CHECKLIST,
       ROUTES.MAIN.PROFILE,
+      ROUTES.MAIN.MEDIA_LOGS,
+      ROUTES.MAIN.INSPECTION_READINESS,
     ];
     
     if (protectedRoutes.includes(routeName)) {
@@ -157,9 +178,10 @@ export const NavigationHelpers = {
    * @param {Object} params - Navigation parameters
    */
   navigateAndReset: (navigation, routeName, params = {}) => {
-    navigation.navigate(routeName, params);
-    // Prevent back navigation by replacing current route
-    navigation.replace(routeName, params);
+    navigation.reset({
+      index: 0,
+      routes: [{ name: routeName, params }],
+    });
   },
 };
 

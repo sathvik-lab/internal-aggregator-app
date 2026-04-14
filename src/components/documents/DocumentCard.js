@@ -12,6 +12,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../constants/colors';
 import { GLASS } from '../../utils/glassmorphism';
+import { getDocumentExpiryBadge } from '../../utils/documentTypes';
 
 /**
  * Get file type icon based on MIME type
@@ -37,7 +38,7 @@ const getFileIcon = (mimeType) => {
  * @returns {string} Formatted file size
  */
 const formatFileSize = (bytes) => {
-    if (!bytes) return 'Unknown size';
+    if (bytes === null || bytes === undefined || !Number.isFinite(bytes)) return 'Unknown size';
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -135,6 +136,7 @@ const DocumentCard = ({ document, onPress, onMenuPress }) => {
     }, [document.name, document.category, document.size, document.uploadDate]);
     
     const accessibilityHint = onPress ? 'Double tap to view document details' : undefined;
+    const expiryBadge = useMemo(() => getDocumentExpiryBadge(document), [document]);
 
     const containerStyle = useGlass
         ? [
@@ -206,6 +208,13 @@ const DocumentCard = ({ document, onPress, onMenuPress }) => {
                 {document.category && (
                     <View style={styles.categoryBadge}>
                         <Text style={styles.categoryText}>{document.category}</Text>
+                    </View>
+                )}
+
+                {/* Expiry status */}
+                {expiryBadge && (
+                    <View style={[styles.expiryBadge, { backgroundColor: expiryBadge.backgroundColor || 'rgba(0,0,0,0.08)', borderColor: expiryBadge.color }]}> 
+                        <Text style={[styles.expiryBadgeText, { color: expiryBadge.color }]}>{expiryBadge.label}</Text>
                     </View>
                 )}
 
@@ -306,6 +315,18 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: COLORS.primary,
     },
+    expiryBadge: {
+        alignSelf: 'flex-start',
+        borderWidth: 1,
+        borderRadius: 12,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        marginBottom: 12,
+    },
+    expiryBadgeText: {
+        fontSize: 12,
+        fontWeight: '600',
+    },
     metadata: {
         marginTop: 'auto',
         gap: 8,
@@ -329,6 +350,8 @@ export default memo(DocumentCard, (prevProps, nextProps) => {
         prevProps.document.size === nextProps.document.size &&
         prevProps.document.uploadDate === nextProps.document.uploadDate &&
         prevProps.document.category === nextProps.document.category &&
+        prevProps.document.mimeType === nextProps.document.mimeType &&
+        prevProps.document.expiryDate === nextProps.document.expiryDate &&
         prevProps.onPress === nextProps.onPress &&
         prevProps.onMenuPress === nextProps.onMenuPress
     );

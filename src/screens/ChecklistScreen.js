@@ -18,6 +18,7 @@ import {
     Platform,
     Alert,
 } from 'react-native';
+import { useRoute } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FAB, ProgressBar } from 'react-native-paper';
 import { useAuth } from '../context/AuthContext';
@@ -94,6 +95,7 @@ const groupItemsByDate = (items) => {
 };
 
 const ChecklistScreen = () => {
+    const route = useRoute();
     const { user } = useAuth();
     const { colors } = useTheme();
     const [activeTab, setActiveTab] = useState(TABS.TODAY);
@@ -213,6 +215,13 @@ const ChecklistScreen = () => {
             syncTemplatesAndInstances();
         }
     }, [user, syncTemplatesAndInstances]);
+
+    useEffect(() => {
+        const requestedTab = route.params?.initialTab;
+        if (requestedTab && Object.values(TABS).includes(requestedTab)) {
+            setActiveTab(requestedTab);
+        }
+    }, [route.params?.focusKey, route.params?.initialTab]);
 
     /**
      * Set up all real-time listeners
@@ -429,16 +438,29 @@ const ChecklistScreen = () => {
         const isActive = activeTab === tabKey;
         return (
             <TouchableOpacity
-                style={[styles.tabButton, isActive && styles.tabButtonActive]}
+                style={[
+                    styles.tabButton,
+                    isActive && [styles.tabButtonActive, { backgroundColor: `${colors.primary}20` }],
+                ]}
                 onPress={() => setActiveTab(tabKey)}
                 activeOpacity={0.7}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={`${label} checklist tab`}
+                accessibilityState={{ selected: isActive }}
             >
                 <MaterialCommunityIcons
                     name={icon}
                     size={20}
-                    color={isActive ? COLORS.primary : COLORS.textSecondary}
+                    color={isActive ? colors.primary : colors.textSecondary || colors.text?.secondary || COLORS.textSecondary}
                 />
-                <Text style={[styles.tabButtonText, isActive && styles.tabButtonTextActive]}>
+                <Text
+                    style={[
+                        styles.tabButtonText,
+                        { color: colors.textSecondary || colors.text?.secondary || COLORS.textSecondary },
+                        isActive && [styles.tabButtonTextActive, { color: colors.primary }],
+                    ]}
+                >
                     {label}
                 </Text>
             </TouchableOpacity>
@@ -466,6 +488,9 @@ const ChecklistScreen = () => {
                                 !selectedPriority && styles.filterChipActive,
                             ]}
                             onPress={() => setSelectedPriority(null)}
+                            accessibilityRole="button"
+                            accessibilityLabel="Show all priorities"
+                            accessibilityState={{ selected: !selectedPriority }}
                         >
                             <Text
                                 style={[
@@ -488,6 +513,9 @@ const ChecklistScreen = () => {
                                         selectedPriority === priority ? null : priority
                                     )
                                 }
+                                accessibilityRole="button"
+                                accessibilityLabel={`Filter by ${priority} priority`}
+                                accessibilityState={{ selected: selectedPriority === priority }}
                             >
                                 <Text
                                     style={[
@@ -510,6 +538,9 @@ const ChecklistScreen = () => {
                                 !selectedCategory && styles.filterChipActive,
                             ]}
                             onPress={() => setSelectedCategory(null)}
+                            accessibilityRole="button"
+                            accessibilityLabel="Show all categories"
+                            accessibilityState={{ selected: !selectedCategory }}
                         >
                             <Text
                                 style={[
@@ -530,6 +561,9 @@ const ChecklistScreen = () => {
                                 onPress={() =>
                                     setSelectedCategory(selectedCategory === category ? null : category)
                                 }
+                                accessibilityRole="button"
+                                accessibilityLabel={`Filter by ${category}`}
+                                accessibilityState={{ selected: selectedCategory === category }}
                             >
                                 <Text
                                     style={[
@@ -736,11 +770,14 @@ const ChecklistScreen = () => {
                     style={styles.filterButton}
                     onPress={() => setShowFilters(!showFilters)}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={showFilters ? 'Hide filters' : 'Show filters'}
+                    accessibilityState={{ expanded: showFilters }}
                 >
                     <MaterialCommunityIcons
                         name={showFilters ? 'filter' : 'filter-outline'}
                         size={20}
-                        color={showFilters ? COLORS.primary : COLORS.textSecondary}
+                        color={showFilters ? colors.primary : colors.textSecondary || colors.text?.secondary || COLORS.textSecondary}
                     />
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -748,11 +785,14 @@ const ChecklistScreen = () => {
                     onPress={handleSyncTemplates}
                     activeOpacity={0.7}
                     disabled={syncingTemplates}
+                    accessibilityRole="button"
+                    accessibilityLabel={syncingTemplates ? 'Syncing checklist templates' : 'Sync checklist templates'}
+                    accessibilityState={{ disabled: syncingTemplates, busy: syncingTemplates }}
                 >
                     <MaterialCommunityIcons
                         name={syncingTemplates ? 'sync' : 'sync-outline'}
                         size={20}
-                        color={syncingTemplates ? COLORS.primary : COLORS.textSecondary}
+                        color={syncingTemplates ? colors.primary : colors.textSecondary || colors.text?.secondary || COLORS.textSecondary}
                     />
                 </TouchableOpacity>
             </View>
@@ -863,11 +903,15 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     filterButton: {
+        minWidth: 44,
+        minHeight: 44,
         padding: 12,
         justifyContent: 'center',
         alignItems: 'center',
     },
     syncButton: {
+        minWidth: 44,
+        minHeight: 44,
         padding: 12,
         justifyContent: 'center',
         alignItems: 'center',

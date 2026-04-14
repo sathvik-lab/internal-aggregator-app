@@ -73,8 +73,20 @@ export const uploadFile = async (file, path, onProgress = null) => {
     };
   }
 
+  const fileSize = typeof file.size === 'number' ? file.size : null;
+  if (fileSize == null) {
+    return {
+      url: null,
+      path: null,
+      error: {
+        code: 'storage/missing-file-size',
+        message: 'File size metadata is missing',
+      },
+    };
+  }
+
   // Validate file size
-  if (file.size && file.size > FILE_LIMITS.MAX_SIZE_BYTES) {
+  if (fileSize > FILE_LIMITS.MAX_SIZE_BYTES) {
     return {
       url: null,
       path: null,
@@ -91,7 +103,18 @@ export const uploadFile = async (file, path, onProgress = null) => {
     ...FILE_LIMITS.ALLOWED_DOCUMENT_TYPES,
     ...(FILE_LIMITS.ALLOWED_VIDEO_TYPES || []),
   ];
-  if (file.type && !allowedTypes.includes(file.type)) {
+  const fileType = file.type || null;
+  if (!fileType) {
+    return {
+      url: null,
+      path: null,
+      error: {
+        code: 'storage/missing-file-type',
+        message: 'File type metadata is missing',
+      },
+    };
+  }
+  if (!allowedTypes.includes(fileType)) {
     return {
       url: null,
       path: null,
@@ -124,14 +147,16 @@ export const uploadFile = async (file, path, onProgress = null) => {
     if (onProgress && typeof onProgress === 'function') {
       return new Promise((resolve, reject) => {
         const uploadTask = uploadBytesResumable(storageRef, blob, {
-          contentType: file.type || 'application/octet-stream',
+          contentType: fileType || 'application/octet-stream',
         });
 
         uploadTask.on(
           'state_changed',
           (snapshot) => {
             try {
-              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              const progress = snapshot.totalBytes
+                ? (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+                : 0;
               onProgress(Math.min(100, Math.max(0, progress)));
             } catch (progressError) {
               console.error('Error in progress callback:', progressError);
@@ -168,7 +193,7 @@ export const uploadFile = async (file, path, onProgress = null) => {
       return handleAsyncOperation(
         async () => {
           await uploadBytes(storageRef, blob, {
-            contentType: file.type || 'application/octet-stream',
+            contentType: fileType || 'application/octet-stream',
           });
           const downloadURL = await getDownloadURL(storageRef);
           return { url: downloadURL, path };
@@ -214,6 +239,9 @@ export const downloadFile = async (path) => {
   try {
     if (!path) {
       throw { code: 'invalid-argument', message: 'Path is required' };
+    }
+    if (!storage) {
+      throw { code: 'storage/unavailable', message: 'Storage is not initialized' };
     }
 
     const storageRef = ref(storage, path);

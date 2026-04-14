@@ -1,7 +1,7 @@
 # Error Handling & Edge Cases Guide
 
 ## Overview
-This document outlines the comprehensive error handling implementation across the Internal Aggregator App. All error scenarios are handled gracefully with user-friendly messages and proper fallbacks.
+This document outlines the comprehensive error handling implementation across Food Truck Compliance. All error scenarios are handled gracefully with user-friendly messages and proper fallbacks.
 
 ## Error Handling Utilities
 
@@ -172,7 +172,7 @@ import { validateForm } from '../utils/formValidation';
 
 const schema = {
   email: { required: true, email: true },
-  password: { required: true, password: true, passwordOptions: { minLength: 6 } },
+  password: { required: true, password: true, passwordOptions: { minLength: 12 } },
 };
 
 const { valid, errors } = validateForm(formData, schema);
@@ -272,6 +272,22 @@ Production error logging must follow these practices:
 - **Sampling/Aggregation**: Implement rate limiting and aggregation to control log volume (e.g., log first occurrence, then sample 1% of duplicates).
 - **Correlation IDs**: Include unique correlation IDs in logs to trace errors across services and requests. Generate at request start and propagate through all log entries.
 - **Secure Storage**: Store logs in secure, access-controlled systems. Never expose full stack traces or internal paths to users.
+
+#### Error Logger Utility Reference
+
+Use the shared logger utility in `src/utils/errorLogger.js`:
+
+```javascript
+import { configureLogger, sanitizePII, setCorrelationId, getCorrelationId, logError } from '../utils/errorLogger';
+```
+
+Recommended flow:
+- Configure once at app startup: `configureLogger({ ... })`
+- Set/request correlation IDs per request: `setCorrelationId(id)` and `getCorrelationId()`
+- Sanitize payloads before logging: `const safePayload = sanitizePII(payload)`
+- Log with severity + optional sampling: `logError(error, { level: 'error', sampleRate: 0.1, correlationId: getCorrelationId() })`
+
+See logger configuration for secure storage and sampling behavior in `src/utils/errorLogger.js`.
 
 ## Common Error Messages
 

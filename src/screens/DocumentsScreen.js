@@ -44,7 +44,7 @@ import {
     Alert,
     Platform,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -59,15 +59,9 @@ import { COLORS } from '../constants/colors';
 import { setupRealtimeListener } from '../services/firestore';
 import { PAGINATION } from '../constants/constants';
 import { ROUTES } from '../navigation/navigationConfig';
+import { DOCUMENT_FILTERS, getDocumentFilterLabel } from '../utils/documentTypes';
 
-// Available document categories (extracted from mock data)
-const DOCUMENT_CATEGORIES = [
-    'All',
-    'Certifications',
-    'Policies',
-    'Legal',
-    'Safety Reports',
-];
+const DOCUMENT_CATEGORIES = DOCUMENT_FILTERS;
 
 /**
  * Sort documents based on sort option
@@ -110,14 +104,14 @@ const filterDocuments = (documents, searchQuery, selectedCategory) => {
 
     // Filter by category
     if (selectedCategory && selectedCategory !== 'All') {
-        filtered = filtered.filter((doc) => doc.category === selectedCategory);
+        filtered = filtered.filter((doc) => getDocumentFilterLabel(doc) === selectedCategory);
     }
 
     // Filter by search query (case-insensitive search on name)
     if (searchQuery.trim().length > 0) {
         const query = searchQuery.toLowerCase().trim();
         filtered = filtered.filter((doc) =>
-            doc.name.toLowerCase().includes(query)
+            (doc.name || '').toLowerCase().includes(query)
         );
     }
 
@@ -126,6 +120,7 @@ const filterDocuments = (documents, searchQuery, selectedCategory) => {
 
 const DocumentsScreen = () => {
     const navigation = useNavigation();
+    const route = useRoute();
     const { user } = useAuth();
     const { colors } = useTheme();
 
@@ -139,6 +134,35 @@ const DocumentsScreen = () => {
     const [lastDocument, setLastDocument] = useState(null); // For pagination
     const [hasMore, setHasMore] = useState(true);
     const [uploadModalVisible, setUploadModalVisible] = useState(false);
+
+    useEffect(() => {
+        const nextCategory = route.params?.initialCategory;
+        const nextSortOption = route.params?.initialSortOption;
+        const nextSearchQuery = route.params?.initialSearchQuery;
+        const shouldOpenUpload = route.params?.openUploadModal;
+
+        if (nextCategory && DOCUMENT_CATEGORIES.includes(nextCategory)) {
+            setSelectedCategory(nextCategory);
+        }
+
+        if (typeof nextSortOption === 'string') {
+            setSortOption(nextSortOption);
+        }
+
+        if (typeof nextSearchQuery === 'string') {
+            setSearchQuery(nextSearchQuery);
+        }
+
+        if (shouldOpenUpload) {
+            setUploadModalVisible(true);
+        }
+    }, [
+        route.params?.focusKey,
+        route.params?.initialCategory,
+        route.params?.initialSortOption,
+        route.params?.initialSearchQuery,
+        route.params?.openUploadModal,
+    ]);
 
     /**
      * Set up real-time listener for user's documents
@@ -212,21 +236,31 @@ const DocumentsScreen = () => {
 
     // Apply filters and sorting to documents
     const filteredAndSortedDocuments = useMemo(() => {
-        const filtered = filterDocuments(documents, searchQuery, selectedCategory);
+        let filtered = filterDocuments(documents, searchQuery, selectedCategory);
+
+        if (route.params?.highlightExpiring) {
+            const now = new Date();
+            const nextThirtyDays = new Date();
+            nextThirtyDays.setDate(nextThirtyDays.getDate() + 30);
+
+            filtered = filtered.filter((doc) => {
+                if (!doc.expiryDate) return false;
+                const expiryDate = new Date(doc.expiryDate);
+                if (Number.isNaN(expiryDate.getTime())) return false;
+                return expiryDate >= now && expiryDate <= nextThirtyDays;
+            });
+        }
+
         return sortDocuments(filtered, sortOption);
-    }, [documents, searchQuery, selectedCategory, sortOption]);
+    }, [documents, route.params?.highlightExpiring, searchQuery, selectedCategory, sortOption]);
 
     // Pull-to-refresh handler
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        // In real implementation, this would refetch from Firestore
-        // For now, just reset the listener
-        const unsubscribe = setupDocumentsListener();
         setTimeout(() => {
             setRefreshing(false);
-            if (unsubscribe) unsubscribe();
-        }, 1000);
-    }, [setupDocumentsListener]);
+        }, 400);
+    }, []);
 
     // Load more documents (pagination)
     const loadMore = useCallback(() => {
@@ -292,13 +326,7 @@ const DocumentsScreen = () => {
         setUploadModalVisible(true);
     };
 
-    const handleUploadSuccess = () => {
-        // Refresh documents list after successful upload
-        const unsubscribe = setupDocumentsListener();
-        setTimeout(() => {
-            if (unsubscribe) unsubscribe();
-        }, 100);
-    };
+    const handleUploadSuccess = () => {};
 
     const handleSearchClear = () => {
         setSearchQuery('');
@@ -343,11 +371,11 @@ const DocumentsScreen = () => {
 
             {/* Sort Dropdown */}
             <View style={styles.sortContainer}>
-                <Text style={styles.sortLabel}>Sort:</Text>
+                <Text style={[styles.sortLabel, { color: colors.textSecondary || colors.text?.secondary || COLORS.textSecondary }]}>Sort:</Text>
                 <SortDropdown value={sortOption} onChange={setSortOption} />
             </View>
         </View>
-    ), [searchQuery, selectedCategory, sortOption, handleSearchClear, setSelectedCategory, setSortOption]);
+    ), [searchQuery, selectedCategory, sortOption, colors, handleSearchClear, setSelectedCategory, setSortOption]);
 
     // Memoize empty state render
     const renderEmpty = useCallback(() => {
@@ -423,6 +451,10 @@ const DocumentsScreen = () => {
                 style={styles.fab}
                 onPress={handleUploadPress}
                 activeOpacity={0.8}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Upload document"
+                accessibilityHint="Opens the upload document form"
             >
                 <MaterialCommunityIcons name="plus" size={28} color={COLORS.textInverse} />
             </TouchableOpacity>

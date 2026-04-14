@@ -343,7 +343,7 @@ export const queryDocuments = async (collectionName, conditions = [], options = 
   }
 
   // Validate options object
-  if (options && typeof options !== 'object') {
+  if (options && (typeof options !== 'object' || Array.isArray(options))) {
     return {
       data: [],
       error: {
@@ -392,6 +392,12 @@ export const queryDocuments = async (collectionName, conditions = [], options = 
       }
       
       // Apply pagination (startAfter) - only works with orderBy
+      if (options?.startAfter && hasWhereConditions && !orderByMatchesWhere) {
+        throw {
+          code: 'invalid-argument',
+          message: 'startAfter requires server-side ordering; cannot apply with current where/order configuration',
+        };
+      }
       if (options?.startAfter && (!hasWhereConditions || orderByMatchesWhere)) {
         q = query(q, startAfter(options.startAfter));
       }
@@ -477,11 +483,20 @@ export const setupRealtimeListener = (collectionName, conditions = [], callback,
     if (!collectionName || !callback) {
       throw { code: 'invalid-argument', message: 'Collection name and callback are required' };
     }
+    if (!db) {
+      throw { code: 'unavailable', message: 'Database is not available. Please check your connection.' };
+    }
+    if (!Array.isArray(conditions)) {
+      throw { code: 'invalid-argument', message: 'Conditions must be an array' };
+    }
 
     let q = query(collection(db, collectionName));
     
     // Apply where conditions
     conditions.forEach((condition) => {
+      if (!condition || typeof condition !== 'object' || !condition.field || !condition.operator || condition.value === undefined) {
+        throw { code: 'invalid-argument', message: 'Each condition must include field, operator, and value' };
+      }
       q = query(q, where(condition.field, condition.operator, condition.value));
     });
     
@@ -521,7 +536,9 @@ export const setupRealtimeListener = (collectionName, conditions = [], callback,
           documents.sort((a, b) => {
             const aVal = a[options.orderBy.field];
             const bVal = b[options.orderBy.field];
-            if (!aVal || !bVal) return 0;
+            if (aVal == null && bVal == null) return 0;
+            if (aVal == null) return 1;
+            if (bVal == null) return -1;
             const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
             return options.orderBy.direction === 'desc' ? -comparison : comparison;
           });
@@ -538,8 +555,7 @@ export const setupRealtimeListener = (collectionName, conditions = [], callback,
         // If error is about missing index, log it but don't fail completely
         if (error.code === 'failed-precondition' && error.message?.includes('index')) {
           console.warn('Firestore index required. Query will work but may be slower. Create index:', error.message);
-          // Return empty array - the caller can handle this gracefully
-          callback([]);
+          callback([], error);
         } else {
           console.error('Firestore listener error:', error);
           callback([], error);

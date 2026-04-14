@@ -18,10 +18,21 @@ const CACHE_VALIDITY_MS = 24 * 60 * 60 * 1000; // 24 hours
  * @param {Object} profile - User business profile
  * @returns {string} - Hash string
  */
+const stableSerialize = (value) => {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableSerialize(item)).join(',')}]`;
+  }
+  if (value && typeof value === 'object') {
+    const keys = Object.keys(value).sort();
+    return `{${keys.map((key) => `"${key}":${stableSerialize(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+};
+
 const hashProfile = (profile) => {
   if (!profile) return '';
-  // Simple hash - convert profile to string and create hash
-  const str = JSON.stringify(profile);
+  // Stable hash - deterministic object key ordering
+  const str = stableSerialize(profile);
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
@@ -120,9 +131,12 @@ export const syncTemplates = async (userId, forceRefresh = false) => {
 
     // Update user's lastTemplateSync
     try {
-      await updateDocument('users', userId, {
+      const updateResult = await updateDocument('users', userId, {
         'businessProfile.lastTemplateSync': new Date().toISOString(),
       });
+      if (updateResult?.error) {
+        console.warn('Error updating lastTemplateSync:', updateResult.error);
+      }
     } catch (updateError) {
       console.warn('Error updating lastTemplateSync:', updateError);
       // Don't fail the sync if this update fails
@@ -184,7 +198,7 @@ export const clearTemplateCache = async (userId) => {
  * @returns {boolean} - True if cache is valid
  */
 export const isCacheValid = (cachedAt, profileHash, cachedProfileHash) => {
-  if (!cachedAt || !profileHash || !cachedProfileHash) {
+  if (cachedAt == null || profileHash == null || cachedProfileHash == null) {
     return false;
   }
 

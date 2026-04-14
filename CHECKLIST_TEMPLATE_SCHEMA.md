@@ -88,15 +88,14 @@ interface ChecklistTemplate {
     "url": "https://www.fda.gov/food/fda-food-code",
     "section": "Food Code - Temperature Control"
   },
-  // Note: The regulationReference field may point to various regulatory authorities:
-  // OSHA (workplace safety), FDA (food safety), state/local regulations, DOT (transportation),
-  // EPA (environmental), etc. The field name is generic to accommodate all compliance sources.
   "createdAt": "2026-01-23T10:00:00Z",
   "updatedAt": "2026-01-23T10:00:00Z",
   "version": 1,
   "isActive": true
 }
 ```
+
+Note: The `regulationReference` field may point to various regulatory authorities (OSHA workplace safety, FDA food safety, state/local regulations, DOT transportation, EPA environmental, etc.). The field name is intentionally generic to accommodate multiple compliance sources.
 
 ### Field Descriptions
 

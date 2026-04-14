@@ -80,7 +80,8 @@ queryDocuments('checklistItems', conditions, options);
 
 ### Security
 
-- All queries automatically filter by `userId == request.auth.uid`
+- Firestore security rules in `firestore.rules` enforce `request.auth.uid` data isolation at the database layer.
+- Developers must still include `userId` in query conditions (for example in the `conditions` array) so queries only return the requesting user's checklist items.
 - Security rules in `firestore.rules` enforce user isolation
 - Users can only see/modify their own checklist items
 
@@ -109,11 +110,11 @@ const complianceScore = Math.round(
 
 ### Formula Breakdown
 
-**Score = (Completion Rate × 70%) + (Documents Bonus × 30%)**
+**Score = (Completion Rate × 70%) + Documents Bonus**
 
 Where:
 - **Completion Rate** = (Completed Checklists / Total Checklists) × 100
-- **Documents Bonus** = 30 points if user has at least 1 document, else 0
+- **Documents Bonus** = flat 30 points if user has at least 1 document, else 0
 
 ### Examples
 
@@ -267,7 +268,7 @@ const calculateComplianceScore = (data) => {
 - ✅ Queried by date, status, completion
 
 ### Scoring Logic
-- ✅ Simple formula: (Completion Rate × 70%) + (Documents Bonus × 30%)
+- ✅ Simple formula: (Completion Rate × 70%) + Documents Bonus (flat 0 or 30 points)
 - ✅ Score range: 0-100
 - ✅ Status thresholds: Good (80+), At Risk (60-79), Needs Attention (<60)
 - ⚠️ Limited factors (only completion + documents)

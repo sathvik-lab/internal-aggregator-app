@@ -1,658 +1,746 @@
-/**
- * Dashboard Screen
- * 
- * Main dashboard screen showing overview of compliance status,
- * recent documents, and quick actions.
- * 
- * This screen demonstrates Firestore query patterns:
- * - Query documents count: query(collection(db, 'documents'), where('userId', '==', userId))
- * - Query checklists: query(collection(db, 'checklistItems'), where('userId', '==', userId), where('completed', '==', false))
- * - Real-time listener: setupRealtimeListener('checklistItems', conditions, callback)
- * - Recent documents: query(collection(db, 'documents'), where('userId', '==', userId), orderBy('uploadDate', 'desc'), limit(3))
- */
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-    View,
-    Text,
-    StyleSheet,
-    ScrollView,
-    RefreshControl,
-    TouchableOpacity,
-    Alert,
-    Platform,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import Header from '../components/common/Header';
-import StatCard from '../components/common/StatCard';
 import QuickActions from '../components/common/QuickActions';
+import ScoreBreakdownModal from '../components/common/ScoreBreakdownModal';
+import ReminderBanner from '../components/common/ReminderBanner';
 import ChecklistItem from '../components/checklist/ChecklistItem';
 import DocumentItem from '../components/documents/DocumentItem';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
 import EmptyState from '../components/common/EmptyState';
 import { useTheme } from '../context/ThemeContext';
-import { queryDocuments, setupRealtimeListener } from '../services/firestore';
-import { CHECKLIST_STATUS } from '../constants/constants';
-import { PADDING, SPACING, moderateScale, getGridColumns, isTablet, isLandscape } from '../utils/responsive';
+import { fetchDashboardSnapshot } from '../services/dashboard';
+import { fetchUserPreferences, dismissReminder } from '../services/userPreferences';
+import { calculateComplianceScore } from '../utils/complianceScore';
 import { ROUTES } from '../navigation/navigationConfig';
+import { PADDING, SPACING, moderateScale } from '../utils/responsive';
+
+const formatDateLabel = (value) => {
+  if (!value) return 'Unknown date';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Unknown date';
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+const formatRelativeExpiry = (value) => {
+  if (!value) return 'No expiration date';
+  const now = new Date();
+  const target = new Date(value);
+  if (Number.isNaN(target.getTime())) return 'Unknown expiration date';
+
+  const diffDays = Math.ceil((target - now) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return `Expired ${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? '' : 's'} ago`;
+  if (diffDays === 0) return 'Expires today';
+  if (diffDays === 1) return 'Expires tomorrow';
+  return `Expires in ${diffDays} days`;
+};
+
+const formatLogTimestamp = (log) => {
+  const value = log.createdAt || log.logDate;
+  if (!value) return 'Unknown date';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Unknown date';
+  return date.toLocaleString();
+};
+
+const SectionHeader = ({ title, count, actionLabel, onAction, colors }) => (
+  <View style={styles.sectionHeader}>
+    <View style={styles.sectionTitleRow}>
+      <Text style={[styles.sectionTitle, { color: colors.text?.primary || colors.text }]}>
+        {title}
+      </Text>
+      {typeof count === 'number' ? (
+        <View style={[styles.countBadge, { backgroundColor: `${colors.primary}18` }]}>
+          <Text style={[styles.countBadgeText, { color: colors.primary }]}>{count}</Text>
+        </View>
+      ) : null}
+    </View>
+    {actionLabel && onAction ? (
+      <TouchableOpacity
+        style={styles.sectionActionButton}
+        onPress={onAction}
+        activeOpacity={0.7}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={`${actionLabel} for ${title}`}
+      >
+        <Text style={[styles.sectionAction, { color: colors.primary }]}>{actionLabel}</Text>
+      </TouchableOpacity>
+    ) : null}
+  </View>
+);
+
+const ReadinessSummaryCard = ({ readiness, counts, onChecklistPress, onDocumentsPress, onScorePress, colors }) => {
+  const toneColors = {
+    good: colors.success,
+    warning: colors.warning,
+    critical: colors.error,
+  };
+
+  const accent = toneColors[readiness.tone] || colors.primary;
+
+  return (
+    <View style={[styles.summaryCard, { backgroundColor: colors.surface?.surface || colors.surface, borderColor: colors.border }]}>
+      <View style={styles.summaryHeader}>
+        <View style={[styles.summaryIconWrap, { backgroundColor: `${accent}18` }]}>
+          <MaterialCommunityIcons name="shield-check-outline" size={24} color={accent} />
+        </View>
+        <View style={styles.summaryHeaderText}>
+          <Text style={[styles.summaryEyebrow, { color: accent }]}>Readiness Summary</Text>
+          <Text style={[styles.summaryTitle, { color: colors.text?.primary || colors.text }]}>
+            {readiness.title}
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.summaryScorePill, { borderColor: `${accent}50` }]}
+          onPress={onScorePress}
+          accessible
+          accessibilityLabel={`Compliance score ${readiness.score} percent, double tap to view breakdown`}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.summaryScoreValue, { color: accent }]}>{readiness.score}%</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={[styles.summaryMessage, { color: colors.text?.primary || colors.text }]}>
+        {readiness.message}
+      </Text>
+      <Text style={[styles.summaryNextAction, { color: colors.textSecondary || colors.text?.secondary }]}>
+        {readiness.nextAction}
+      </Text>
+
+      <View style={styles.summaryStatsRow}>
+        <View style={styles.summaryStat}>
+          <Text style={[styles.summaryStatValue, { color: colors.text?.primary || colors.text }]}>{counts.overdue}</Text>
+          <Text style={[styles.summaryStatLabel, { color: colors.textSecondary || colors.text?.secondary }]}>Overdue</Text>
+        </View>
+        <View style={styles.summaryStat}>
+          <Text style={[styles.summaryStatValue, { color: colors.text?.primary || colors.text }]}>{counts.dueToday}</Text>
+          <Text style={[styles.summaryStatLabel, { color: colors.textSecondary || colors.text?.secondary }]}>Due Today</Text>
+        </View>
+        <View style={styles.summaryStat}>
+          <Text style={[styles.summaryStatValue, { color: colors.text?.primary || colors.text }]}>{counts.expiringDocuments}</Text>
+          <Text style={[styles.summaryStatLabel, { color: colors.textSecondary || colors.text?.secondary }]}>Expiring Docs</Text>
+        </View>
+      </View>
+
+      <View style={styles.summaryActions}>
+        <TouchableOpacity
+          style={[styles.summaryActionButton, { backgroundColor: `${colors.primary}12` }]}
+          onPress={onChecklistPress}
+          activeOpacity={0.8}
+          accessible
+          accessibilityLabel="Open checklist"
+          accessibilityRole="button"
+        >
+          <Text style={[styles.summaryActionText, { color: colors.primary }]}>Open Checklist</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.summaryActionButton, { backgroundColor: `${colors.info}12` }]}
+          onPress={onDocumentsPress}
+          activeOpacity={0.8}
+          accessible
+          accessibilityLabel="Review documents"
+          accessibilityRole="button"
+        >
+          <Text style={[styles.summaryActionText, { color: colors.info }]}>Review Documents</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+const MediaLogPreviewCard = ({ log, colors, onPress }) => {
+  const mediaTypeLabel = log.mediaType === 'video' ? 'Video log' : 'Photo log';
+
+  return (
+    <TouchableOpacity
+      style={[styles.mediaCard, { backgroundColor: colors.surface?.surface || colors.surface, borderColor: colors.border }]}
+      activeOpacity={0.75}
+      onPress={onPress}
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={`${mediaTypeLabel} from ${formatLogTimestamp(log)}`}
+      accessibilityHint="Opens media logs"
+    >
+      <View style={styles.mediaCardHeader}>
+        <View style={[styles.mediaPill, { backgroundColor: `${colors.primary}18` }]}>
+          <Text style={[styles.mediaPillText, { color: colors.primary }]}>{mediaTypeLabel}</Text>
+        </View>
+        <Text style={[styles.mediaTimestamp, { color: colors.textSecondary || colors.text?.secondary }]}>
+          {formatLogTimestamp(log)}
+        </Text>
+      </View>
+      <Text style={[styles.mediaNote, { color: colors.text?.primary || colors.text }]} numberOfLines={3}>
+        {log.note || 'No notes added yet. Open media logs to review this entry.'}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
 const DashboardScreen = () => {
-    const navigation = useNavigation();
-    const { user } = useAuth();
-    const { colors, typography, spacing, shadows } = useTheme();
+  const navigation = useNavigation();
+  const { user } = useAuth();
+  const { colors } = useTheme();
 
-    // State management
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [stats, setStats] = useState({
-        totalDocuments: 0,
-        pendingChecklists: 0,
-        dueToday: 0,
-        complianceScore: 0,
-        recentActivity: 0,
-    });
-    const [todayTasks, setTodayTasks] = useState([]);
-    const [recentDocuments, setRecentDocuments] = useState([]);
-    const [tasksLoading, setTasksLoading] = useState(true);
-    const [documentsLoading, setDocumentsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [scoreBreakdownVisible, setScoreBreakdownVisible] = useState(false);
+  const [scoreData, setScoreData] = useState(null);
+  const [userPreferences, setUserPreferences] = useState(null);
+  const [dashboardData, setDashboardData] = useState({
+    readiness: {
+      score: 0,
+      tone: 'warning',
+      title: 'Loading readiness',
+      message: '',
+      nextAction: '',
+    },
+    dueTodayItems: [],
+    overdueItems: [],
+    expiringDocuments: [],
+    expiredDocuments: [],
+    recentMediaLogs: [],
+    counts: {
+      documents: 0,
+      dueToday: 0,
+      overdue: 0,
+      expiringDocuments: 0,
+      expiredDocuments: 0,
+      recentMediaLogs: 0,
+    },
+    allChecklistItems: [],
+  });
 
-    /**
-     * Fetch dashboard statistics from Firestore
-     * 
-     * Real Firestore implementation would look like:
-     * ```javascript
-     * import { collection, query, where, getDocs, getCountFromServer } from 'firebase/firestore';
-     * import { db } from '../services/firebase';
-     * 
-     * // Get documents count
-     * const docsQuery = query(
-     *   collection(db, 'documents'),
-     *   where('userId', '==', user.uid)
-     * );
-     * const docsSnapshot = await getCountFromServer(docsQuery);
-     * const totalDocuments = docsSnapshot.data().count;
-     * 
-     * // Get pending checklists count
-     * const checklistsQuery = query(
-     *   collection(db, 'checklistItems'),
-     *   where('userId', '==', user.uid),
-     *   where('completed', '==', false)
-     * );
-     * const checklistsSnapshot = await getCountFromServer(checklistsQuery);
-     * const pendingChecklists = checklistsSnapshot.data().count;
-     * ```
-     */
-    const fetchDashboardStats = useCallback(async () => {
-        if (!user?.uid) {
-            setLoading(false);
-            return;
-        }
+  const loadDashboard = useCallback(async ({ showLoading = true } = {}) => {
+    if (!user?.uid) {
+      setLoading(false);
+      return;
+    }
 
-        try {
-            // Query 1: Get user's documents count
-            // Real Firestore: query(collection(db, 'documents'), where('userId', '==', user.uid))
-            const documentsResult = await queryDocuments('documents', [
-                { field: 'userId', operator: '==', value: user.uid },
-            ]);
-            const totalDocuments = documentsResult.data?.length || 0;
+    if (showLoading) {
+      setLoading(true);
+    }
 
-            // Query 2: Get user's checklist items
-            // Real Firestore: query(collection(db, 'checklistItems'), where('userId', '==', user.uid))
-            const checklistsResult = await queryDocuments('checklistItems', [
-                { field: 'userId', operator: '==', value: user.uid },
-            ]);
-            const checklistItems = checklistsResult.data || [];
+    try {
+      const result = await fetchDashboardSnapshot(user.uid);
 
-            // Count pending checklists (not completed)
-            const pendingChecklists = checklistItems.filter(
-                (item) => !item.completed && item.status === CHECKLIST_STATUS.PENDING
-            ).length;
-
-            // Count checklists due today
-            const today = new Date().toISOString().split('T')[0];
-            const dueToday = checklistItems.filter(
-                (item) => !item.completed && item.dueDate?.split('T')[0] === today
-            ).length;
-
-            // Calculate compliance score
-            // Based on: completed checklists, active documents, no overdue items
-            const totalChecklists = checklistItems.length;
-            const completedChecklists = checklistItems.filter((item) => item.completed).length;
-            const completionRate = totalChecklists > 0 ? (completedChecklists / totalChecklists) * 100 : 100;
-            const complianceScore = Math.round(completionRate * 0.7 + (totalDocuments > 0 ? 30 : 0));
-
-            // Recent activity (items updated in last 7 days)
-            const sevenDaysAgo = new Date();
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-            const recentActivity = [
-                ...(documentsResult.data || []).filter((doc) => new Date(doc.uploadDate) > sevenDaysAgo),
-                ...checklistItems.filter(
-                    (item) => item.completedAt && new Date(item.completedAt) > sevenDaysAgo
-                ),
-            ].length;
-
-            setStats({
-                totalDocuments,
-                pendingChecklists,
-                dueToday,
-                complianceScore,
-                recentActivity,
-            });
-        } catch (error) {
-            console.error('Error fetching dashboard stats:', error);
-        } finally {
-            setLoading(false);
-        }
-    }, [user]);
-
-    /**
-     * Set up real-time listener for today's checklist items
-     * 
-     * Real Firestore implementation would look like:
-     * ```javascript
-     * import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
-     * import { db } from '../services/firebase';
-     * 
-     * const today = new Date();
-     * today.setHours(0, 0, 0, 0);
-     * const tomorrow = new Date(today);
-     * tomorrow.setDate(tomorrow.getDate() + 1);
-     * 
-     * const q = query(
-     *   collection(db, 'checklistItems'),
-     *   where('userId', '==', user.uid),
-     *   where('completed', '==', false),
-     *   where('dueDate', '>=', Timestamp.fromDate(today)),
-     *   where('dueDate', '<', Timestamp.fromDate(tomorrow)),
-     *   orderBy('dueDate', 'asc'),
-     *   limit(3)
-     * );
-     * 
-     * const unsubscribe = onSnapshot(q, (snapshot) => {
-     *   const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-     *   setTodayTasks(items);
-     * });
-     * ```
-     */
-    const setupTodayTasksListener = useCallback(() => {
-        if (!user?.uid) {
-            setTasksLoading(false);
-            return;
-        }
-
-        setTasksLoading(true);
-
-        // Get today's date range
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayStr = today.toISOString().split('T')[0];
-
-        // Set up real-time listener for today's incomplete checklist items
-        // Real Firestore: query(collection(db, 'checklistItems'), 
-        //   where('userId', '==', user.uid),
-        //   where('completed', '==', false),
-        //   where('dueDate', '>=', today),
-        //   orderBy('dueDate', 'asc'),
-        //   limit(3))
-        const unsubscribe = setupRealtimeListener(
-            'checklistItems',
-            [
-                { field: 'userId', operator: '==', value: user.uid },
-                { field: 'completed', operator: '==', value: false },
-            ],
-            (items, error) => {
-                if (error) {
-                    console.error('Error fetching today\'s tasks:', error);
-                    setTodayTasks([]);
-                } else {
-                    // Filter for today's items and sort by due date
-                    const todayItems = items
-                        .filter((item) => {
-                            if (!item.dueDate) return false;
-                            const itemDate = item.dueDate.split('T')[0];
-                            return itemDate === todayStr;
-                        })
-                        .sort((a, b) => {
-                            const dateA = a.dueDate ? new Date(a.dueDate) : new Date(0);
-                            const dateB = b.dueDate ? new Date(b.dueDate) : new Date(0);
-                            return dateA - dateB;
-                        })
-                        .slice(0, 3); // Limit to 3 items
-                    setTodayTasks(todayItems);
-                }
-                setTasksLoading(false);
-            },
-            {
-                orderBy: { field: 'dueDate', direction: 'asc' },
-                limit: 10, // Fetch more to filter, then slice
-            }
-        );
-
-        return unsubscribe;
-    }, [user]);
-
-    /**
-     * Fetch recent documents from Firestore
-     * 
-     * Real Firestore implementation would look like:
-     * ```javascript
-     * import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
-     * import { db } from '../services/firebase';
-     * 
-     * const q = query(
-     *   collection(db, 'documents'),
-     *   where('userId', '==', user.uid),
-     *   orderBy('uploadDate', 'desc'),
-     *   limit(3)
-     * );
-     * 
-     * const snapshot = await getDocs(q);
-     * const documents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-     * setRecentDocuments(documents);
-     * ```
-     */
-    const fetchRecentDocuments = useCallback(async () => {
-        if (!user?.uid) {
-            setDocumentsLoading(false);
-            return;
-        }
-
-        try {
-            setDocumentsLoading(true);
-
-            // Query recent documents ordered by upload date
-            // Real Firestore: query(collection(db, 'documents'),
-            //   where('userId', '==', user.uid),
-            //   orderBy('uploadDate', 'desc'),
-            //   limit(3))
-            const result = await queryDocuments(
-                'documents',
-                [{ field: 'userId', operator: '==', value: user.uid }],
-                {
-                    orderBy: { field: 'uploadDate', direction: 'desc' },
-                    limit: 3,
-                }
-            );
-
-            if (result.error) {
-                console.error('Error fetching recent documents:', result.error);
-                setRecentDocuments([]);
-            } else {
-                setRecentDocuments(result.data || []);
-            }
-        } catch (error) {
-            console.error('Error fetching recent documents:', error);
-            setRecentDocuments([]);
-        } finally {
-            setDocumentsLoading(false);
-        }
-    }, [user]);
-
-    // Initial data fetch
-    useEffect(() => {
-        fetchDashboardStats();
-        fetchRecentDocuments();
-        const unsubscribe = setupTodayTasksListener();
-        return () => {
-            if (unsubscribe) unsubscribe();
-        };
-    }, [fetchDashboardStats, fetchRecentDocuments, setupTodayTasksListener]);
-
-    // Pull-to-refresh handler
-    const onRefresh = useCallback(async () => {
-        setRefreshing(true);
-        await Promise.all([fetchDashboardStats(), fetchRecentDocuments()]);
-        setRefreshing(false);
-    }, [fetchDashboardStats, fetchRecentDocuments]);
-
-    // Notification count
-    const notificationCount = stats.pendingChecklists + stats.dueToday;
-
-    // Handlers
-    const handleNotificationPress = () => {
-        Alert.alert(
-            'Notifications',
-            `You have ${notificationCount} unread notifications`,
-            [{ text: 'OK' }]
-        );
-    };
-
-    const handleProfilePress = () => {
-        navigation.navigate(ROUTES.MAIN.PROFILE);
-    };
-
-    const handleDocumentsPress = () => {
-        navigation.navigate(ROUTES.MAIN.DOCUMENTS);
-    };
-
-    const handleChecklistPress = () => {
-        navigation.navigate(ROUTES.MAIN.CHECKLIST);
-    };
-
-    const handleUploadPress = () => {
-        navigation.navigate(ROUTES.MAIN.DOCUMENTS);
-        // TODO: Open upload modal when Documents screen supports it
-    };
-
-    const handleTodayChecklistPress = () => {
-        navigation.navigate(ROUTES.MAIN.CHECKLIST);
-        // TODO: Filter to show only today's items when Checklist screen supports it
-    };
-
-    const handleRecentDocumentsPress = () => {
-        navigation.navigate(ROUTES.MAIN.DOCUMENTS);
-        // TODO: Filter to show recent documents when Documents screen supports it
-    };
-
-    const handleReportsPress = () => {
-        Alert.alert(
-            'Reports',
-            'Reports feature will be available soon. This will show compliance analytics and insights.',
-            [{ text: 'OK' }]
-        );
-    };
-
-    // Memoize handlers to prevent re-renders
-    const handleChecklistItemPress = useCallback((item) => {
-        navigation.navigate(ROUTES.MAIN.CHECKLIST);
-        // TODO: Pass item as parameter when detail screen is implemented
-    }, [navigation]);
-
-    const handleToggleComplete = useCallback((item) => {
-        Alert.alert(
-            'Mark Complete',
-            `Mark "${item.title}" as complete?`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Complete',
-                    onPress: () => {
-                        // TODO: Update item completion status in Firestore
-                        console.log('Marking item as complete:', item.id);
-                    },
-                },
-            ]
-        );
-    }, []);
-
-    const handleViewAllChecklist = useCallback(() => {
-        navigation.navigate(ROUTES.MAIN.CHECKLIST);
-    }, [navigation]);
-
-    const handleDocumentPress = useCallback((document) => {
-        navigation.navigate(ROUTES.MAIN.DOCUMENTS, {
-            screen: ROUTES.DOCUMENTS.DETAIL,
-            params: { documentId: document.id },
+      if (result.error) {
+        console.error('Error loading dashboard:', result.error);
+      } else if (result.data) {
+        setDashboardData(result.data);
+        
+        // Calculate v2 score
+        const allChecklistItems = result.data.allChecklistItems || [];
+        const scoreResult = calculateComplianceScore({
+          checklistItems: allChecklistItems,
+          overdueItems: result.data.overdueItems || [],
+          expiringDocuments: result.data.expiringDocuments || [],
+          expiredDocuments: result.data.expiredDocuments || [],
+          mediaLogs: result.data.recentMediaLogs || [],
         });
-    }, [navigation]);
+        setScoreData(scoreResult);
+      }
 
-    const handleViewAllDocuments = useCallback(() => {
-        navigation.navigate(ROUTES.MAIN.DOCUMENTS);
-    }, [navigation]);
+      // Load user preferences for reminders
+      const prefsResult = await fetchUserPreferences(user.uid);
+      if (prefsResult.data) {
+        setUserPreferences(prefsResult.data);
+      }
+    } catch (error) {
+      console.error('Unexpected error loading dashboard:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.uid]);
 
-    // Use dark background for glassmorphism
-    const backgroundColor = colors.zinc950 || colors.background;
-    
-    return (
-        <View style={[styles.container, { backgroundColor }]}>
-            <Header
-                notificationCount={notificationCount}
-                onNotificationPress={handleNotificationPress}
-                onProfilePress={handleProfilePress}
-            />
+  useEffect(() => {
+    loadDashboard({ showLoading: true });
+  }, [loadDashboard]);
 
-            <ScrollView
-                style={styles.scrollView}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        tintColor={colors.primary}
-                        colors={[colors.primary]}
-                        progressViewOffset={Platform.OS === 'android' ? 20 : 0}
-                        progressBackgroundColor={colors.surface}
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadDashboard({ showLoading: false });
+    setRefreshing(false);
+  }, [loadDashboard]);
+
+  const notificationCount = dashboardData.counts.overdue + dashboardData.counts.dueToday;
+
+  const createFocusKey = useCallback(() => Date.now().toString(), []);
+
+  const handleNotificationPress = useCallback(() => {
+    navigation.navigate(ROUTES.MAIN.CHECKLIST, {
+      initialTab: 'today',
+      focusKey: createFocusKey(),
+    });
+  }, [createFocusKey, navigation]);
+
+  const handleProfilePress = useCallback(() => {
+    navigation.navigate(ROUTES.MAIN.PROFILE);
+  }, [navigation]);
+
+  const handleDocumentsPress = useCallback(() => {
+    navigation.navigate(ROUTES.MAIN.DOCUMENTS, {
+      initialSortOption: 'date-asc',
+      highlightExpiring: true,
+      focusKey: createFocusKey(),
+    });
+  }, [createFocusKey, navigation]);
+
+  const handleChecklistPress = useCallback((initialTab = 'today') => {
+    navigation.navigate(ROUTES.MAIN.CHECKLIST, {
+      initialTab,
+      focusKey: createFocusKey(),
+    });
+  }, [createFocusKey, navigation]);
+
+  const handleMediaLogsPress = useCallback((params = {}) => {
+    navigation.navigate(ROUTES.MAIN.MEDIA_LOGS, {
+      initialRangeType: 'all',
+      focusKey: createFocusKey(),
+      ...params,
+    });
+  }, [createFocusKey, navigation]);
+
+  const handleUploadPress = useCallback(() => {
+    navigation.navigate(ROUTES.MAIN.DOCUMENTS, {
+      openUploadModal: true,
+      focusKey: createFocusKey(),
+    });
+  }, [createFocusKey, navigation]);
+
+  const handleReportsPress = useCallback(() => {
+    navigation.navigate(ROUTES.MAIN.PROFILE);
+  }, [navigation]);
+
+  const handleReminderDismiss = useCallback(
+    (reminderId) => {
+      if (user?.uid) {
+        dismissReminder(user.uid, reminderId);
+      }
+    },
+    [user?.uid]
+  );
+
+  const handleReminderNavigate = useCallback(
+    (action) => {
+      switch (action) {
+        case 'dueToday':
+          handleChecklistPress('today');
+          break;
+        case 'overdue':
+          handleChecklistPress('today');
+          break;
+        case 'expiring':
+          handleDocumentsPress();
+          break;
+        default:
+          break;
+      }
+    },
+    [handleChecklistPress, handleDocumentsPress]
+  );
+
+  const handleChecklistItemPress = useCallback((item) => {
+    const dueDate = item?.dueDate ? new Date(item.dueDate) : null;
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+
+    const initialTab =
+      dueDate && !Number.isNaN(dueDate.getTime()) && dueDate > today ? 'upcoming' : 'today';
+
+    navigation.navigate(ROUTES.MAIN.CHECKLIST, {
+      initialTab,
+      focusKey: createFocusKey(),
+    });
+  }, [createFocusKey, navigation]);
+
+  const handleToggleComplete = useCallback((item) => {
+    handleChecklistItemPress(item);
+  }, [handleChecklistItemPress]);
+
+  const backgroundColor = colors.zinc950 || colors.background;
+
+  const expiringDocumentsPreview = useMemo(
+    () => dashboardData.expiringDocuments.slice(0, 3),
+    [dashboardData.expiringDocuments]
+  );
+
+  return (
+    <View style={[styles.container, { backgroundColor }]}>
+      <Header
+        notificationCount={notificationCount}
+        onNotificationPress={handleNotificationPress}
+        onProfilePress={handleProfilePress}
+      />
+
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+            progressViewOffset={Platform.OS === 'android' ? 20 : 0}
+            progressBackgroundColor={colors.surface?.surface || colors.surface}
+          />
+        }
+      >
+        <View style={styles.content}>
+          {loading ? (
+            <>
+              <LoadingSkeleton type="card" count={1} />
+              <LoadingSkeleton type="list" count={4} />
+            </>
+          ) : (
+            <>
+              <ReminderBanner
+                dueTodayCount={dashboardData.counts.dueToday}
+                overdueCount={dashboardData.counts.overdue}
+                expiringCount={dashboardData.counts.expiringDocuments}
+                preferences={userPreferences}
+                onDismiss={handleReminderDismiss}
+                onNavigate={handleReminderNavigate}
+              />
+
+              <ReadinessSummaryCard
+                readiness={dashboardData.readiness}
+                counts={dashboardData.counts}
+                onChecklistPress={() => handleChecklistPress('today')}
+                onDocumentsPress={handleDocumentsPress}
+                onScorePress={() => setScoreBreakdownVisible(true)}
+                colors={colors}
+              />
+
+              <QuickActions
+                onUploadPress={handleUploadPress}
+                onChecklistPress={handleChecklistPress}
+                onDocumentsPress={handleDocumentsPress}
+                onReportsPress={handleReportsPress}
+              />
+
+              <View style={styles.section}>
+                <SectionHeader
+                  title="Due Today"
+                  count={dashboardData.counts.dueToday}
+                  actionLabel="Open Checklist"
+                  onAction={() => handleChecklistPress('today')}
+                  colors={colors}
+                />
+                {dashboardData.dueTodayItems.length > 0 ? (
+                  dashboardData.dueTodayItems.map((item) => (
+                    <ChecklistItem
+                      key={item.id}
+                      item={item}
+                      onPress={() => handleChecklistItemPress(item)}
+                      onToggleComplete={handleToggleComplete}
                     />
-                }
-            >
-                <View style={styles.content}>
-                    {/* Summary Cards Grid - 2x2 */}
-                    {loading ? (
-                        <LoadingSkeleton type="stat" count={4} />
-                    ) : (
-                        <View style={styles.statsGrid}>
-                            {/* Total Documents */}
-                            <View style={styles.statCardWrapper}>
-                                <StatCard
-                                    icon="file-document-multiple"
-                                    value={stats.totalDocuments}
-                                    label="Total Documents"
-                                    subtitle="All compliance docs"
-                                    onPress={handleDocumentsPress}
-                                    color={colors.info}
-                                />
-                            </View>
+                  ))
+                ) : (
+                  <EmptyState
+                    icon="calendar-check-outline"
+                    title="Nothing due today"
+                    message="You’re clear for today. Open the checklist to review upcoming work before it becomes urgent."
+                    showAction
+                    actionLabel="Review Checklist"
+                    onAction={() => handleChecklistPress('today')}
+                  />
+                )}
+              </View>
 
-                            {/* Pending Checklists */}
-                            <View style={styles.statCardWrapper}>
-                                <StatCard
-                                    icon="clipboard-check-outline"
-                                    value={stats.pendingChecklists}
-                                    label="Pending Checklists"
-                                    subtitle={stats.dueToday > 0 ? `${stats.dueToday} due today` : 'All up to date'}
-                                    onPress={handleChecklistPress}
-                                    color={stats.dueToday > 0 ? colors.warning : colors.success}
-                                />
-                            </View>
-
-                            {/* Compliance Score */}
-                            <View style={styles.statCardWrapper}>
-                                <StatCard
-                                    icon="shield-check"
-                                    value={`${stats.complianceScore}%`}
-                                    label="Compliance Score"
-                                    subtitle={stats.complianceScore >= 80 ? 'Good' : stats.complianceScore >= 60 ? 'At Risk' : 'Needs Attention'}
-                                    color={stats.complianceScore >= 80 ? colors.success : stats.complianceScore >= 60 ? colors.warning : colors.error}
-                                    trend={stats.complianceScore >= 80 ? 'up' : undefined}
-                                    trendValue={stats.complianceScore >= 80 ? '+5%' : undefined}
-                                />
-                            </View>
-
-                            {/* Recent Activity */}
-                            <View style={styles.statCardWrapper}>
-                                <StatCard
-                                    icon="clock-outline"
-                                    value={stats.recentActivity}
-                                    label="Recent Activity"
-                                    subtitle="Last 7 days"
-                                    color={colors.accent}
-                                />
-                            </View>
-                        </View>
-                    )}
-
-                    {/* Quick Actions */}
-                    <QuickActions
-                        onUploadPress={handleUploadPress}
-                        onChecklistPress={handleTodayChecklistPress}
-                        onDocumentsPress={handleRecentDocumentsPress}
-                        onReportsPress={handleReportsPress}
+              <View style={styles.section}>
+                <SectionHeader
+                  title="Overdue"
+                  count={dashboardData.counts.overdue}
+                  actionLabel="Resolve Now"
+                  onAction={() => handleChecklistPress('today')}
+                  colors={colors}
+                />
+                {dashboardData.overdueItems.length > 0 ? (
+                  dashboardData.overdueItems.map((item) => (
+                    <ChecklistItem
+                      key={item.id}
+                      item={item}
+                      onPress={() => handleChecklistItemPress(item)}
+                      onToggleComplete={handleToggleComplete}
                     />
+                  ))
+                ) : (
+                  <EmptyState
+                    icon="check-decagram-outline"
+                    title="No overdue checklist items"
+                    message="Your checklist backlog is under control. Keep it that way by checking tomorrow’s tasks before they roll over."
+                    showAction
+                    actionLabel="View Checklist"
+                    onAction={() => handleChecklistPress('upcoming')}
+                  />
+                )}
+              </View>
 
-                    {/* Today's Tasks Section */}
-                    <View style={styles.section} accessibilityRole="region" accessibilityLabel="Today's Tasks section">
-                        <View style={styles.sectionHeader}>
-                            <View style={styles.sectionTitleContainer}>
-                                <Text 
-                                    style={[
-                                        styles.sectionTitle, 
-                                        { 
-                                            color: colors.text.primary,
-                                            ...typography.textStyles.h3,
-                                        }
-                                    ]}
-                                    accessibilityRole="header"
-                                    accessibilityLevel={2}
-                                >
-                                    Today's Tasks
-                                </Text>
-                                {todayTasks.length > 0 && (
-                                    <View style={[styles.badge, { backgroundColor: `${colors.primary}20` }]}>
-                                        <Text style={[styles.badgeText, { color: colors.primary }]}>
-                                            {todayTasks.length}
-                                        </Text>
-                                    </View>
-                                )}
-                            </View>
-                            {todayTasks.length > 0 && (
-                                <TouchableOpacity
-                                    onPress={handleViewAllChecklist}
-                                    activeOpacity={0.7}
-                                    accessibilityLabel="View all checklist items"
-                                    accessibilityHint="Double tap to view all checklist items"
-                                    accessibilityRole="button"
-                                >
-                                    <Text style={[styles.viewAllText, { color: colors.primary }]}>View All</Text>
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                        {tasksLoading ? (
-                            <LoadingSkeleton type="list" count={3} />
-                        ) : todayTasks.length > 0 ? (
-                            todayTasks.map((item) => (
-                                <ChecklistItem
-                                    key={item.id}
-                                    item={item}
-                                    onPress={handleChecklistItemPress}
-                                    onToggleComplete={handleToggleComplete}
-                                />
-                            ))
-                        ) : (
-                            <EmptyState
-                                icon="clipboard-check-outline"
-                                title="No tasks for today"
-                                message="You're all caught up! No checklist items due today."
-                            />
-                        )}
+              <View style={styles.section}>
+                <SectionHeader
+                  title="Expiring Documents"
+                  count={dashboardData.counts.expiringDocuments}
+                  actionLabel="View Documents"
+                  onAction={handleDocumentsPress}
+                  colors={colors}
+                />
+                {expiringDocumentsPreview.length > 0 ? (
+                  expiringDocumentsPreview.map((document) => (
+                    <View key={document.id} style={styles.expiringDocumentWrap}>
+                      <DocumentItem
+                        document={document}
+                        onPress={() => {
+                          navigation.navigate(ROUTES.MAIN.DOCUMENTS, {
+                            screen: ROUTES.DOCUMENTS.DETAIL,
+                            params: { documentId: document.id },
+                          });
+                        }}
+                      />
+                      <Text style={[styles.expiryMeta, { color: colors.textSecondary || colors.text?.secondary }]}>
+                        {formatRelativeExpiry(document.expiryDate)} · {formatDateLabel(document.expiryDate)}
+                      </Text>
                     </View>
+                  ))
+                ) : (
+                  <EmptyState
+                    icon="file-clock-outline"
+                    title="No documents expiring soon"
+                    message="Nothing expires in the next 30 days. Review your document list anyway if you want to verify renewal dates."
+                    showAction
+                    actionLabel="Open Documents"
+                    onAction={handleDocumentsPress}
+                  />
+                )}
+              </View>
 
-                    {/* Recent Documents Section */}
-                    <View style={styles.section} accessibilityRole="region" accessibilityLabel="Recent Documents section">
-                        <View style={styles.sectionHeader}>
-                            <View style={styles.sectionTitleContainer}>
-                                <Text 
-                                    style={[
-                                        styles.sectionTitle, 
-                                        { 
-                                            color: colors.text.primary,
-                                            ...typography.textStyles.h3,
-                                        }
-                                    ]}
-                                    accessibilityRole="header"
-                                    accessibilityLevel={2}
-                                >
-                                    Recent Documents
-                                </Text>
-                                {recentDocuments.length > 0 && (
-                                    <View style={[styles.badge, { backgroundColor: `${colors.info}20` }]}>
-                                        <Text style={[styles.badgeText, { color: colors.info }]}>
-                                            {recentDocuments.length}
-                                        </Text>
-                                    </View>
-                                )}
-                            </View>
-                            {recentDocuments.length > 0 && (
-                                <TouchableOpacity
-                                    onPress={handleViewAllDocuments}
-                                    activeOpacity={0.7}
-                                    accessibilityLabel="View all documents"
-                                    accessibilityHint="Double tap to view all documents"
-                                    accessibilityRole="button"
-                                >
-                                    <Text style={[styles.viewAllText, { color: colors.primary }]}>View All</Text>
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                        {documentsLoading ? (
-                            <LoadingSkeleton type="list" count={3} />
-                        ) : recentDocuments.length > 0 ? (
-                            recentDocuments.map((document) => (
-                                <DocumentItem
-                                    key={document.id}
-                                    document={document}
-                                    onPress={handleDocumentPress}
-                                />
-                            ))
-                        ) : (
-                            <EmptyState
-                                icon="file-document-outline"
-                                title="No documents yet"
-                                message="Upload your first compliance document to get started."
-                            />
-                        )}
-                    </View>
-                </View>
-            </ScrollView>
+              <View style={styles.section}>
+                <SectionHeader
+                  title="Recent Media Logs"
+                  count={dashboardData.counts.recentMediaLogs}
+                  actionLabel="Open Logs"
+                  onAction={handleMediaLogsPress}
+                  colors={colors}
+                />
+                {dashboardData.recentMediaLogs.length > 0 ? (
+                  dashboardData.recentMediaLogs.map((log) => (
+                    <MediaLogPreviewCard
+                      key={log.id}
+                      log={log}
+                      colors={colors}
+                      onPress={() => handleMediaLogsPress({ initialRangeType: 'all' })}
+                    />
+                  ))
+                ) : (
+                  <EmptyState
+                    icon="image-plus-outline"
+                    title="No recent media logs"
+                    message="Add a quick photo or video log so your dashboard includes fresh field evidence alongside checklist work."
+                    showAction
+                    actionLabel="Add Media Log"
+                    onAction={() => handleMediaLogsPress({ openComposer: true })}
+                  />
+                )}
+              </View>
+            </>
+          )}
         </View>
-    );
+      </ScrollView>
+
+      <ScoreBreakdownModal
+        visible={scoreBreakdownVisible}
+        scoreData={scoreData}
+        onClose={() => setScoreBreakdownVisible(false)}
+      />
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    scrollView: {
-        flex: 1,
-    },
-    content: {
-        paddingHorizontal: PADDING.SCREEN_HORIZONTAL,
-        paddingVertical: PADDING.SCREEN_VERTICAL,
-    },
-    statsGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        marginTop: SPACING.SM,
-        gap: SPACING.MD,
-    },
-    statCardWrapper: {
-        width: isTablet && isLandscape ? '23%' : isTablet ? '48%' : '48%',
-        marginBottom: SPACING.MD,
-    },
-    section: {
-        marginTop: SPACING.XL,
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: SPACING.MD,
-    },
-    sectionTitleContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: SPACING.SM,
-    },
-    sectionTitle: {
-        // Typography applied via inline style
-    },
-    badge: {
-        paddingHorizontal: SPACING.SM,
-        paddingVertical: 4,
-        borderRadius: 12,
-        minWidth: 24,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    badgeText: {
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    viewAllText: {
-        fontSize: moderateScale(14),
-        fontWeight: '600',
-    },
+  container: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    paddingHorizontal: PADDING.SCREEN_HORIZONTAL,
+    paddingVertical: PADDING.SCREEN_VERTICAL,
+  },
+  summaryCard: {
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    marginTop: SPACING.SM,
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  summaryIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  summaryHeaderText: {
+    flex: 1,
+  },
+  summaryEyebrow: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  summaryTitle: {
+    fontSize: moderateScale(22),
+    fontWeight: '700',
+  },
+  summaryScorePill: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  summaryScoreValue: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  summaryMessage: {
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 8,
+  },
+  summaryNextAction: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  summaryStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  summaryStat: {
+    flex: 1,
+  },
+  summaryStatValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  summaryStatLabel: {
+    fontSize: 12,
+  },
+  summaryActions: {
+    flexDirection: 'row',
+    gap: SPACING.SM,
+  },
+  summaryActionButton: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryActionText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  section: {
+    marginTop: SPACING.XL,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.MD,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.SM,
+  },
+  sectionTitle: {
+    fontSize: moderateScale(20),
+    fontWeight: '700',
+  },
+  countBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  countBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  sectionAction: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  sectionActionButton: {
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
+  },
+  expiringDocumentWrap: {
+    marginBottom: 4,
+  },
+  expiryMeta: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 12,
+    marginLeft: 8,
+    marginTop: -4,
+  },
+  mediaCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 12,
+  },
+  mediaCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+    gap: 12,
+  },
+  mediaPill: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  mediaPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  mediaTimestamp: {
+    flex: 1,
+    textAlign: 'right',
+    fontSize: 12,
+  },
+  mediaNote: {
+    fontSize: 14,
+    lineHeight: 21,
+  },
 });
 
 export default DashboardScreen;

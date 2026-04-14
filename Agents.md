@@ -1,7 +1,7 @@
 # Cursor AI Agent — Guidelines (Concise)
 
 Project: Mobile document management + daily compliance checklists.
-Stack: Expo React Native, Firebase (Auth/Firestore/Storage), Node/Express backend.
+Stack: Expo React Native with a Firebase-first mobile app architecture (Auth/Firestore/Storage). Node/Express is optional or future work if backend services are added to the repo.
 
 Core Rules (must follow)
 - Functional components + hooks only.
@@ -44,6 +44,8 @@ Agent Behavior (short)
 - Document deviations from guidelines in PR descriptions.
 
 Next priorities
-1. Auth screens
-2. Main navigation
-3. Dashboard with mock data
+1. Owner onboarding gate
+2. Dashboard readiness
+3. Inspection readiness screen
+4. Compliance score v2
+~5. Team model

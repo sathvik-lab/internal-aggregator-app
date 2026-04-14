@@ -14,6 +14,11 @@ service cloud.firestore {
     // Users collection - users can only access their own document
     match /users/{userId} {
       allow read, write: if isOwner(userId);
+      
+      // User preferences subdocument (for reminders, digest time, etc.)
+      match /preferences/{document=**} {
+        allow read, write: if isOwner(userId);
+      }
     }
     
     // Documents collection - users can only access their own documents

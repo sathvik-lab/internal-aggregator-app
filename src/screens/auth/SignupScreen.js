@@ -281,30 +281,7 @@ const SignupScreen = ({ navigation }) => {
       const signupResult = await signUpUser(email.trim(), password, fullName.trim());
 
       if (signupResult.error) {
-        // Handle Firebase-specific errors
-        const errorCode = signupResult.error.code;
-        let errorMessage = signupResult.error.message;
-
-        // Map Firebase error codes to user-friendly messages
-        switch (errorCode) {
-          case 'auth/email-already-in-use':
-            errorMessage = 'This email is already registered. Please use a different email or sign in.';
-            break;
-          case 'auth/invalid-email':
-            errorMessage = 'Invalid email address';
-            break;
-          case 'auth/weak-password':
-            errorMessage = 'Password is too weak. Please use a stronger password.';
-            break;
-          case 'auth/operation-not-allowed':
-            errorMessage = 'Email/password accounts are not enabled';
-            break;
-          default:
-            errorMessage = signupResult.error.message || 'An error occurred during sign up';
-        }
-
-        setAuthError(errorMessage);
-        setLoading(false);
+        setAuthError(signupResult.error.message || 'Unable to create your account right now. Please try again.');
         return;
       }
 
@@ -315,7 +292,7 @@ const SignupScreen = ({ navigation }) => {
         userId: user.uid,
         displayName: fullName.trim(),
         email: email.trim(),
-        role: USER_ROLES.STAFF, // Default role
+        role: USER_ROLES.OWNER, // Staff accounts will be created through invites later.
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -338,19 +315,13 @@ const SignupScreen = ({ navigation }) => {
             },
           ]
         );
-        setLoading(false);
         return;
       }
-
-      // Success - account created
-      // Auth state will be updated automatically via onAuthStateChanged
-      // AppNavigator will automatically navigate to MainNavigator
-      setLoading(false);
     } catch (error) {
-      // Handle unexpected errors
-      setAuthError('An unexpected error occurred. Please try again');
-      setLoading(false);
+      setAuthError('Unable to create your account right now. Please try again.');
       console.error('Signup error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -412,9 +383,9 @@ const SignupScreen = ({ navigation }) => {
           {/* Logo Placeholder */}
           <View style={styles.logoContainer}>
             <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoText}>IA</Text>
+              <Text style={styles.logoText}>FC</Text>
             </View>
-            <Text style={styles.appName}>Internal Aggregator</Text>
+            <Text style={styles.appName}>Food Truck Compliance</Text>
             <Text style={styles.tagline}>Create Your Account</Text>
           </View>
 
@@ -438,6 +409,7 @@ const SignupScreen = ({ navigation }) => {
               contentStyle={styles.inputContent}
               outlineColor={COLORS.border}
               activeOutlineColor={COLORS.primary}
+              editable={!loading}
               accessibilityLabel="Full name input"
               accessibilityHint="Enter your full name"
             />
@@ -461,6 +433,7 @@ const SignupScreen = ({ navigation }) => {
               contentStyle={styles.inputContent}
               outlineColor={COLORS.border}
               activeOutlineColor={COLORS.primary}
+              editable={!loading}
               accessibilityLabel="Email input"
               accessibilityHint="Enter your email address"
             />
@@ -484,10 +457,12 @@ const SignupScreen = ({ navigation }) => {
               contentStyle={styles.inputContent}
               outlineColor={COLORS.border}
               activeOutlineColor={COLORS.primary}
+              editable={!loading}
               right={
                 <TextInput.Icon
                   icon={showPassword ? 'eye-off' : 'eye'}
                   onPress={() => setShowPassword(!showPassword)}
+                  disabled={loading}
                   accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
                 />
               }
@@ -539,10 +514,12 @@ const SignupScreen = ({ navigation }) => {
               contentStyle={styles.inputContent}
               outlineColor={COLORS.border}
               activeOutlineColor={COLORS.primary}
+              editable={!loading}
               right={
                 <TextInput.Icon
                   icon={showConfirmPassword ? 'eye-off' : 'eye'}
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  disabled={loading}
                   accessibilityLabel={
                     showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'
                   }
@@ -560,6 +537,7 @@ const SignupScreen = ({ navigation }) => {
               <Checkbox
                 status={termsAccepted ? 'checked' : 'unchecked'}
                 onPress={() => setTermsAccepted(!termsAccepted)}
+                disabled={loading}
                 color={COLORS.primary}
                 accessibilityLabel="Terms and conditions checkbox"
               />

@@ -1,7 +1,7 @@
 # Performance Optimization Guide
 
 ## Overview
-This document outlines the performance optimizations implemented in the Internal Aggregator App to ensure smooth user experience, especially on low-end devices.
+This document outlines the performance optimizations implemented in Food Truck Compliance to ensure smooth user experience, especially on low-end devices.
 
 ## Optimizations Implemented
 
@@ -174,7 +174,7 @@ useEffect(() => {
 - Always provide `keyExtractor` with stable keys
 - Use `getItemLayout` when item heights are known
 - Set appropriate `windowSize` based on item complexity
-- Use `removeClippedSubviews` for better memory usage
+- Use `removeClippedSubviews` for better memory usage (see the iOS caveat section above; test carefully on iOS before enabling globally)
 
 ### 3. Event Handlers
 - Memoize handlers passed to memoized components

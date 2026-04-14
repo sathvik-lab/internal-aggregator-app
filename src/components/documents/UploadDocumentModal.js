@@ -29,15 +29,12 @@ import { uploadFile } from '../../services/storage';
 import { createDocument } from '../../services/firestore';
 import { COLORS } from '../../constants/colors';
 import { GLASS } from '../../utils/glassmorphism';
-import { FILE_LIMITS, STORAGE_PATHS } from '../../constants/constants';
-
-// Document categories (matching DocumentsScreen)
-const DOCUMENT_CATEGORIES = [
-    'Certifications',
-    'Policies',
-    'Legal',
-    'Safety Reports',
-];
+import { FILE_LIMITS } from '../../constants/constants';
+import {
+    DOCUMENT_TYPE_OPTIONS,
+    buildDocumentMetadata,
+    getDocumentStorageBasePath,
+} from '../../utils/documentTypes';
 
 /**
  * Success Animation Component
@@ -138,7 +135,8 @@ const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
     const [step, setStep] = useState('selection'); // 'selection' | 'form' | 'uploading' | 'success'
     const [selectedFile, setSelectedFile] = useState(null);
     const [fileName, setFileName] = useState('');
-    const [category, setCategory] = useState(DOCUMENT_CATEGORIES[0]);
+    const [selectedType, setSelectedType] = useState(DOCUMENT_TYPE_OPTIONS[0].value);
+    const [expiryDate, setExpiryDate] = useState('');
     const [notes, setNotes] = useState('');
     const [uploadProgress, setUploadProgress] = useState(0);
     const [error, setError] = useState(null);
@@ -168,7 +166,8 @@ const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
                 setStep('selection');
                 setSelectedFile(null);
                 setFileName('');
-                setCategory(DOCUMENT_CATEGORIES[0]);
+                setSelectedType(DOCUMENT_TYPE_OPTIONS[0].value);
+                setExpiryDate('');
                 setNotes('');
                 setUploadProgress(0);
                 setError(null);
@@ -294,9 +293,16 @@ const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
             setError('File name is required');
             return false;
         }
-        if (!category) {
-            setError('Category is required');
+        if (!selectedType) {
+            setError('Document type is required');
             return false;
+        }
+        if (expiryDate) {
+            const parsedDate = new Date(expiryDate);
+            if (Number.isNaN(parsedDate.getTime())) {
+                setError('Expiry date must be a valid date in YYYY-MM-DD format');
+                return false;
+            }
         }
         setError(null);
         return true;
@@ -318,7 +324,8 @@ const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
             // Generate unique file path
             const fileExtension = selectedFile.name.split('.').pop();
             const uniqueId = Date.now();
-            const storagePath = `${STORAGE_PATHS.DOCUMENTS}/${user.uid}/${uniqueId}_${fileName}.${fileExtension}`;
+            const storageBasePath = getDocumentStorageBasePath(selectedType);
+            const storagePath = `${storageBasePath}/${user.uid}/${uniqueId}_${fileName}.${fileExtension}`;
 
             // Upload file to Firebase Storage with progress callback
             const uploadResult = await uploadFile(
@@ -334,19 +341,16 @@ const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
             }
 
             // Create document metadata in Firestore
-            const documentData = {
+            const documentData = buildDocumentMetadata({
+                selectedType,
+                fileName: `${fileName}.${fileExtension}`,
+                selectedFile,
+                notes,
+                expiryDate: expiryDate ? new Date(expiryDate).toISOString() : null,
                 userId: user.uid,
-                name: `${fileName}.${fileExtension}`,
-                type: selectedFile.type.includes('image') ? 'IMAGE' : 'DOCUMENT',
-                size: selectedFile.size,
-                category: category,
-                notes: notes.trim() || null,
-                storageUrl: uploadResult.url,
-                storagePath: storagePath,
-                uploadDate: new Date().toISOString(),
-                createdAt: new Date().toISOString(),
-                status: 'active',
-            };
+                uploadUrl: uploadResult.url,
+                storagePath,
+            });
 
             const createResult = await createDocument('documents', documentData);
 
@@ -515,15 +519,17 @@ const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
                                         />
                                     </View>
 
-                                    {/* Category Dropdown */}
+                                    {/* Document Type Dropdown */}
                                     <View style={styles.inputGroup}>
-                                        <Text style={styles.label}>Category *</Text>
+                                        <Text style={styles.label}>Document Type *</Text>
                                         <TouchableOpacity
                                             style={styles.dropdown}
                                             onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
                                             activeOpacity={0.7}
                                         >
-                                            <Text style={styles.dropdownText}>{category}</Text>
+                                            <Text style={styles.dropdownText}>
+                                                {DOCUMENT_TYPE_OPTIONS.find((option) => option.value === selectedType)?.label}
+                                            </Text>
                                             <MaterialCommunityIcons
                                                 name="chevron-down"
                                                 size={20}
@@ -532,15 +538,15 @@ const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
                                         </TouchableOpacity>
                                         {showCategoryDropdown && (
                                             <View style={styles.dropdownOptions}>
-                                                {DOCUMENT_CATEGORIES.map((cat) => (
+                                                {DOCUMENT_TYPE_OPTIONS.map((option) => (
                                                     <TouchableOpacity
-                                                        key={cat}
+                                                        key={option.value}
                                                         style={[
                                                             styles.dropdownOption,
-                                                            category === cat && styles.dropdownOptionSelected,
+                                                            selectedType === option.value && styles.dropdownOptionSelected,
                                                         ]}
                                                         onPress={() => {
-                                                            setCategory(cat);
+                                                            setSelectedType(option.value);
                                                             setShowCategoryDropdown(false);
                                                         }}
                                                         activeOpacity={0.7}
@@ -548,12 +554,12 @@ const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
                                                         <Text
                                                             style={[
                                                                 styles.dropdownOptionText,
-                                                                category === cat && styles.dropdownOptionTextSelected,
+                                                                selectedType === option.value && styles.dropdownOptionTextSelected,
                                                             ]}
                                                         >
-                                                            {cat}
+                                                            {option.label}
                                                         </Text>
-                                                        {category === cat && (
+                                                        {selectedType === option.value && (
                                                             <MaterialCommunityIcons
                                                                 name="check"
                                                                 size={20}
@@ -564,6 +570,19 @@ const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
                                                 ))}
                                             </View>
                                         )}
+                                    </View>
+
+                                    {/* Expiry Date Input */}
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>Expiry Date (Optional)</Text>
+                                        <TextInput
+                                            style={styles.input}
+                                            value={expiryDate}
+                                            onChangeText={setExpiryDate}
+                                            placeholder="YYYY-MM-DD"
+                                            placeholderTextColor={COLORS.textLight}
+                                            keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
+                                        />
                                     </View>
 
                                     {/* Notes Input */}

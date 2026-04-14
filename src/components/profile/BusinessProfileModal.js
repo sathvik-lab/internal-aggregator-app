@@ -5,7 +5,7 @@
  * Used to customize checklist templates that apply to the user.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     View,
     Text,
@@ -29,7 +29,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { GLASS } from '../../utils/glassmorphism';
-import { getDocument, updateDocument } from '../../services/firestore';
+import { getUserProfileDocument, normalizeBusinessProfile, saveBusinessProfile } from '../../services/userProfile';
 import {
     TRUCK_TYPES,
     FOOD_TYPES,
@@ -86,46 +86,36 @@ const BusinessProfileModal = ({ visible, onClose, onSuccess }) => {
         if (user?.uid && visible) {
             loadBusinessProfile();
         }
-    }, [user, visible]);
+    }, [user?.uid, visible, loadBusinessProfile]);
 
     /**
      * Load business profile from Firestore
      */
-    const loadBusinessProfile = async () => {
+    const loadBusinessProfile = useCallback(async () => {
         if (!user?.uid) return;
 
         setLoading(true);
         setLoadError(null);
         try {
-            const result = await getDocument('users', user.uid);
+            const result = await getUserProfileDocument(user.uid);
             if (result.error) {
                 throw new Error(result.error.message || 'Failed to load business profile');
             }
-            
-            if (result.data && result.data.businessProfile) {
-                const profile = result.data.businessProfile;
-                setTruckType(profile.truckType || null);
-                setState(profile.location?.state || '');
-                setCity(profile.location?.city || '');
-                setFoodTypes(profile.foodTypes || []);
-                setBusinessType(profile.businessType || null);
-                setComplianceAreas(profile.complianceAreas || []);
-            } else {
-                // Initialize with empty values
-                setTruckType(null);
-                setState('');
-                setCity('');
-                setFoodTypes([]);
-                setBusinessType(null);
-                setComplianceAreas([]);
-            }
+
+            const profile = normalizeBusinessProfile(result.data?.businessProfile);
+            setTruckType(profile.truckType || null);
+            setState(profile.location?.state || '');
+            setCity(profile.location?.city || '');
+            setFoodTypes(profile.foodTypes || []);
+            setBusinessType(profile.businessType || null);
+            setComplianceAreas(profile.complianceAreas || []);
         } catch (error) {
             console.error('Error loading business profile:', error);
             setLoadError(error.message || 'Failed to load business profile. Please try again.');
         } finally {
             setLoading(false);
         }
-    };
+    }, [user?.uid]);
 
     /**
      * Toggle food type selection
@@ -191,21 +181,19 @@ const BusinessProfileModal = ({ visible, onClose, onSuccess }) => {
         setSaving(true);
 
         try {
-            const businessProfile = {
-                truckType: truckType || null,
-                location: {
-                    state: state.trim().toUpperCase(),
-                    city: city.trim() || null,
+            const result = await saveBusinessProfile({
+                user,
+                businessProfile: {
+                    truckType,
+                    location: {
+                        state,
+                        city,
+                    },
+                    foodTypes,
+                    businessType,
+                    complianceAreas,
+                    lastTemplateSync: null,
                 },
-                foodTypes: foodTypes,
-                businessType: businessType || null,
-                complianceAreas: complianceAreas,
-                lastTemplateSync: null, // Will be set on next sync
-            };
-
-            const result = await updateDocument('users', user.uid, {
-                businessProfile,
-                updatedAt: new Date().toISOString(),
             });
 
             if (result.error) {

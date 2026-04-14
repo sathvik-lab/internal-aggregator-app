@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import {
     View,
     Text,
@@ -33,6 +34,7 @@ import {
     BUSINESS_TYPE_LABELS,
     COMPLIANCE_AREA_LABELS,
 } from '../constants/checklistConstants';
+import { USER_ROLES } from '../constants/constants';
 
 /**
  * Format file size for display
@@ -66,6 +68,9 @@ const SettingsRow = ({
             onPress={onPress}
             activeOpacity={0.7}
             disabled={!onPress}
+            accessibilityRole={onPress ? 'button' : 'text'}
+            accessibilityLabel={subtitle ? `${title}. ${subtitle}` : title}
+            accessibilityState={{ disabled: !onPress }}
         >
             <View style={styles.settingsRowLeft}>
                 {icon && (
@@ -85,7 +90,7 @@ const SettingsRow = ({
                     <MaterialCommunityIcons
                         name="chevron-right"
                         size={20}
-                        color={colors?.textLight}
+                        color={colors?.textSecondary}
                         style={styles.chevron}
                     />
                 )}
@@ -111,6 +116,7 @@ const SettingsSection = ({ title, children, colors }) => {
  */
 const ProfileScreen = () => {
     const { user, signOut } = useAuth();
+    const navigation = useNavigation();
     const { colors, theme, setTheme, isDark } = useTheme();
     const [loading, setLoading] = useState(true);
     const [userPreferences, setUserPreferences] = useState({
@@ -256,7 +262,11 @@ const ProfileScreen = () => {
     const handleBusinessProfileUpdated = async () => {
         // Clear template cache (profile changed)
         if (user?.uid) {
-            await clearTemplateCache(user.uid);
+            try {
+                await clearTemplateCache(user.uid);
+            } catch (error) {
+                console.error('Error clearing template cache:', error);
+            }
         }
 
         // Refresh business profile
@@ -285,13 +295,18 @@ const ProfileScreen = () => {
 
         const parts = [];
         if (businessProfile.truckType) {
-            parts.push(`Truck: ${TRUCK_TYPE_LABELS[businessProfile.truckType]}`);
+            const truckLabel = TRUCK_TYPE_LABELS[businessProfile.truckType] || businessProfile.truckType || 'Unknown';
+            parts.push(`Truck: ${truckLabel}`);
         }
         if (businessProfile.location?.state) {
             parts.push(`Location: ${businessProfile.location.state}${businessProfile.location.city ? `, ${businessProfile.location.city}` : ''}`);
         }
         if (businessProfile.foodTypes && businessProfile.foodTypes.length > 0) {
-            parts.push(`Food: ${businessProfile.foodTypes.map(ft => FOOD_TYPE_LABELS[ft]).join(', ')}`);
+            parts.push(
+                `Food: ${businessProfile.foodTypes
+                    .map((ft) => FOOD_TYPE_LABELS[ft] || ft || 'Unknown')
+                    .join(', ')}`
+            );
         }
 
         return parts.length > 0 ? parts.join(' • ') : 'Incomplete';
@@ -362,7 +377,7 @@ const ProfileScreen = () => {
      */
     const handleAppInfo = (type) => {
         const messages = {
-            about: 'Internal Aggregator App\nVersion 1.0.0\n\nA compliance document management system for businesses.',
+            about: 'Food Truck Compliance\nVersion 1.0.0\n\nA compliance management system for food truck operators.',
             privacy: 'Privacy Policy\n\nYour privacy is important to us. This app stores your data securely using Firebase. We do not share your information with third parties.',
             terms: 'Terms of Service\n\nBy using this app, you agree to comply with all applicable laws and regulations. Use of this app is at your own risk.',
         };
@@ -396,7 +411,14 @@ const ProfileScreen = () => {
     };
 
     /**
-     * Get user initials for avatar
+     * Handle navigate to Staff screen
+     */
+    const handleNavigateToStaff = () => {
+        navigation.navigate('Staff');
+    };
+
+    /**
+     * Get user role for avatar
      */
     const getUserInitials = () => {
         if (user?.displayName) {
@@ -433,6 +455,9 @@ const ProfileScreen = () => {
                         style={styles.profilePictureContainer}
                         onPress={handleEditProfile}
                         activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="Edit profile photo"
+                        accessibilityHint="Opens profile editor"
                     >
                         {user?.photoURL ? (
                             <Image source={{ uri: user.photoURL }} style={styles.profilePicture} />
@@ -457,6 +482,8 @@ const ProfileScreen = () => {
                         style={[styles.editButton, { borderColor: colors.primary, backgroundColor: colors.surface }]}
                         onPress={handleEditProfile}
                         activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="Edit profile"
                     >
                         <MaterialCommunityIcons name="pencil" size={20} color={colors.primary} />
                         <Text style={[styles.editButtonText, { color: colors.primary }]}>Edit</Text>
@@ -655,6 +682,19 @@ const ProfileScreen = () => {
                 />
             </SettingsSection>
 
+            {/* Team Management Section (Owner Only) */}
+            {user && user.role === USER_ROLES.OWNER && (
+                <SettingsSection title="Team Management" colors={colors}>
+                    <SettingsRow
+                        icon="account-multiple-outline"
+                        title="Staff Management"
+                        subtitle="Invite and manage team members"
+                        onPress={handleNavigateToStaff}
+                        colors={colors}
+                    />
+                </SettingsSection>
+            )}
+
             {/* Checklist Settings Section */}
             <SettingsSection title="Checklist Settings" colors={colors}>
                 <SettingsRow
@@ -711,6 +751,9 @@ const ProfileScreen = () => {
                 style={[styles.logoutButton, { backgroundColor: colors.surface, borderColor: colors.error }]}
                 onPress={handleSignOut}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Sign out"
+                accessibilityHint="Signs out of your account"
             >
                 <MaterialCommunityIcons name="logout" size={20} color={colors.error} />
                 <Text style={[styles.logoutButtonText, { color: colors.error }]}>Sign Out</Text>
@@ -843,9 +886,9 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     themeOption: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1,

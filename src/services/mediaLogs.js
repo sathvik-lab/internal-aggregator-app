@@ -5,11 +5,30 @@
  * photo/video logs with optional notes.
  */
 
-import { auth } from './firebase';
-import { createDocument, deleteDocument, queryDocuments } from './firestore';
+import { getFirebaseAuth } from './firebase';
+import { createDocument, deleteDocument, getDocument, queryDocuments } from './firestore';
 import { uploadFile, deleteFile } from './storage';
-import { STORAGE_PATHS, DATE_FORMATS, PAGINATION } from '../constants/constants';
-import { handleAsyncOperation, getErrorMessage } from '../utils/errorHandler';
+import { STORAGE_PATHS, PAGINATION } from '../constants/constants';
+
+const UNAUTHENTICATED_ERROR = {
+  code: 'auth/unauthenticated',
+  message: 'You must be signed in to access media logs.',
+};
+
+/**
+ * Safely resolve the current authenticated user ID.
+ * Returns null when auth is unavailable or the user is signed out.
+ *
+ * @returns {string|null}
+ */
+const getCurrentUserId = () => {
+  try {
+    const authInstance = getFirebaseAuth();
+    return authInstance?.currentUser?.uid || null;
+  } catch (error) {
+    return null;
+  }
+};
 
 /**
  * Normalize a Date to an ISO date string (YYYY-MM-DD) for grouping.
@@ -79,15 +98,12 @@ const getDateRangeForType = (rangeType) => {
  * @returns {Promise<{id: string|null, error: {code: string, message: string}|null}>}
  */
 export const uploadMediaLog = async ({ uri, mediaType, note = null, onProgress }) => {
-  const user = auth?.currentUser;
+  const userId = getCurrentUserId();
 
-  if (!user?.uid) {
+  if (!userId) {
     return {
       id: null,
-      error: {
-        code: 'auth/unauthenticated',
-        message: 'You must be signed in to upload media logs.',
-      },
+      error: UNAUTHENTICATED_ERROR,
     };
   }
 
@@ -102,9 +118,8 @@ export const uploadMediaLog = async ({ uri, mediaType, note = null, onProgress }
   }
 
   const extension = uri.split('.').pop() || '';
-  const fileName = `${Date.now()}-${user.uid}.${extension}`;
+  const fileName = `${Date.now()}-${userId}.${extension}`;
   const storageBasePath = STORAGE_PATHS.MEDIA_LOGS;
-  const logId = undefined; // let Firestore generate ID first
 
   // First upload the file to storage
   const file = {
@@ -116,7 +131,7 @@ export const uploadMediaLog = async ({ uri, mediaType, note = null, onProgress }
 
   // We'll generate the storage path using a temporary ID (timestamp-based) to avoid
   // an extra round trip for docId. The Firestore document will store the exact path.
-  const storagePath = `${storageBasePath}/${user.uid}/${Date.now()}-${fileName}`;
+  const storagePath = `${storageBasePath}/${userId}/${Date.now()}-${fileName}`;
 
   const uploadResult = await uploadFile(file, storagePath, onProgress);
 
@@ -130,12 +145,14 @@ export const uploadMediaLog = async ({ uri, mediaType, note = null, onProgress }
   const logDate = getLogDateString(new Date());
 
   const { id, error } = await createDocument('mediaLogs', {
-    userId: user.uid,
+    userId,
     mediaType,
     storagePath: uploadResult.path,
     thumbnailPath: null,
     note: note || null,
     logDate,
+    checklistItemId: null,
+    createdAt: new Date().toISOString(),
   });
 
   if (error) {
@@ -157,15 +174,12 @@ export const uploadMediaLog = async ({ uri, mediaType, note = null, onProgress }
  * @returns {Promise<{data: Array, error: {code: string, message: string}|null}>}
  */
 export const fetchMediaLogs = async (rangeType = 'daily', opts = {}) => {
-  const userId = opts.userId ?? auth?.currentUser?.uid;
+  const userId = opts.userId ?? getCurrentUserId();
 
   if (!userId) {
     return {
       data: [],
-      error: {
-        code: 'auth/unauthenticated',
-        message: 'You must be signed in to view media logs.',
-      },
+      error: UNAUTHENTICATED_ERROR,
     };
   }
 
@@ -199,13 +213,23 @@ export const fetchMediaLogs = async (rangeType = 'daily', opts = {}) => {
  * @returns {Promise<{error: {code: string, message: string}|null}>}
  */
 export const deleteMediaLog = async ({ id, storagePath }) => {
-  const user = auth?.currentUser;
+  const userId = getCurrentUserId();
 
-  if (!user?.uid) {
+  if (!userId) {
+    return {
+      error: UNAUTHENTICATED_ERROR,
+    };
+  }
+
+  const { data: existingLog, error: fetchError } = await getDocument('mediaLogs', id);
+  if (fetchError) {
+    return { error: fetchError };
+  }
+  if (!existingLog || existingLog.userId !== userId) {
     return {
       error: {
-        code: 'auth/unauthenticated',
-        message: 'You must be signed in to delete media logs.',
+        code: 'permission-denied',
+        message: 'You do not have permission to delete this media log.',
       },
     };
   }
@@ -229,4 +253,3 @@ export default {
   fetchMediaLogs,
   deleteMediaLog,
 };
-

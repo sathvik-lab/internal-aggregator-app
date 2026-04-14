@@ -175,7 +175,7 @@ ${formattedMissingKeys}
 
 module.exports = {
   expo: {
-    name: 'Internal Aggregator App',
+    name: 'Food Truck Compliance',
     slug: 'internal-aggregator-app',
     version: '1.0.0',
     orientation: 'portrait',

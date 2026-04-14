@@ -23,16 +23,7 @@ export const THEME_MODES = {
 export const lightColors = lightTheme.colors;
 export const darkColors = darkTheme.colors;
 
-const ThemeContext = createContext({
-  theme: THEME_MODES.LIGHT,
-  colors: lightTheme.colors,
-  typography: lightTheme.typography,
-  spacing: lightTheme.spacing,
-  shadows: lightTheme.shadows,
-  isDark: false,
-  setTheme: () => {},
-  toggleTheme: () => {},
-});
+const ThemeContext = createContext(undefined);
 
 /**
  * Theme Provider Component
@@ -154,23 +145,7 @@ export const useTheme = () => {
   if (!context) {
     throw new Error('useTheme must be used within a ThemeProvider');
   }
-  
-  // Defensive check: ensure context has all required properties
-  // This should never happen, but provides extra safety
-  if (!context.colors || context.isDark === undefined) {
-    console.warn('Theme context is missing required properties. Using defaults.');
-    return {
-      theme: THEME_MODES.LIGHT,
-      colors: lightTheme.colors,
-      typography: lightTheme.typography,
-      spacing: lightTheme.spacing,
-      shadows: lightTheme.shadows,
-      isDark: false,
-      setTheme: () => {},
-      toggleTheme: () => {},
-    };
-  }
-  
+
   return context;
 };
 

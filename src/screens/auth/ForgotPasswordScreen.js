@@ -142,33 +142,18 @@ const ForgotPasswordScreen = ({ navigation }) => {
       const result = await resetPassword(email.trim());
 
       if (result.error) {
-        // Handle Firebase-specific errors
-        const errorCode = result.error.code;
-        let errorMessage = result.error.message;
-
-        // Map Firebase error codes to user-friendly messages
-        switch (errorCode) {
-          case 'auth/invalid-email':
-            errorMessage = 'Invalid email address';
-            break;
-          default:
-            errorMessage = result.error.message || 'An error occurred sending the reset email';
-        }
-
-        setAuthError(errorMessage);
-        setLoading(false);
+        setAuthError(result.error.message || 'Unable to send the reset email right now. Please try again.');
         return;
       }
 
       // Success - email sent
       setEmailSent(true);
-      setLoading(false);
       startResendCooldown();
     } catch (error) {
-      // Handle unexpected errors
-      setAuthError('An unexpected error occurred. Please try again');
-      setLoading(false);
+      setAuthError('Unable to send the reset email right now. Please try again.');
       console.error('Password reset error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -224,9 +209,9 @@ const ForgotPasswordScreen = ({ navigation }) => {
           {/* Logo Placeholder */}
           <View style={styles.logoContainer}>
             <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoText}>IA</Text>
+              <Text style={styles.logoText}>FC</Text>
             </View>
-            <Text style={styles.appName}>Internal Aggregator</Text>
+            <Text style={styles.appName}>Food Truck Compliance</Text>
             <Text style={styles.tagline}>Reset Your Password</Text>
           </View>
 
@@ -244,7 +229,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
                 {/* Instructions */}
                 <View style={styles.instructionsContainer}>
                   <Text style={styles.instructionsText}>
-                    We'll send you an email with instructions on how to reset your password.
+                    We&apos;ll send you an email with instructions on how to reset your password.
                     Please check your inbox and spam folder.
                   </Text>
                 </View>
@@ -304,13 +289,13 @@ const ForgotPasswordScreen = ({ navigation }) => {
                     Password reset email sent. Please check your inbox.
                   </Text>
                   <Text style={styles.successSubtext}>
-                    If you don't see the email, check your spam folder or try again.
+                    If you don&apos;t see the email, check your spam folder or try again.
                   </Text>
                 </View>
 
                 {/* Resend Section */}
                 <View style={styles.resendContainer}>
-                  <Text style={styles.resendText}>Didn't receive the email? </Text>
+                  <Text style={styles.resendText}>Didn&apos;t receive the email? </Text>
                   {resendCooldown > 0 ? (
                     <Text style={styles.cooldownText}>
                       Resend available in {resendCooldown}s
@@ -332,8 +317,10 @@ const ForgotPasswordScreen = ({ navigation }) => {
                   onPress={() => {
                     setEmailSent(false);
                     setEmail('');
+                    setEmailError('');
                     setAuthError('');
                   }}
+                  disabled={loading}
                   style={styles.changeEmailButton}
                   contentStyle={styles.changeEmailButtonContent}
                   textColor={COLORS.primary}

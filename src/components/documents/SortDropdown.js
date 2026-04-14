@@ -5,7 +5,7 @@
  */
 
 import React, { useState, memo, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, Modal, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
 
@@ -35,9 +35,11 @@ const SortDropdown = ({ value, onChange }) => {
     }, [value]);
 
     const handleSelect = useCallback((optionValue) => {
-        onChange(optionValue);
+        if (typeof onChange === 'function') {
+            onChange(optionValue);
+        }
         setModalVisible(false);
-    }, [onChange]);
+    }, [onChange, setModalVisible]);
 
     const handleOpen = useCallback(() => {
         setModalVisible(true);
@@ -89,6 +91,7 @@ const SortDropdown = ({ value, onChange }) => {
                     accessibilityLabel="Close sort options"
                     accessibilityRole="button"
                 >
+                    <TouchableWithoutFeedback onPress={() => {}}>
                     <View 
                         style={styles.modalContent}
                         accessibilityRole="dialog"
@@ -142,6 +145,7 @@ const SortDropdown = ({ value, onChange }) => {
                             </TouchableOpacity>
                         ))}
                     </View>
+                    </TouchableWithoutFeedback>
                 </TouchableOpacity>
             </Modal>
         </>

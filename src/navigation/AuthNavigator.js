@@ -12,7 +12,7 @@
  * 
  * Navigation Guards:
  * - Prevents going back to authenticated screens after logout
- * - Gesture navigation enabled for iOS swipe back
+ * - Gesture navigation disabled to avoid platform casting issues
  */
 
 import React from 'react';
@@ -31,7 +31,7 @@ const Stack = createStackNavigator();
  * Header is hidden for a cleaner auth flow experience.
  * 
  * Features:
- * - Gesture navigation enabled (iOS swipe back)
+ * - Gesture navigation disabled for auth stack screens
  * - Prevents back navigation to authenticated screens
  * - Smooth transitions between auth screens
  */

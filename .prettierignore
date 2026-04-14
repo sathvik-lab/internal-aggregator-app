@@ -1,0 +1,9 @@
+.expo
+node_modules
+coverage
+dist
+build
+package-lock.json
+checklistTemplates.seed.json
+converted-templates.json
+osha-checklists.json

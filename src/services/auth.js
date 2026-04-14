@@ -13,6 +13,29 @@ import {
   updateProfile,
   onAuthStateChanged as firebaseOnAuthStateChanged,
 } from 'firebase/auth';
+import { getErrorMessage } from '../utils/errorHandler';
+
+const AUTH_ERROR_MESSAGES = {
+  'auth/email-already-in-use': 'This email is already registered. Please sign in or use a different email.',
+  'auth/invalid-email': 'Please enter a valid email address.',
+  'auth/weak-password': 'Password must be at least 6 characters.',
+  'auth/operation-not-allowed': 'Email/password sign-in is not enabled for this project.',
+  'auth/user-not-found': 'Invalid email or password.',
+  'auth/wrong-password': 'Invalid email or password.',
+  'auth/invalid-credential': 'Invalid email or password.',
+  'auth/user-disabled': 'This account has been disabled.',
+  'auth/too-many-requests': 'Too many failed attempts. Please try again later.',
+  'auth/network-request-failed': 'Network error. Please check your connection and try again.',
+  'auth/missing-email': 'Email is required.',
+  'auth/no-current-user': 'You must be signed in to continue.',
+};
+
+const formatAuthError = (error, defaultMessage) => ({
+  code: error?.code || 'auth/unknown-error',
+  message:
+    AUTH_ERROR_MESSAGES[error?.code] ||
+    getErrorMessage(error, defaultMessage),
+});
 
 /**
  * Sign up a new user with email and password
@@ -30,26 +53,20 @@ export const signUpUser = async (email, password, displayName) => {
     const userCredential = await createUserWithEmailAndPassword(authInstance, email, password);
     
     // Update profile with display name if provided
+    let profileError = null;
     if (displayName) {
-      await updateProfile(userCredential.user, { displayName });
+      try {
+        await updateProfile(userCredential.user, { displayName });
+      } catch (error) {
+        profileError = formatAuthError(error, 'Account created but profile details could not be saved.');
+      }
     }
     
-    return { user: userCredential.user, error: null };
+    return { user: userCredential.user, profileError, error: null };
   } catch (error) {
-    // Map Firebase error codes to user-friendly messages
-    const errorMessages = {
-      'auth/email-already-in-use': 'This email is already registered',
-      'auth/invalid-email': 'Invalid email address',
-      'auth/weak-password': 'Password must be at least 6 characters',
-      'auth/operation-not-allowed': 'Email/password accounts are not enabled',
-    };
-
     return {
       user: null,
-      error: {
-        code: error.code || 'auth/unknown-error',
-        message: errorMessages[error.code] || error.message || 'An error occurred during sign up',
-      },
+      error: formatAuthError(error, 'Unable to create your account right now. Please try again.'),
     };
   }
 };
@@ -68,21 +85,9 @@ export const signInUser = async (email, password) => {
     const userCredential = await signInWithEmailAndPassword(authInstance, email, password);
     return { user: userCredential.user, error: null };
   } catch (error) {
-    // Map Firebase error codes to user-friendly messages
-    const errorMessages = {
-      'auth/user-not-found': 'Invalid email or password',
-      'auth/wrong-password': 'Invalid email or password',
-      'auth/invalid-email': 'Invalid email address',
-      'auth/user-disabled': 'This account has been disabled',
-      'auth/too-many-requests': 'Too many failed attempts. Please try again later',
-    };
-
     return {
       user: null,
-      error: {
-        code: error.code || 'auth/unknown-error',
-        message: errorMessages[error.code] || error.message || 'An error occurred during sign in',
-      },
+      error: formatAuthError(error, 'Unable to sign in right now. Please try again.'),
     };
   }
 };
@@ -100,10 +105,7 @@ export const signOutUser = async () => {
     return { error: null };
   } catch (error) {
     return {
-      error: {
-        code: error.code || 'auth/unknown-error',
-        message: error.message || 'An error occurred during sign out',
-      },
+      error: formatAuthError(error, 'Unable to sign out right now. Please try again.'),
     };
   }
 };
@@ -127,15 +129,8 @@ export const resetPassword = async (email) => {
       return { error: null };
     }
 
-    const errorMessages = {
-      'auth/invalid-email': 'Invalid email address',
-    };
-
     return {
-      error: {
-        code: error.code || 'auth/unknown-error',
-        message: errorMessages[error.code] || error.message || 'An error occurred sending reset email',
-      },
+      error: formatAuthError(error, 'Unable to send a password reset email right now. Please try again.'),
     };
   }
 };
@@ -173,21 +168,20 @@ export const updateUserProfile = async (displayName, photoURL) => {
     await updateProfile(user, updateData);
     
     // Return updated user object
-    return { 
-      user: { 
-        ...user, 
-        displayName: user.displayName, 
-        photoURL: user.photoURL 
-      }, 
-      error: null 
+    return {
+      user: {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        emailVerified: user.emailVerified,
+      },
+      error: null,
     };
   } catch (error) {
     return {
       user: null,
-      error: {
-        code: error.code || 'auth/unknown-error',
-        message: error.message || 'An error occurred updating profile',
-      },
+      error: formatAuthError(error, 'Unable to update your profile right now. Please try again.'),
     };
   }
 };

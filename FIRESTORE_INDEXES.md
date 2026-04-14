@@ -37,23 +37,6 @@ queryDocuments('documents',
    - `uploadDate` (Descending)
 5. Click "Create"
 
-#### Index 2: User Documents by Category
-**Query**: Get user's documents filtered by category
-```javascript
-queryDocuments('documents', 
-  [
-    { field: 'userId', operator: '==', value: userId },
-    { field: 'category', operator: '==', value: category }
-  ]
-)
-```
-
-**Index Configuration**:
-- Collection: `documents`
-- Fields:
-  1. `userId` (Ascending)
-  2. `category` (Ascending)
-
 #### Index 3: User Documents by Category and Date
 **Query**: Get user's documents filtered by category, sorted by date
 ```javascript
@@ -74,23 +57,6 @@ queryDocuments('documents',
   3. `uploadDate` (Descending)
 
 ### Checklist Items Collection
-
-#### Index 1: User Checklist Items by Status
-**Query**: Get user's checklist items filtered by status
-```javascript
-queryDocuments('checklistItems', 
-  [
-    { field: 'userId', operator: '==', value: userId },
-    { field: 'status', operator: '==', value: 'pending' }
-  ]
-)
-```
-
-**Index Configuration**:
-- Collection: `checklistItems`
-- Fields:
-  1. `userId` (Ascending)
-  2. `status` (Ascending)
 
 #### Index 2: User Checklist Items by Due Date
 **Query**: Get user's checklist items sorted by due date
@@ -145,7 +111,7 @@ queryDocuments('checklistItems',
 
 ## Creating Indexes
 
-### Method 1: Automatic (Recommended)
+### Method 1: Automatic (Development-only recommended)
 1. Run the query in your app
 2. Firestore returns error with link
 3. Click the link in error message
@@ -187,28 +153,12 @@ Create `firestore.indexes.json`:
       ]
     },
     {
-      "collectionGroup": "documents",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
-        { "fieldPath": "category", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "checklistItems",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "dueDate", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "checklistItems",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" }
       ]
     },
     {
@@ -243,8 +193,8 @@ firebase deploy --only firestore:indexes
 - **Error**: Index creation failed (check configuration)
 
 ## Best Practices
-1. **Create indexes proactively** - Don't wait for errors
-2. **Test queries** - Run queries to trigger automatic index creation
+1. **Create indexes proactively (recommended for production — use CLI or IaC to define indexes before deploy)**
+2. **Use automatic index creation during development (easiest for local/dev workflows)**
 3. **Monitor index usage** - Check which indexes are used most
 4. **Remove unused indexes** - Clean up indexes that are no longer needed
 
@@ -267,6 +217,6 @@ firebase deploy --only firestore:indexes
 
 ## Notes
 - Single-field queries don't need indexes
-- Queries with only `userId` filter don't need indexes (if `userId` is the only filter)
+- Queries that filter only by equality on `userId` do not require a composite Firestore index.
 - Composite queries (multiple filters + ordering) require indexes
 - Indexes are free but count toward project quotas

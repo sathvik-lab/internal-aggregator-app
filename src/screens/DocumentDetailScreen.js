@@ -16,7 +16,7 @@
  *   ])
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     View,
     Text,
@@ -39,6 +39,7 @@ import EmptyState from '../components/common/EmptyState';
 import { COLORS } from '../constants/colors';
 import { getDocument, updateDocument, deleteDocument, queryDocuments } from '../services/firestore';
 import { deleteFile } from '../services/storage';
+import { getDocumentExpiryBadge, getDocumentExpiryLabel } from '../utils/documentTypes';
 
 /**
  * Get file type icon based on MIME type
@@ -366,6 +367,8 @@ const DocumentDetailScreen = () => {
 
     const fileIcon = getFileIcon(document.mimeType);
     const fileIconColor = getFileIconColor(document.mimeType);
+    const expiryBadge = useMemo(() => getDocumentExpiryBadge(document), [document]);
+    const expiryDateLabel = getDocumentExpiryLabel(document.expiryDate);
 
     return (
         <View style={styles.container}>
@@ -471,6 +474,25 @@ const DocumentDetailScreen = () => {
                                 <Text style={styles.metadataValue}>
                                     {formatDate(document.uploadDate)}
                                 </Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.metadataRow}>
+                            <MaterialCommunityIcons
+                                name="calendar-clock"
+                                size={20}
+                                color={COLORS.textSecondary}
+                            />
+                            <View style={styles.metadataContent}>
+                                <Text style={styles.metadataLabel}>Expiry Date</Text>
+                                <View style={styles.expiryRow}>
+                                    <Text style={styles.metadataValue}>{expiryDateLabel}</Text>
+                                    {expiryBadge && (
+                                        <View style={[styles.expiryStatusBadge, { backgroundColor: `${expiryBadge.color}15`, borderColor: expiryBadge.color }]}> 
+                                            <Text style={[styles.expiryStatusText, { color: expiryBadge.color }]}>{expiryBadge.label}</Text>
+                                        </View>
+                                    )}
+                                </View>
                             </View>
                         </View>
 
@@ -667,6 +689,22 @@ const styles = StyleSheet.create({
     metadataValue: {
         fontSize: 16,
         color: COLORS.text,
+    },
+    expiryRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        flexWrap: 'wrap',
+    },
+    expiryStatusBadge: {
+        borderWidth: 1,
+        borderRadius: 12,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+    },
+    expiryStatusText: {
+        fontSize: 12,
+        fontWeight: '600',
     },
     categoryBadge: {
         alignSelf: 'flex-start',

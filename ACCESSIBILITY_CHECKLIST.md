@@ -1,7 +1,7 @@
 # Accessibility Checklist
 
 ## Overview
-This document provides a comprehensive accessibility checklist for the Internal Aggregator App. All components and screens should meet these accessibility standards to ensure the app is usable by everyone, including users with disabilities.
+This document provides a comprehensive accessibility checklist for Food Truck Compliance. All components and screens should meet these accessibility standards to ensure the app is usable by everyone, including users with disabilities.
 
 ## WCAG 2.1 Compliance Level: AA (Target)
 

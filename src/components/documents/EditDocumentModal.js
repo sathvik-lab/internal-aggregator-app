@@ -20,13 +20,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../constants/colors';
 import { GLASS } from '../../utils/glassmorphism';
+import { DOCUMENT_FILTERS, getDocumentFilterLabel } from '../../utils/documentTypes';
 
-const DOCUMENT_CATEGORIES = [
-    'Certifications',
-    'Policies',
-    'Legal',
-    'Safety Reports',
-];
+const DOCUMENT_CATEGORIES = DOCUMENT_FILTERS.filter((filterLabel) => filterLabel !== 'All');
 
 /**
  * EditDocumentModal Component
@@ -49,6 +45,7 @@ const EditDocumentModal = ({ visible, document, onClose, onSave }) => {
     
     const [name, setName] = useState('');
     const [category, setCategory] = useState('');
+    const [expiryDate, setExpiryDate] = useState('');
     const [notes, setNotes] = useState('');
     const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
     const [error, setError] = useState(null);
@@ -57,8 +54,9 @@ const EditDocumentModal = ({ visible, document, onClose, onSave }) => {
     useEffect(() => {
         if (document) {
             setName(document.name || '');
-            setCategory(document.category || DOCUMENT_CATEGORIES[0]);
+            setCategory(getDocumentFilterLabel(document));
             setNotes(document.notes || '');
+            setExpiryDate(document.expiryDate ? new Date(document.expiryDate).toISOString().slice(0, 10) : '');
         }
     }, [document, visible]);
 
@@ -71,12 +69,20 @@ const EditDocumentModal = ({ visible, document, onClose, onSave }) => {
             setError('Category is required');
             return;
         }
+        if (expiryDate) {
+            const parsedDate = new Date(expiryDate);
+            if (Number.isNaN(parsedDate.getTime())) {
+                setError('Expiry date must be a valid date in YYYY-MM-DD format');
+                return;
+            }
+        }
 
         setError(null);
         if (onSave) {
             onSave({
                 name: name.trim(),
                 category: category,
+                expiryDate: expiryDate ? new Date(expiryDate).toISOString() : null,
                 notes: notes.trim() || null,
             });
         }
@@ -187,6 +193,19 @@ const EditDocumentModal = ({ visible, document, onClose, onSave }) => {
                                         ))}
                                     </View>
                                 )}
+                            </View>
+
+                            {/* Expiry Date Input */}
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>Expiry Date (Optional)</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={expiryDate}
+                                    onChangeText={setExpiryDate}
+                                    placeholder="YYYY-MM-DD"
+                                    placeholderTextColor={COLORS.textLight}
+                                    keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
+                                />
                             </View>
 
                             {/* Notes Input */}

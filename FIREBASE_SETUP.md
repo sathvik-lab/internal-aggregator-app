@@ -1,6 +1,6 @@
 # Firebase Setup Guide
 
-Complete guide to set up Firebase for the Internal Aggregator App.
+Complete guide to set up Firebase for Food Truck Compliance.
 
 ## Table of Contents
 1. [Create Firebase Project](#1-create-firebase-project)
@@ -17,7 +17,7 @@ Complete guide to set up Firebase for the Internal Aggregator App.
 
 1. Go to [Firebase Console](https://console.firebase.google.com/)
 2. Click **"Add project"** or **"Create a project"**
-3. Enter project name: `Internal Aggregator App` (or your preferred name)
+3. Enter project name: `Food Truck Compliance` (or your preferred name)
 4. Click **Continue**
 5. **Google Analytics** (optional):
    - Choose whether to enable Google Analytics
@@ -36,7 +36,7 @@ Complete guide to set up Firebase for the Internal Aggregator App.
 3. Scroll down to **"Your apps"** section
 4. Click the **Web icon** (`</>`) to add a web app
 5. Register your app:
-   - **App nickname**: `Internal Aggregator App` (or any name)
+   - **App nickname**: `Food Truck Compliance` (or any name)
    - **Firebase Hosting** (optional): Leave unchecked for now
    - Click **Register app**
 6. Copy the configuration object that appears:

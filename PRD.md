@@ -5,6 +5,14 @@ It’s written so **design, engineering, and business** can all align from Day 1
 
 # **Product Requirements Document (PRD)**
 
+## **Branch Clarification**
+
+This branch is implemented with **Expo + Firebase**, not **Supabase/Vercel**.
+
+Some items described below, especially **offline-first behavior** and parts of the broader **MVP feature set**, should be treated as **aspirational or post-MVP** rather than fully implemented branch reality.
+
+For the authoritative branch-level scope and current implementation status, refer to **`BRANCH_PRODUCT_REFINEMENT_GUIDE.md` Sections 8-9**.
+
 ## **Food Truck Safety & Compliance App (MVP)**
 
 ---
@@ -299,12 +307,12 @@ A **mobile-first compliance platform** that:
 ### **Performance**
 
 * Checklist load time < 2 seconds
-* Offline usage supported
-* Sync within 5 seconds after reconnect
+* Works best online during MVP (offline-first is post-MVP)
+* Sync within 5 seconds after reconnect when connectivity is available
 
 ### **Security**
 
-* Supabase Row-Level Security (RLS)
+* Firestore security rules
 * Encrypted sensitive fields
 * Secure media storage
 * Audit logs for changes
@@ -322,18 +330,18 @@ A **mobile-first compliance platform** that:
 
 * React Native (mobile-first)
 * Responsive for tablets
-* Offline-first architecture
+* Online-first architecture for MVP (offline enhancements post-MVP)
 
 ### **Backend**
 
-* Supabase PostgreSQL
-* Supabase Auth
-* Supabase Storage
+* Firebase Firestore
+* Firebase Auth
+* Firebase Storage
 * Audit logging enabled
 
 ### **Hosting**
 
-* Vercel (dashboard/admin)
+* Expo/EAS mobile distribution (dashboard/admin hosting TBD post-MVP)
 
 ---
 
@@ -368,7 +376,7 @@ Track:
 * Certification tracking
 * Inspection reports
 * Privacy controls
-* Offline sync
+* Online sync hardening (offline sync moved to post-MVP)
 
 ---
 

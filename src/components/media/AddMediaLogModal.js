@@ -249,6 +249,9 @@ const AddMediaLogModal = ({ visible, onClose, onCreateSuccess }) => {
         style={styles.optionButton}
         onPress={handleTakePhoto}
         activeOpacity={0.7}
+        accessible
+        accessibilityLabel="Take a photo"
+        accessibilityRole="button"
       >
         <MaterialCommunityIcons name="camera" size={32} color={COLORS.primary} />
         <Text style={styles.optionText}>Take Photo</Text>
@@ -258,6 +261,9 @@ const AddMediaLogModal = ({ visible, onClose, onCreateSuccess }) => {
         style={styles.optionButton}
         onPress={handleChoosePhoto}
         activeOpacity={0.7}
+        accessible
+        accessibilityLabel="Choose a photo from gallery"
+        accessibilityRole="button"
       >
         <MaterialCommunityIcons name="image" size={32} color={COLORS.primary} />
         <Text style={styles.optionText}>Choose Photo from Gallery</Text>
@@ -267,6 +273,9 @@ const AddMediaLogModal = ({ visible, onClose, onCreateSuccess }) => {
         style={styles.optionButton}
         onPress={handleRecordVideo}
         activeOpacity={0.7}
+        accessible
+        accessibilityLabel="Record a video"
+        accessibilityRole="button"
       >
         <MaterialCommunityIcons name="video" size={32} color={COLORS.primary} />
         <Text style={styles.optionText}>Record Video</Text>
@@ -276,6 +285,9 @@ const AddMediaLogModal = ({ visible, onClose, onCreateSuccess }) => {
         style={styles.optionButton}
         onPress={handleChooseVideo}
         activeOpacity={0.7}
+        accessible
+        accessibilityLabel="Choose a video from gallery"
+        accessibilityRole="button"
       >
         <MaterialCommunityIcons name="video-box" size={32} color={COLORS.primary} />
         <Text style={styles.optionText}>Choose Video from Gallery</Text>
@@ -328,6 +340,10 @@ const AddMediaLogModal = ({ visible, onClose, onCreateSuccess }) => {
           style={styles.saveButton}
           onPress={handleSave}
           activeOpacity={0.8}
+          accessible
+          accessibilityLabel="Save media log"
+          accessibilityRole="button"
+          accessibilityHint="Double tap to save the photo or video with your notes"
         >
           <Text style={styles.saveButtonText}>Save Log</Text>
         </TouchableOpacity>

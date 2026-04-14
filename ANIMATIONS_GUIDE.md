@@ -1,7 +1,7 @@
 # Animations & Micro-interactions Guide
 
 ## Overview
-This document outlines all animations and micro-interactions implemented throughout the Internal Aggregator App to enhance user experience and provide delightful feedback.
+This document outlines all animations and micro-interactions implemented throughout Food Truck Compliance to enhance user experience and provide delightful feedback.
 
 ## Animation Philosophy
 - **Subtle & Performant**: All animations are subtle and use native driver when possible
@@ -345,7 +345,13 @@ useEffect(() => {
 }, [delay]); // Only include changing dependencies, not stable refs
 ```
 
-#### Event Listener Cleanup
+#### Event Listener Cleanup (Deprecated for `Animated.Value`)
+The `Animated.Value` listener pattern shown below (`useEffect`, `animatedValue.addListener`, `animatedValue.removeListener`/`animatedValue.removeAllListeners`) is deprecated guidance for new code and should be avoided where possible.
+
+Prefer modern alternatives:
+- Use `react-native-reanimated` hooks such as `useAnimatedReaction` for value-driven side effects.
+- Remove this pattern entirely unless you must support legacy `Animated.Value` flows.
+
 ```javascript
 useEffect(() => {
     const listener = animatedValue.addListener(({ value }) => {

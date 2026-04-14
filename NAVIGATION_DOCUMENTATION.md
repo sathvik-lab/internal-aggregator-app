@@ -1,7 +1,7 @@
 # Navigation Documentation
 
 ## Overview
-This document describes the complete navigation structure, flow, and implementation details for the Internal Aggregator App.
+This document describes the complete navigation structure, flow, and implementation details for Food Truck Compliance.
 
 ## Navigation Architecture
 
@@ -53,15 +53,29 @@ ROUTES = {
     SIGNUP: 'Signup',
     FORGOT_PASSWORD: 'ForgotPassword',
   },
+  ONBOARDING: {
+    OWNER_PROFILE: 'OwnerOnboarding',
+  },
   MAIN: {
     DASHBOARD: 'Dashboard',
     DOCUMENTS: 'Documents',
     CHECKLIST: 'Checklist',
     PROFILE: 'Profile',
+    MEDIA_LOGS: 'MediaLogs',
+    INSPECTION_READINESS: 'InspectionReadiness',
   },
   DOCUMENTS: {
     LIST: 'DocumentsList',
     DETAIL: 'DocumentDetail',
+  },
+  PROFILE: {
+    MAIN: 'ProfileMain',
+    STAFF: 'Staff',
+  },
+  FUTURE: {
+    REPORTS: 'Reports',
+    SETTINGS: 'Settings',
+    NOTIFICATIONS: 'Notifications',
   },
 }
 ```
@@ -120,20 +134,20 @@ gestureResponseDistance: {
 Deep linking structure is configured in `navigationConfig.js`:
 
 ```
-internalaggregator://login
-internalaggregator://signup
-internalaggregator://forgot-password
-internalaggregator://dashboard
-internalaggregator://documents/list
-internalaggregator://documents/detail/:documentId
-internalaggregator://checklist
-internalaggregator://profile
+foodtruckcompliance://login
+foodtruckcompliance://signup
+foodtruckcompliance://forgot-password
+foodtruckcompliance://dashboard
+foodtruckcompliance://documents/list
+foodtruckcompliance://documents/detail/:documentId
+foodtruckcompliance://checklist
+foodtruckcompliance://profile
 ```
 
 **Note:** Deep linking is configured but not yet fully implemented. To enable:
 1. Configure URL scheme in `app.config.js`
 2. Handle incoming links in `AppNavigator`
-3. Test with `npx uri-scheme open internalaggregator://documents/list --ios`
+3. Test with `npx uri-scheme open foodtruckcompliance://documents/list --ios`
 
 ## Navigation Patterns
 
@@ -222,10 +236,10 @@ navigation.navigate(ROUTES.MAIN.PROFILE);
 
 ```bash
 # iOS
-npx uri-scheme open internalaggregator://documents/list --ios
+npx uri-scheme open foodtruckcompliance://documents/list --ios
 
 # Android
-adb shell am start -W -a android.intent.action.VIEW -d "internalaggregator://documents/list" com.internalaggregator.app
+adb shell am start -W -a android.intent.action.VIEW -d "foodtruckcompliance://documents/list" com.internalaggregator.app
 ```
 
 ## Best Practices

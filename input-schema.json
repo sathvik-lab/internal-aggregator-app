@@ -29,6 +29,7 @@
           "applicableTo": {
             "type": "object",
             "description": "Use null for 'all' or arrays for specific values. Do not invent values.",
+            "minProperties": 1,
             "properties": {
               "truckTypes": {
                 "oneOf": [
@@ -109,7 +110,8 @@
           },
           "defaultDueTime": {
             "type": "string",
-            "description": "24h time, e.g. 09:00, 14:30. Use this format only."
+            "description": "24h time, e.g. 09:00, 14:30. Use this format only.",
+            "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$"
           },
           "source": {
             "type": "string",
@@ -117,7 +119,8 @@
             "enum": ["osha_generated"]
           },
           "version": {
-            "type": "number",
+            "type": "integer",
+            "minimum": 1,
             "description": "Start at 1. Integer only."
           },
           "isActive": {
@@ -129,12 +132,17 @@
             "description": "Optional. From regulation number, URL, and section in the source text.",
             "properties": {
               "regulationNumber": { "type": "string" },
-              "url": { "type": "string" },
+              "url": { "type": "string", "format": "uri" },
               "section": { "type": "string" }
-            }
+            },
+            "anyOf": [
+              { "required": ["regulationNumber"] },
+              { "required": ["url"] },
+              { "required": ["section"] }
+            ]
           },
-          "startDate": { "type": ["string", "null"], "description": "Optional. ISO date or null." },
-          "endDate": { "type": ["string", "null"], "description": "Optional. ISO date or null." }
+          "startDate": { "type": ["string", "null"], "format": "date", "description": "Optional. ISO date (YYYY-MM-DD) or null." },
+          "endDate": { "type": ["string", "null"], "format": "date", "description": "Optional. ISO date (YYYY-MM-DD) or null." }
         }
       }
     }

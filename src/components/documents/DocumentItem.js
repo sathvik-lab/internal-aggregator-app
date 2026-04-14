@@ -32,7 +32,7 @@ const getFileIcon = (mimeType) => {
  * @returns {string} Formatted file size
  */
 const formatFileSize = (bytes) => {
-    if (!bytes) return 'Unknown size';
+    if (bytes === null || bytes === undefined || !Number.isFinite(bytes)) return 'Unknown size';
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -53,6 +53,11 @@ const formatDate = (dateString) => {
     dateOnly.setHours(0, 0, 0, 0);
     
     const diffTime = today - dateOnly;
+    if (diffTime < 0) {
+        const futureDays = Math.ceil((-diffTime) / (1000 * 60 * 60 * 24));
+        if (futureDays === 1) return 'Tomorrow';
+        return `In ${futureDays} days`;
+    }
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays === 0) return 'Today';
@@ -70,13 +75,17 @@ const formatDate = (dateString) => {
  * @param {Function} props.onPress - Callback when document is pressed
  */
 const DocumentItem = ({ document, onPress }) => {
-    const fileIcon = useMemo(() => getFileIcon(document.mimeType), [document.mimeType]);
+    const fileIcon = useMemo(() => getFileIcon(document?.mimeType), [document?.mimeType]);
 
     const handlePress = useCallback(() => {
-        if (onPress) {
+        if (onPress && document) {
             onPress(document);
         }
     }, [onPress, document]);
+
+    if (!document) {
+        return null;
+    }
 
     return (
         <TouchableOpacity
@@ -191,6 +200,7 @@ export default memo(DocumentItem, (prevProps, nextProps) => {
         prevProps.document.size === nextProps.document.size &&
         prevProps.document.uploadDate === nextProps.document.uploadDate &&
         prevProps.document.category === nextProps.document.category &&
+        prevProps.document.mimeType === nextProps.document.mimeType &&
         prevProps.onPress === nextProps.onPress
     );
 });

@@ -6,8 +6,8 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { queryDocuments, setupRealtimeListener } from './firestore';
-import { generateChecklistInstances } from './checklistScheduling';
+import { queryDocuments, setupRealtimeListener, deleteDocument } from './firestore';
+import { generateChecklistInstances, dedupeChecklistInstances } from './checklistScheduling';
 
 const INSTANCES_CACHE_KEY_PREFIX = '@checklist_instances_';
 const COMPLETED_CACHE_KEY_PREFIX = '@checklist_completed_';
@@ -29,7 +29,7 @@ export const syncInstances = async (userId, templates) => {
       return { items: [], error: null };
     }
 
-    // Get existing instances
+    // Get existing active instances
     const existingResult = await queryDocuments('checklistItems', [
       { field: 'userId', operator: '==', value: userId },
       { field: 'completed', operator: '==', value: false }
@@ -39,15 +39,27 @@ export const syncInstances = async (userId, templates) => {
       return { items: [], error: existingResult.error };
     }
 
-    // Generate missing instances from templates
+    const existingInstances = existingResult.data || [];
+    const { uniqueInstances, duplicateInstanceIds } = dedupeChecklistInstances(existingInstances);
+
+    if (duplicateInstanceIds.length > 0) {
+      await Promise.all(duplicateInstanceIds.map(async (duplicateId) => {
+        const { error: deleteError } = await deleteDocument('checklistItems', duplicateId);
+        if (deleteError) {
+          console.warn('Failed to remove duplicate checklist instance', duplicateId, deleteError);
+        }
+      }));
+    }
+
+    // Generate missing instances from templates using deduped active instances
     const newInstances = await generateChecklistInstances(
       userId,
       templates,
-      existingResult.data || []
+      uniqueInstances
     );
 
-    // Combine existing + new
-    const allItems = [...(existingResult.data || []), ...newInstances];
+    // Combine deduped existing + new
+    const allItems = [...uniqueInstances, ...newInstances];
 
     // Cache active items
     try {
@@ -108,7 +120,7 @@ export const setupInstancesListener = (userId, callback) => {
       { orderBy: { field: 'dueDate', direction: 'asc' } }
     );
 
-    return unsubscribe;
+    return typeof unsubscribe === 'function' ? unsubscribe : () => {};
   } catch (error) {
     console.error('Error setting up instances listener:', error);
     callback([]);

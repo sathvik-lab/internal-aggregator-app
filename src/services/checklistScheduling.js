@@ -18,7 +18,9 @@ export const getWeekStart = (date) => {
   const d = new Date(date);
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-  return new Date(d.setDate(diff));
+  const weekStart = new Date(d.setDate(diff));
+  weekStart.setHours(0, 0, 0, 0);
+  return weekStart;
 };
 
 /**
@@ -201,6 +203,82 @@ export const shouldCreateInstance = (template, existingInstances = [], today = n
   }
 };
 
+export const getInstancePeriodStart = (instance) => {
+  if (!instance || !instance.frequency || !instance.dueDate) {
+    return null;
+  }
+
+  const date = new Date(instance.dueDate);
+
+  switch (instance.frequency) {
+    case CHECKLIST_FREQUENCIES.DAILY:
+      date.setHours(0, 0, 0, 0);
+      return date;
+
+    case CHECKLIST_FREQUENCIES.WEEKLY:
+      return getWeekStart(date);
+
+    case CHECKLIST_FREQUENCIES.MONTHLY:
+      return getMonthStart(date);
+
+    case CHECKLIST_FREQUENCIES.QUARTERLY:
+      return getQuarterStart(date);
+
+    case CHECKLIST_FREQUENCIES.YEARLY:
+      return getYearStart(date);
+
+    case CHECKLIST_FREQUENCIES.ONE_TIME:
+      date.setHours(0, 0, 0, 0);
+      return date;
+
+    default:
+      date.setHours(0, 0, 0, 0);
+      return date;
+  }
+};
+
+export const getChecklistInstanceKey = (instance) => {
+  const periodStart = getInstancePeriodStart(instance);
+  if (!instance || !instance.templateId || !instance.frequency || !periodStart) {
+    return null;
+  }
+  return `${instance.templateId}::${instance.frequency}::${periodStart.toISOString()}`;
+};
+
+export const dedupeChecklistInstances = (instances = []) => {
+  const groups = instances.reduce((acc, item) => {
+    const key = getChecklistInstanceKey(item);
+    if (!key) {
+      return acc;
+    }
+
+    acc[key] = acc[key] || [];
+    acc[key].push(item);
+    return acc;
+  }, {});
+
+  const uniqueInstances = [];
+  const duplicateInstanceIds = [];
+
+  Object.values(groups).forEach((group) => {
+    if (group.length === 1) {
+      uniqueInstances.push(group[0]);
+      return;
+    }
+
+    const sortedGroup = [...group].sort((a, b) => {
+      const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return bTime - aTime;
+    });
+
+    uniqueInstances.push(sortedGroup[0]);
+    duplicateInstanceIds.push(...sortedGroup.slice(1).map((item) => item.id).filter(Boolean));
+  });
+
+  return { uniqueInstances, duplicateInstanceIds };
+};
+
 /**
  * Generate checklist instances from templates
  * 
@@ -221,6 +299,7 @@ export const generateChecklistInstances = async (userId, templates, existingInst
     // Check if instance should be created
     if (shouldCreateInstance(template, existingInstances, today)) {
       const dueDate = calculateNextDueDate(template, today);
+      const nowIso = new Date().toISOString();
 
       const instanceData = {
         userId,
@@ -234,8 +313,8 @@ export const generateChecklistInstances = async (userId, templates, existingInst
         priority: template.priority || 'medium',
         notes: null,
         photos: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: nowIso,
+        updatedAt: nowIso,
         templateId: template.id,
         source: 'osha_generated',
         frequency: template.frequency,
@@ -244,10 +323,12 @@ export const generateChecklistInstances = async (userId, templates, existingInst
       try {
         const result = await createDocument('checklistItems', instanceData);
         if (!result.error && result.id) {
-          newInstances.push({
+          const createdInstance = {
             id: result.id,
             ...instanceData,
-          });
+          };
+          newInstances.push(createdInstance);
+          existingInstances.push(createdInstance);
         }
       } catch (error) {
         console.error(`Error creating instance for template ${template.id}:`, error);

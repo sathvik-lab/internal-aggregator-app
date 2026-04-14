@@ -154,9 +154,9 @@ Example 5 – environmental:
       "category": "Environmental",
       "priority": "medium",
       "applicableTo": {{
-        "truckTypes": ["food_truck", "mobile_kitchen"],
+        "truckTypes": ["food_truck", "refrigerated"],
         "foodTypes": ["prepared", "perishable"],
-        "businessTypes": ["food_truck", "catering", "restaurant"],
+        "businessTypes": ["food_truck", "catering", "restaurant", "mobile_kitchen"],
         "locations": {{ "states": null, "cities": null }},
         "complianceAreas": ["environmental"]
       }},

@@ -13,6 +13,9 @@
  * │   ├── Signup
  * │   └── ForgotPassword
  * │
+ * ├── OnboardingNavigator (when `needsOwnerOnboarding` is true)
+ * │   └── OwnerOnboarding (initial route)
+ * │
  * └── MainNavigator (when user is authenticated)
  *     ├── Dashboard (Tab)
  *     ├── Documents (Tab)
@@ -23,11 +26,11 @@
  *     └── Profile (Tab)
  * 
  * Deep Linking Support:
- * - internalaggregator://login
- * - internalaggregator://documents/list
- * - internalaggregator://documents/detail/:documentId
- * - internalaggregator://checklist
- * - internalaggregator://profile
+ * - foodtruckcompliance://login
+ * - foodtruckcompliance://documents/list
+ * - foodtruckcompliance://documents/detail/:documentId
+ * - foodtruckcompliance://checklist
+ * - foodtruckcompliance://profile
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -36,8 +39,9 @@ import { NavigationContainer } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
+import OnboardingNavigator from './OnboardingNavigator';
 import { COLORS } from '../constants/colors';
-import { DEEP_LINKING_CONFIG, NavigationHelpers } from './navigationConfig';
+import { DEEP_LINKING_CONFIG } from './navigationConfig';
 
 /**
  * Loading Screen Component
@@ -65,7 +69,7 @@ const LoadingScreen = () => {
  * 7. Supports deep linking for future implementation
  */
 const AppNavigator = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, profileLoading, needsOwnerOnboarding } = useAuth();
   const navigationRef = useRef(null);
   const previousUserRef = useRef(user);
 
@@ -96,7 +100,7 @@ const AppNavigator = () => {
   }, [user]);
 
   // Show loading screen while checking auth state
-  if (loading) {
+  if (loading || (user && profileLoading)) {
     return <LoadingScreen />;
   }
 
@@ -112,7 +116,8 @@ const AppNavigator = () => {
         // Can be used for analytics or additional navigation guards
       }}
     >
-      {user ? <MainNavigator /> : <AuthNavigator />}
+      {/* Root auth guard: unauthenticated users only get the auth stack, owners with incomplete business profiles must finish onboarding, and signed-in ready users get the main tabs. */}
+      {!user ? <AuthNavigator /> : needsOwnerOnboarding ? <OnboardingNavigator /> : <MainNavigator />}
     </NavigationContainer>
   );
 };

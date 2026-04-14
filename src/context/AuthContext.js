@@ -5,21 +5,18 @@
  * Manages Firebase Authentication state observer and user session.
  */
 
-import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef, useCallback } from 'react';
 // Import auth service functions
 // These will be available once auth.js is created in /src/services/auth.js
 import { onAuthStateChanged, signOutUser } from '../services/auth';
 import { syncTemplates, clearTemplateCache } from '../services/checklistTemplateSync';
 import { syncInstances, clearInstanceCache } from '../services/checklistInstanceSync';
+import { getUserProfileDocument, shouldShowOwnerOnboarding } from '../services/userProfile';
 
 /**
  * AuthContext - Provides auth state and functions
  */
-const AuthContext = createContext({
-  user: null,
-  loading: true,
-  signOut: async () => {},
-});
+const AuthContext = createContext(undefined);
 
 /**
  * AuthProvider Component
@@ -33,6 +30,8 @@ const AuthContext = createContext({
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   useEffect(() => {
     let unsubscribe = null;
@@ -102,6 +101,45 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
+  const refreshUserProfile = useCallback(async () => {
+    if (!user?.uid) {
+      setUserProfile(null);
+      setProfileLoading(false);
+      return;
+    }
+
+    setProfileLoading(true);
+    try {
+      const result = await getUserProfileDocument(user.uid);
+
+      if (result.error) {
+        console.error('Error loading user profile:', result.error);
+        setUserProfile(null);
+      } else {
+        setUserProfile(result.data);
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+      setUserProfile(null);
+    } finally {
+      setProfileLoading(false);
+    }
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    if (!user?.uid) {
+      setUserProfile(null);
+      setProfileLoading(false);
+      return;
+    }
+
+    refreshUserProfile();
+  }, [user?.uid, loading, refreshUserProfile]);
+
   /**
    * Sync templates and instances when user logs in
    */
@@ -169,14 +207,8 @@ export const AuthProvider = ({ children }) => {
       if (user?.uid) {
         // Use Promise.allSettled to ensure sign-out proceeds even if cache clearing fails
         const cacheResults = await Promise.allSettled([
-          clearTemplateCache(user.uid).catch((error) => {
-            console.error('Error clearing template cache:', error);
-            return { error };
-          }),
-          clearInstanceCache(user.uid).catch((error) => {
-            console.error('Error clearing instance cache:', error);
-            return { error };
-          }),
+          clearTemplateCache(user.uid),
+          clearInstanceCache(user.uid),
         ]);
         
         // Log any cache clearing failures but don't block sign-out
@@ -202,12 +234,18 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
     } finally {
       setLoading(false);
+      setUserProfile(null);
+      setProfileLoading(false);
     }
   };
 
   const value = {
     user,
+    userProfile,
     loading,
+    profileLoading,
+    needsOwnerOnboarding: shouldShowOwnerOnboarding(user, userProfile),
+    refreshUserProfile,
     signOut,
   };
 

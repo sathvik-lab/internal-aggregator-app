@@ -13,13 +13,22 @@ export const USER_ROLES = {
 
 // Document types
 export const DOCUMENT_TYPES = {
+  // Primary food truck compliance document categories.
+  PERMIT: 'PERMIT',
+  LICENSE: 'LICENSE',
+  FOOD_SAFETY_CERT: 'FOOD_SAFETY_CERT',
+  INSURANCE: 'INSURANCE',
+  INSPECTION_REPORT: 'INSPECTION_REPORT',
+  FIRE_SAFETY: 'FIRE_SAFETY',
+
+  // Legacy / backward-compatible values from older Firestore documents.
   ISO_9001: 'ISO_9001',
   HIPAA: 'HIPAA',
   GDPR: 'GDPR',
   OSHA: 'OSHA',
   FOOD_SAFETY: 'FOOD_SAFETY',
-  FIRE_SAFETY: 'FIRE_SAFETY',
   VEHICLE_LICENSE: 'VEHICLE_LICENSE',
+
   OTHER: 'OTHER',
 };
 
@@ -72,6 +81,13 @@ export const COMPLIANCE_STATUS = {
 // Storage paths in Firebase Storage
 export const STORAGE_PATHS = {
   DOCUMENTS: 'user_documents',
+  DOCUMENT_PERMITS: 'user_documents/permits',
+  DOCUMENT_LICENSES: 'user_documents/licenses',
+  DOCUMENT_FOOD_SAFETY_CERTS: 'user_documents/food_safety_certificates',
+  DOCUMENT_FIRE_SAFETY: 'user_documents/fire_safety',
+  DOCUMENT_INSURANCE: 'user_documents/insurance',
+  DOCUMENT_INSPECTION_REPORTS: 'user_documents/inspection_reports',
+  DOCUMENT_OTHER: 'user_documents/other',
   PROFILES: 'user_profiles',
   CHECKLIST_PHOTOS: 'checklist_photos',
   INCIDENT_PHOTOS: 'incident_photos',
@@ -105,7 +121,7 @@ export const DATE_FORMATS = {
 
 // App configuration
 export const APP_CONFIG = {
-  APP_NAME: 'Internal Aggregator App',
+  APP_NAME: 'Food Truck Compliance',
   VERSION: '1.0.0',
   DEFAULT_LANGUAGE: 'en',
 };

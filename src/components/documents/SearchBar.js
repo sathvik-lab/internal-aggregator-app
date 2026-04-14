@@ -18,7 +18,7 @@ import { COLORS } from '../../constants/colors';
  * @param {Function} props.onClear - Callback when clear button is pressed
  * @param {string} props.placeholder - Placeholder text
  */
-const SearchBar = ({ value, onChangeText, onClear, placeholder = 'Search documents...' }) => {
+const SearchBar = ({ value = '', onChangeText, onClear, placeholder = 'Search documents...' }) => {
     const handleClear = useCallback(() => {
         if (onClear) {
             onClear();
@@ -47,7 +47,7 @@ const SearchBar = ({ value, onChangeText, onClear, placeholder = 'Search documen
                 accessibilityHint={`Type to search. ${value ? `Current search: ${value}` : ''}`}
                 accessibilityRole="search"
             />
-            {value.length > 0 && (
+            {value?.length > 0 && (
                 <TouchableOpacity
                     style={styles.clearButton}
                     onPress={handleClear}

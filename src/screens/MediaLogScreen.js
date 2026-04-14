@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { fetchMediaLogs } from '../services/mediaLogs';
@@ -31,6 +32,8 @@ const RANGE_OPTIONS = [
 ];
 
 const MediaLogScreen = () => {
+  const route = useRoute();
+  const navigation = useNavigation();
   const { user } = useAuth();
   const { colors, typography, spacing } = useTheme();
 
@@ -39,6 +42,20 @@ const MediaLogScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+
+  useEffect(() => {
+    const nextRangeType = route.params?.initialRangeType;
+    const shouldOpenComposer = route.params?.openComposer;
+
+    if (nextRangeType && RANGE_OPTIONS.some((option) => option.key === nextRangeType)) {
+      setRangeType(nextRangeType);
+    }
+
+    if (shouldOpenComposer && !modalVisible) {
+      setModalVisible(true);
+      navigation.setParams({ openComposer: undefined });
+    }
+  }, [modalVisible, navigation, route.params?.focusKey, route.params?.initialRangeType, route.params?.openComposer]);
 
   const loadLogs = useCallback(
     async (type, { showLoading = true } = {}) => {
@@ -94,6 +111,9 @@ const MediaLogScreen = () => {
           size="small"
           onPress={() => setRangeType(option.key)}
           style={styles.filterButton}
+          accessible
+          accessibilityLabel={`${option.label} media logs filter`}
+          accessibilityRole="button"
         />
       ))}
     </View>
@@ -109,12 +129,11 @@ const MediaLogScreen = () => {
       return '';
     }
 
-    try {
-      const date = new Date(iso);
-      return date.toLocaleString();
-    } catch {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) {
       return iso;
     }
+    return date.toLocaleString();
   };
 
   const renderItem = ({ item }) => {
@@ -218,6 +237,10 @@ const MediaLogScreen = () => {
         style={styles.fab}
         onPress={handleNewLogPress}
         activeOpacity={0.8}
+        accessible
+        accessibilityLabel="Add new media log"
+        accessibilityRole="button"
+        accessibilityHint="Double tap to capture or upload a photo or video log"
       >
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
@@ -256,6 +279,7 @@ const styles = StyleSheet.create({
   },
   filterButton: {
     flex: 1,
+    minHeight: 44,
   },
   listContent: {
     paddingHorizontal: 20,
@@ -331,4 +355,3 @@ const styles = StyleSheet.create({
 });
 
 export default MediaLogScreen;
-

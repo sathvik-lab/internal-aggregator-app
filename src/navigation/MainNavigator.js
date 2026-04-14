@@ -45,6 +45,8 @@ import DocumentDetailScreen from '../screens/DocumentDetailScreen';
 import ChecklistScreen from '../screens/ChecklistScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import MediaLogScreen from '../screens/MediaLogScreen';
+import InspectionReadinessScreen from '../screens/InspectionReadinessScreen';
+import StaffScreen from '../screens/StaffScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -103,6 +105,38 @@ const DocumentsStack = () => {
         options={{
           title: 'Document Details',
           gestureEnabled: false, // Disabled: avoids "right cannot be cast from String to double" on Android
+        }}
+      />
+    </Stack.Navigator>
+  );
+};
+
+/**
+ * Profile Stack Navigator
+ * 
+ * Stack navigator for Profile tab to support navigation to Staff and other management screens.
+ * 
+ * Navigation Flow:
+ * - ProfileScreen (initial route) → StaffScreen
+ * - StaffScreen → ProfileScreen (back button)
+ */
+const ProfileStack = () => {
+  return (
+    <Stack.Navigator screenOptions={screenOptions}>
+      <Stack.Screen
+        name={ROUTES.PROFILE.MAIN}
+        component={ProfileScreen}
+        options={{
+          title: 'My Profile',
+          headerShown: false, // Custom header in the screen
+        }}
+      />
+      <Stack.Screen
+        name="Staff"
+        component={StaffScreen}
+        options={{
+          title: 'Team Management',
+          headerShown: false,
         }}
       />
     </Stack.Navigator>
@@ -170,6 +204,9 @@ const MainNavigator = () => {
               break;
             case ROUTES.MAIN.MEDIA_LOGS:
               iconName = focused ? 'image-multiple' : 'image-multiple-outline';
+              break;
+            case ROUTES.MAIN.INSPECTION_READINESS:
+              iconName = focused ? 'shield-check' : 'shield-check-outline';
               break;
             case ROUTES.MAIN.PROFILE:
               iconName = focused ? 'account' : 'account-outline';
@@ -245,10 +282,10 @@ const MainNavigator = () => {
 
       <Tab.Screen
         name={ROUTES.MAIN.PROFILE}
-        component={ProfileScreen}
+        component={ProfileStack}
         options={{
           title: 'Profile',
-          headerTitle: 'My Profile',
+          headerShown: false,
         }}
       />
 
@@ -258,6 +295,15 @@ const MainNavigator = () => {
         options={{
           title: 'Logs',
           headerTitle: 'Media Logs',
+        }}
+      />
+
+      <Tab.Screen
+        name={ROUTES.MAIN.INSPECTION_READINESS}
+        component={InspectionReadinessScreen}
+        options={{
+          title: 'Readiness',
+          headerTitle: 'Inspection Readiness',
         }}
       />
     </Tab.Navigator>
