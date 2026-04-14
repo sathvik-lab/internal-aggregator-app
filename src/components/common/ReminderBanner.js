@@ -12,11 +12,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from '../context/ThemeContext';
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../../context/ThemeContext';
+import { COLORS } from '../../constants/colors';
 
 const ReminderBanner = ({
   dueTodayCount = 0,

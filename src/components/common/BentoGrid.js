@@ -12,16 +12,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  Dimensions,
   Platform,
+  Animated,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { GLASS } from '../../utils/glassmorphism';
-import { Animated } from 'react-native';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 /**
  * BentoCard Component
@@ -193,8 +190,6 @@ const BentoCard = ({
  * @param {Object} props.style - Additional styles
  */
 const BentoGrid = ({ children, numColumns = 3, style, data }) => {
-  const { colors } = useTheme();
-
   // If data prop is provided, render cards from data
   if (data) {
     return (

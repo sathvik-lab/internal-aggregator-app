@@ -5,22 +5,19 @@
  * Features drag gestures, layered cards, and glass surfaces.
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
   Animated,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { TouchableOpacity } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { GLASS } from '../../utils/glassmorphism';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = 320;
 
 /**
@@ -40,8 +37,7 @@ const TestimonialCarousel = ({
 }) => {
   const { colors } = useTheme();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [exitX, setExitX] = useState(0);
-  
+
   const glassColors = colors.glassBackground
     ? {
         background: colors.glassBackground,

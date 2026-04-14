@@ -5,7 +5,7 @@
  * and smooth animations. Supports collapsed and expanded views.
  */
 
-import React, { useState, useRef, memo, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useRef, memo, useCallback, useEffect } from 'react';
 import {
     View,
     Text,
@@ -20,7 +20,7 @@ import { BlurView } from 'expo-blur';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../constants/colors';
-import { GLASS } from '../../utils/glassmorphism';
+import { GLASS, sanitizeStyleForGestures } from '../../utils/glassmorphism';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 100; // Minimum swipe distance to trigger action
@@ -97,8 +97,8 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
     const { colors } = useTheme();
     const useGlass = colors.glassBackground != null;
     const [expanded, setExpanded] = useState(false);
-    const [swipeOffset, setSwipeOffset] = useState(0);
-    const [isSwiping, setIsSwiping] = useState(false);
+    const [, setSwipeOffset] = useState(0);
+    const [, setIsSwiping] = useState(false);
     
     const expandAnimation = useRef(new Animated.Value(0)).current;
     const swipeAnimation = useRef(new Animated.Value(0)).current;
@@ -169,7 +169,7 @@ const ChecklistItem = ({ item, onPress, onToggleComplete, onSnooze }) => {
             duration: 300,
             useNativeDriver: true,
         }).start();
-    }, [item.completed]);
+    }, [item.completed, opacityAnimation]);
 
     // Animate checkmark and pulse when completion changes
     useEffect(() => {

@@ -133,7 +133,7 @@ const DocumentsScreen = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [sortOption, setSortOption] = useState('date-desc');
-    const [lastDocument, setLastDocument] = useState(null); // For pagination
+    const [, setLastDocument] = useState(null); // For pagination
     const [hasMore, setHasMore] = useState(true);
     const [uploadModalVisible, setUploadModalVisible] = useState(false);
     const [userPreferences, setUserPreferences] = useState(null);
@@ -318,11 +318,11 @@ const DocumentsScreen = () => {
     }, [hasMore, loading]);
 
     // Handlers
-    const handleDocumentPress = (document) => {
+    const handleDocumentPress = useCallback((document) => {
         navigation.navigate(ROUTES.DOCUMENTS.DETAIL, { documentId: document.id });
-    };
+    }, [navigation]);
 
-    const handleMenuPress = (document) => {
+    const handleMenuPress = useCallback((document) => {
         Alert.alert(
             'Document Actions',
             `Actions for: ${document.name}`,
@@ -353,17 +353,17 @@ const DocumentsScreen = () => {
                 { text: 'Cancel', style: 'cancel' },
             ]
         );
-    };
+    }, []);
 
-    const handleUploadPress = () => {
+    const handleUploadPress = useCallback(() => {
         setUploadModalVisible(true);
-    };
+    }, []);
 
     const handleUploadSuccess = () => {};
 
-    const handleSearchClear = () => {
+    const handleSearchClear = useCallback(() => {
         setSearchQuery('');
-    };
+    }, []);
 
     // Memoize render functions to prevent re-creation on every render
     const renderDocument = useCallback(({ item }) => (

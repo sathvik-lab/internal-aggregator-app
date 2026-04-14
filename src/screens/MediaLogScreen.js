@@ -4,7 +4,7 @@
  * Screen for viewing daily/weekly/monthly media logs (photos/videos) with notes.
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -22,8 +22,6 @@ import AddMediaLogModal from '../components/media/AddMediaLogModal';
 import EmptyState from '../components/common/EmptyState';
 import Button from '../components/common/Button';
 import { COLORS } from '../constants/colors';
-import { DATE_FORMATS, PAGINATION } from '../constants/constants';
-
 const RANGE_OPTIONS = [
   { key: 'daily', label: 'Daily' },
   { key: 'weekly', label: 'Weekly' },
@@ -35,7 +33,7 @@ const MediaLogScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const { user } = useAuth();
-  const { colors, typography, spacing } = useTheme();
+  const { colors, typography } = useTheme();
 
   const [rangeType, setRangeType] = useState('daily');
   const [logs, setLogs] = useState([]);

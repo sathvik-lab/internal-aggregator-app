@@ -5,7 +5,7 @@
  * Ensures the app works well on small phones, large phones, and tablets.
  */
 
-import { Dimensions, Platform } from 'react-native';
+import { Dimensions } from 'react-native';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 

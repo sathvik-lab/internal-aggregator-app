@@ -106,7 +106,7 @@ const Header = ({
     // Memoize greeting text with now dependency
     const greetingText = useMemo(() => {
         return title || `${getGreeting()}, ${userName}!`;
-    }, [title, userName, now]);
+    }, [title, userName]);
 
     // Memoize current date with now dependency
     const currentDate = useMemo(() => formatDate(now), [now]);

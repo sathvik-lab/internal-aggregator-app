@@ -154,17 +154,17 @@ try {
       if (existingApps.length > 0) {
         // Use existing app instance (default app)
         try {
-          app = getApp(); // Get default app
-        if (__DEV__) console.log('✅ Using existing Firebase app instance (hot reload)');
-      } catch (e) {
-        app = existingApps[0];
-        if (__DEV__) console.log('✅ Using existing Firebase app instance');
+          app = getApp();
+          if (__DEV__) console.log('✅ Using existing Firebase app instance (hot reload)');
+        } catch (_e) {
+          app = existingApps[0];
+          if (__DEV__) console.log('✅ Using existing Firebase app instance');
+        }
+      } else {
+        // Initialize new app instance (this creates the default app)
+        app = initializeApp(firebaseConfig);
+        if (__DEV__) console.log('✅ Firebase app initialized successfully');
       }
-    } else {
-      // Initialize new app instance (this creates the default app)
-      app = initializeApp(firebaseConfig);
-      if (__DEV__) console.log('✅ Firebase app initialized successfully');
-    }
     if (__DEV__) {
       console.log(`   Project: ${firebaseProjectId}`);
       console.log(`   App name: ${app.name}`);

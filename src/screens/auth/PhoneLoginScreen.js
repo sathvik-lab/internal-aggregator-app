@@ -5,7 +5,6 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  View,
 } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
 import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';

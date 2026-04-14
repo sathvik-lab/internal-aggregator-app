@@ -26,7 +26,6 @@ import {
     Alert,
     Linking,
     Share,
-    Platform,
     ActivityIndicator,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -93,13 +92,14 @@ const formatDate = (dateString) => {
     });
 };
 
+const STATUS_TONE_COLORS = {
+    critical: COLORS.error,
+    warning: COLORS.warning,
+    success: COLORS.success,
+    neutral: COLORS.textSecondary,
+};
+
 const DocumentDetailScreen = () => {
-    const statusToneColors = {
-        critical: COLORS.error,
-        warning: COLORS.warning,
-        success: COLORS.success,
-        neutral: COLORS.textSecondary,
-    };
     const route = useRoute();
     const navigation = useNavigation();
     const { user } = useAuth();
@@ -111,7 +111,7 @@ const DocumentDetailScreen = () => {
     const [loading, setLoading] = useState(true);
     const [relatedDocuments, setRelatedDocuments] = useState([]);
     const [editModalVisible, setEditModalVisible] = useState(false);
-    const [updating, setUpdating] = useState(false);
+    const [, setUpdating] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
     /**
@@ -352,6 +352,13 @@ const DocumentDetailScreen = () => {
         navigation.replace('DocumentDetail', { documentId: relatedDoc.id });
     };
 
+    const expiryStatus = useMemo(() => getDocumentExpiryStatus(document?.expiryDate), [document?.expiryDate]);
+    const expiryBadgeColor = useMemo(
+        () => STATUS_TONE_COLORS[expiryStatus.tone] || COLORS.textSecondary,
+        [expiryStatus.tone]
+    );
+    const expiryDateLabel = useMemo(() => getDocumentExpiryLabel(document?.expiryDate), [document?.expiryDate]);
+
     if (loading) {
         return (
             <View style={styles.container}>
@@ -374,9 +381,6 @@ const DocumentDetailScreen = () => {
 
     const fileIcon = getFileIcon(document.mimeType);
     const fileIconColor = getFileIconColor(document.mimeType);
-    const expiryStatus = useMemo(() => getDocumentExpiryStatus(document?.expiryDate), [document?.expiryDate]);
-    const expiryBadgeColor = statusToneColors[expiryStatus.tone] || COLORS.textSecondary;
-    const expiryDateLabel = getDocumentExpiryLabel(document.expiryDate);
 
     return (
         <View style={styles.container}>

@@ -6,7 +6,7 @@
  */
 
 import React, { useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { Text, StyleSheet, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import Button from './Button';
@@ -48,7 +48,7 @@ const EmptyState = ({
                 useNativeDriver: true,
             }),
         ]).start();
-    }, []);
+    }, [fadeAnim, scaleAnim]);
 
     return (
         <Animated.View 

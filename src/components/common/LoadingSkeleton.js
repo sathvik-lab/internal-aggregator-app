@@ -38,7 +38,7 @@ const ShimmerSkeletonItem = ({ style, delay = 0 }) => {
         return () => {
             loopAnim.stop();
         };
-    }, [delay]);
+    }, [delay, shimmerAnim]);
 
     const opacity = shimmerAnim.interpolate({
         inputRange: [0, 1],

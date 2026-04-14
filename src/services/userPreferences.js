@@ -7,7 +7,6 @@
  * Structure designed for Cloud Functions to read and trigger reminders.
  */
 
-import { getFirebaseAuth } from './firebase';
 import { db } from './firebase';
 import {
   doc,

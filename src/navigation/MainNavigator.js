@@ -31,7 +31,7 @@
 import React, { useMemo } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { COLORS } from '../constants/colors';
@@ -60,22 +60,6 @@ const Stack = createStackNavigator();
 const screenOptions = {
     headerShown: false,
     gestureEnabled: false,
-};
-
-/**
- * Badge component for tab icon. Uses theme when available.
- */
-const TabBarBadge = ({ count, useGlass, colors }) => {
-  if (!count || count === 0) return null;
-  const bg = useGlass ? (colors.glassBackground ?? 'rgba(255,255,255,0.15)') : COLORS.error;
-  const border = useGlass ? (colors.glassBorder ?? 'rgba(255,255,255,0.2)') : COLORS.surface;
-  const textColor = useGlass ? (colors.text?.primary ?? '#FFF') : COLORS.textInverse;
-
-  return (
-    <View style={sanitizeStyleForGestures([styles.badge, { backgroundColor: bg, borderColor: border }])}>
-      <Text style={[styles.badgeText, { color: textColor }]}>{count > 99 ? '99+' : count}</Text>
-    </View>
-  );
 };
 
 /**
@@ -190,7 +174,6 @@ const MaintenanceStack = () => (
 const MainNavigator = () => {
   const { colors } = useTheme();
   const useGlass = colors.glassBackground != null;
-  const incompleteChecklistCount = 7;
 
   const tabBarStyle = useMemo(() => {
     const raw = useGlass
@@ -257,15 +240,6 @@ const MainNavigator = () => {
           return (
             <View style={styles.iconContainer}>
               <MaterialCommunityIcons name={iconName} size={size} color={color} />
-              {/* 
-              {route.name === ROUTES.MAIN.CHECKLIST && (
-                <TabBarBadge
-                  count={incompleteChecklistCount}
-                  useGlass={useGlass}
-                  colors={colors}
-                />
-              )}
-                */}
             </View>
           );
         },
@@ -370,22 +344,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  badge: {
-    position: 'absolute',
-    top: Number(-4),
-    right: Number(-12),
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    paddingHorizontal: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: 'bold',
   },
 });
 

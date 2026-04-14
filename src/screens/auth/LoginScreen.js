@@ -59,7 +59,6 @@ const LoginScreen = ({ navigation }) => {
   const slideAnim = useRef(new Animated.Value(50)).current;
   const logoScaleAnim = useRef(new Animated.Value(0.8)).current;
   
-  // Entrance animation
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -80,6 +79,7 @@ const LoginScreen = ({ navigation }) => {
         useNativeDriver: true,
       }),
     ]).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only entrance; animation refs stable
   }, []);
 
   /**

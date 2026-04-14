@@ -23,7 +23,6 @@ import { Switch, Divider } from 'react-native-paper';
 import { useAuth } from '../context/AuthContext';
 import { useTheme, THEME_MODES } from '../context/ThemeContext';
 import { getDocument, queryDocuments, updateDocument } from '../services/firestore';
-import { updateUserProfile } from '../services/auth';
 import EditProfileModal from '../components/profile/EditProfileModal';
 import BusinessProfileModal from '../components/profile/BusinessProfileModal';
 import { clearTemplateCache, syncTemplates } from '../services/checklistTemplateSync';
@@ -32,8 +31,6 @@ import { updateBusinessVisibilitySettings, updateUserVisibilitySettings } from '
 import {
     TRUCK_TYPE_LABELS,
     FOOD_TYPE_LABELS,
-    BUSINESS_TYPE_LABELS,
-    COMPLIANCE_AREA_LABELS,
 } from '../constants/checklistConstants';
 import { ROUTES } from '../navigation/navigationConfig';
 import { useEffectiveRole } from '../hooks/useEffectiveRole';
@@ -120,7 +117,7 @@ const ProfileScreen = () => {
     const { user, signOut } = useAuth();
     const { isOwner } = useEffectiveRole();
     const navigation = useNavigation();
-    const { colors, theme, setTheme, isDark } = useTheme();
+    const { colors, theme, setTheme } = useTheme();
     const [loading, setLoading] = useState(true);
     const [userPreferences, setUserPreferences] = useState({
         emailNotifications: true,
@@ -407,7 +404,7 @@ const ProfileScreen = () => {
                 setUserPreferences(previousPreferences);
                 Alert.alert('Error', 'Failed to update notification preferences.');
             }
-        } catch (error) {
+        } catch (_error) {
             // Revert on error
             setUserPreferences(previousPreferences);
             Alert.alert('Error', 'Failed to update notification preferences.');

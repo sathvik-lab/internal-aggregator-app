@@ -6,7 +6,9 @@
 
 import { lightThemeColors, darkThemeColors } from './colors';
 import typography from './typography';
+// eslint-disable-next-line import/no-named-as-default -- spacing/shadows modules export token objects as default
 import spacing from './spacing';
+// eslint-disable-next-line import/no-named-as-default
 import shadows from './shadows';
 
 // Complete light theme

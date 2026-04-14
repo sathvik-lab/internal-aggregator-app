@@ -14,7 +14,7 @@ const getCurrentUserId = () => {
   try {
     const auth = getFirebaseAuth();
     return auth?.currentUser?.uid || null;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 };

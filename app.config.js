@@ -19,7 +19,7 @@ try {
       console.warn('Warning: Error loading .env file:', result.error.message);
     }
   }
-} catch (error) {
+} catch (_error) {
   // Fallback: dotenv.config() shouldn't throw, but handle it just in case
   console.warn('Warning: Could not load .env file. Using default values or environment variables.');
 }

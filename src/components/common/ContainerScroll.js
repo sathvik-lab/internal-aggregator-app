@@ -30,7 +30,6 @@ export const ContainerScroll = ({
   children,
   style,
 }) => {
-  const { colors } = useTheme();
   const scrollY = useRef(new Animated.Value(0)).current;
   const [isMobile, setIsMobile] = useState(SCREEN_WIDTH <= 768);
 

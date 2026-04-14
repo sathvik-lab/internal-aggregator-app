@@ -17,7 +17,6 @@ import {
 import { BlurView } from 'expo-blur';
 import { useTheme } from '../../context/ThemeContext';
 import { GLASS } from '../../utils/glassmorphism';
-import { stackingAnimation } from '../../utils/animations';
 
 /**
  * StackingNavbarItem Component
@@ -47,7 +46,7 @@ const StackingNavbarItem = ({
       tension: 100,
       friction: 8,
     }).start();
-  }, [expanded, index]);
+  }, [expanded, index, translateX]);
 
   return (
     <Animated.View

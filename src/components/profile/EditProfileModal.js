@@ -273,7 +273,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
             if (profilePictureChanged) {
                 try {
                     photoURL = await uploadProfilePicture();
-                } catch (error) {
+                } catch (_error) {
                     Alert.alert(
                         'Upload Error',
                         'Failed to upload profile picture. Do you want to continue without updating the picture?',

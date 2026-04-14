@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { Text, StyleSheet, Platform } from 'react-native';
+import { Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -15,7 +15,7 @@ import { useTheme } from '../../context/ThemeContext';
 let MaskedView = null;
 try {
   MaskedView = require('@react-native-masked-view/masked-view').default;
-} catch (e) {
+} catch (_e) {
   // MaskedView not available, will use fallback
 }
 

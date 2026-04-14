@@ -14,8 +14,8 @@ import {
   getBytes,
   getMetadata,
 } from 'firebase/storage';
-import { FILE_LIMITS, STORAGE_PATHS, ERROR_MESSAGES } from '../constants/constants';
-import { handleAsyncOperation, getErrorMessage, isNetworkError } from '../utils/errorHandler';
+import { FILE_LIMITS, ERROR_MESSAGES } from '../constants/constants';
+import { handleAsyncOperation, getErrorMessage } from '../utils/errorHandler';
 
 /**
  * Convert a file URI to a Blob (for React Native/Expo)

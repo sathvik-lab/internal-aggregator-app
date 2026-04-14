@@ -673,7 +673,7 @@ const InspectionReadinessScreen = () => {
                     <MaterialCommunityIcons name="check-circle" size={32} color={COLORS.success} />
                     <Text style={[styles.successTitle, { color: COLORS.success }]}>All Clear</Text>
                     <Text style={[styles.successText, { color: colors.text?.primary || colors.text }]}>
-                      No critical issues detected. You're in good shape for inspection.
+                      No critical issues detected. You&apos;re in good shape for inspection.
                     </Text>
                   </View>
                 )}

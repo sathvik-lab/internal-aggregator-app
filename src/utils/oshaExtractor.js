@@ -5,9 +5,6 @@
  * Supports rule-based extraction (default) and LLM extraction (when API key available).
  */
 
-// Section pattern: 1910.22(a), 1910.22(a)(1), 1910.22(b), etc.
-const SECTION_REGEX = /(\d{4}\.\d+[a-z]?(?:\([a-z]\)(?:\(\d+\))?)?)\s*(?:_([^_]+)_\.?\s*)?/gi;
-
 /**
  * Extract tasks from regulation body using rule-based parsing.
  * Splits on OSHA subsection patterns and creates one task per logical requirement.
@@ -19,7 +16,7 @@ const SECTION_REGEX = /(\d{4}\.\d+[a-z]?(?:\([a-z]\)(?:\(\d+\))?)?)\s*(?:_([^_]+
 export function extractTasksRuleBased(regulationBody, context = {}) {
   if (!regulationBody || typeof regulationBody !== 'string') return [];
 
-  const { regulationNumber, url, title: pageTitle } = context;
+  const { regulationNumber, url } = context;
   const tasks = [];
 
   // Split into sections by regulation reference pattern

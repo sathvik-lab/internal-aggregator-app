@@ -6,8 +6,6 @@
  * to React Native using expo-blur and rgba colors.
  */
 
-import { StyleSheet } from 'react-native';
-
 // Glassmorphism color constants
 export const GLASS = {
   background: 'rgba(255, 255, 255, 0.05)',      // white/5

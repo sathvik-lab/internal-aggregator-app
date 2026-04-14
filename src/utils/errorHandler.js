@@ -207,7 +207,6 @@ export const getErrorMessage = (error, defaultMessage = ERROR_MESSAGES.GENERIC_E
     'out-of-range': 'Invalid value provided. Please check your input.',
     'unimplemented': 'This feature is not available yet.',
     'internal': 'An internal error occurred. Please try again later.',
-    'unavailable': ERROR_MESSAGES.NETWORK_ERROR,
     'data-loss': 'Data corruption detected. Please try again.',
     'unauthenticated': ERROR_MESSAGES.AUTH_REQUIRED,
   };
@@ -320,7 +319,7 @@ export const safeGet = (getter, defaultValue = null) => {
   try {
     const value = getter();
     return value !== null && value !== undefined ? value : defaultValue;
-  } catch (error) {
+  } catch (_error) {
     return defaultValue;
   }
 };
@@ -335,7 +334,7 @@ export const safeGetAsync = async (asyncGetter, defaultValue = null) => {
   try {
     const value = await asyncGetter();
     return value !== null && value !== undefined ? value : defaultValue;
-  } catch (error) {
+  } catch (_error) {
     return defaultValue;
   }
 };

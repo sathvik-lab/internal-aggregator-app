@@ -10,7 +10,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Platform, Animated } from 're
 import { BlurView } from 'expo-blur';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
-import { moderateScale, PADDING, SPACING, isTablet, getCardWidth } from '../../utils/responsive';
+import { moderateScale, SPACING, isTablet } from '../../utils/responsive';
 import { GLASS } from '../../utils/glassmorphism';
 
 /**
@@ -36,7 +36,7 @@ const StatCard = ({
     trend, // 'up', 'down', or undefined
     trendValue, // e.g., '+12%'
 }) => {
-    const { colors, typography, spacing, shadows } = useTheme();
+    const { colors, typography, shadows } = useTheme();
     const cardColor = color || colors.primary;
     const CardComponent = onPress ? TouchableOpacity : View;
     const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -89,7 +89,7 @@ const StatCard = ({
         );
         pulseAnimation.start();
         return () => pulseAnimation.stop();
-    }, []);
+    }, [iconPulseAnim]);
 
     const useGlass = colors.glassBackground != null;
     const cardContainerStyle = useGlass

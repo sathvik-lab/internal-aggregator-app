@@ -115,7 +115,7 @@ export const syncTemplates = async (userId, forceRefresh = false) => {
             error: templatesResult.error,
           };
         }
-      } catch (cacheError) {
+      } catch (_cacheError) {
         // Ignore cache error
       }
       return { templates: [], fromCache: false, businessId: userResult.data?.defaultBusinessId || null, error: templatesResult.error };

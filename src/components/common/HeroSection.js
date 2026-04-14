@@ -12,7 +12,6 @@ import {
   Text,
   StyleSheet,
   ImageBackground,
-  ScrollView,
   Dimensions,
   Platform,
   Animated,
@@ -25,7 +24,6 @@ import { DELAYS } from '../../utils/animations';
 import { GLASS, createGlowStyle } from '../../utils/glassmorphism';
 import GradientText from './GradientText';
 import Button from './Button';
-import StatCard from './StatCard';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -34,7 +32,6 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
  */
 const Marquee = ({ items, delay = 0 }) => {
   const scrollX = useRef(new Animated.Value(0)).current;
-  const marqueeAnim = useRef(null);
 
   useEffect(() => {
     // Create infinite scroll animation
@@ -52,11 +49,8 @@ const Marquee = ({ items, delay = 0 }) => {
     const timeout = setTimeout(animate, delay);
     return () => {
       clearTimeout(timeout);
-      if (marqueeAnim.current) {
-        marqueeAnim.current.stop();
-      }
     };
-  }, [delay]);
+  }, [delay, scrollX]);
 
   return (
     <View style={styles.marqueeContainer}>
@@ -172,6 +166,7 @@ const HeroSection = ({
         useNativeDriver: true,
       }),
     ]).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only entrance; fadeAnim refs stable
   }, []);
 
   const glassColors = colors.glassBackground

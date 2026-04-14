@@ -169,6 +169,7 @@ const BottomSheet = ({
                 setInternalVisible(false);
             });
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- backdropOpacity, panY, slideAnim are stable Animated.Value refs
     }, [visible, internalVisible]);
 
     const closeSheet = useCallback(() => {

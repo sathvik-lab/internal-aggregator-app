@@ -117,6 +117,7 @@ const ProgressIndicator = ({
     } else {
       checkmarkScale.setValue(0);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Animated.Value refs stable; step/isExpanded/totalSteps drive updates
   }, [step, isExpanded, totalSteps]);
 
   const handleContinue = () => {

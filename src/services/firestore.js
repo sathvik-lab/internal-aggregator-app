@@ -21,7 +21,7 @@ import {
   onSnapshot,
   serverTimestamp,
 } from 'firebase/firestore';
-import { handleAsyncOperation, getErrorMessage, isNetworkError } from '../utils/errorHandler';
+import { handleAsyncOperation, getErrorMessage } from '../utils/errorHandler';
 
 /**
  * Create a new document in a Firestore collection

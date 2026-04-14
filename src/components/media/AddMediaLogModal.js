@@ -4,7 +4,7 @@
  * Modal for creating a media log entry (photo/video + optional note).
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,

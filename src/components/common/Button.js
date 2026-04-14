@@ -6,7 +6,7 @@
  */
 
 import React, { useRef } from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View, Platform, Animated } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { TOUCH_TARGETS, PADDING, moderateScale } from '../../utils/responsive';
@@ -43,7 +43,7 @@ const Button = ({
     textStyle,
     ...props
 }) => {
-    const { colors, shadows, spacing } = useTheme();
+    const { colors, shadows } = useTheme();
     
     // Determine if button should be disabled
     const isDisabled = disabled || loading;

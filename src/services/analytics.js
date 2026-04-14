@@ -16,11 +16,10 @@ const getAnalytics = () => {
 
   try {
     // Lazy require avoids crashing when native module is unavailable (e.g., Expo Go).
-    // eslint-disable-next-line global-require
     const analyticsModule = require('@react-native-firebase/analytics').default;
     analyticsInstance = analyticsModule();
     return analyticsInstance;
-  } catch (error) {
+  } catch (_error) {
     analyticsUnavailable = true;
     if (__DEV__) {
       console.warn('Analytics module unavailable. Running analytics as no-op.');

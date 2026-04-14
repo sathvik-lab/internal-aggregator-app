@@ -28,11 +28,10 @@ import ChecklistItem from '../components/checklist/ChecklistItem';
 import AddChecklistItemModal from '../components/checklist/AddChecklistItemModal';
 import EmptyState from '../components/common/EmptyState';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
-import { setupRealtimeListener, updateDocument, queryDocuments } from '../services/firestore';
-import { CHECKLIST_STATUS } from '../constants/constants';
+import { setupRealtimeListener, updateDocument } from '../services/firestore';
 import { MOCK_CHECKLIST_CATEGORIES } from '../utils/mockData';
 import { syncTemplates, getCachedTemplates } from '../services/checklistTemplateSync';
-import { setupInstancesListener, syncInstances, getCachedInstances } from '../services/checklistInstanceSync';
+import { setupInstancesListener, syncInstances } from '../services/checklistInstanceSync';
 import { updateChecklistItemCompletion } from '../services/checklistItems';
 import { logAnalyticsEvent } from '../services/analytics';
 
@@ -117,7 +116,7 @@ const ChecklistScreen = () => {
 
     // Template sync states
     const [syncingTemplates, setSyncingTemplates] = useState(false);
-    const [templatesLoaded, setTemplatesLoaded] = useState(false);
+    const [, setTemplatesLoaded] = useState(false);
 
     // Calculate today's completion percentage
     const todayCompletionPercentage = useMemo(() => {
@@ -744,7 +743,7 @@ const ChecklistScreen = () => {
             {activeTab === TABS.TODAY && (
                 <View style={styles.progressContainer}>
                     <View style={styles.progressHeader}>
-                        <Text style={styles.progressLabel}>Today's Progress</Text>
+                        <Text style={styles.progressLabel}>Today&apos;s Progress</Text>
                         <Text style={styles.progressPercentage}>
                             {Math.round(todayCompletionPercentage)}%
                         </Text>
