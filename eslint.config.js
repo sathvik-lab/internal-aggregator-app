@@ -1,8 +1,7 @@
 const expoConfig = require('eslint-config-expo/flat');
-const { defineConfig } = require('eslint');
 
-module.exports = defineConfig([
-  expoConfig,
+module.exports = [
+  ...expoConfig,
   {
     ignores: [
       '.expo/**',
@@ -12,4 +11,4 @@ module.exports = defineConfig([
       'build/**',
     ],
   },
-]);
+];

@@ -79,6 +79,15 @@ const firebaseConfig = {
   appId: firebaseAppId || 'placeholder-app-id',
 };
 
+export const getFirebaseClientConfig = () => ({
+  apiKey: firebaseConfig.apiKey,
+  authDomain: firebaseConfig.authDomain,
+  projectId: firebaseConfig.projectId,
+  storageBucket: firebaseConfig.storageBucket,
+  messagingSenderId: firebaseConfig.messagingSenderId,
+  appId: firebaseConfig.appId,
+});
+
 // Initialize Firebase app
 let app;
 let _authInstance = null; // Internal variable to store auth instance (lazy initialization)

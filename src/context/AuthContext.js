@@ -12,6 +12,7 @@ import { onAuthStateChanged, signOutUser } from '../services/auth';
 import { syncTemplates, clearTemplateCache } from '../services/checklistTemplateSync';
 import { syncInstances, clearInstanceCache } from '../services/checklistInstanceSync';
 import { getUserProfileDocument, shouldShowOwnerOnboarding } from '../services/userProfile';
+import { initializePushNotificationsIfEnabled, unregisterPushTokens } from '../services/pushNotifications';
 
 /**
  * AuthContext - Provides auth state and functions
@@ -140,6 +141,15 @@ export const AuthProvider = ({ children }) => {
     refreshUserProfile();
   }, [user?.uid, loading, refreshUserProfile]);
 
+  useEffect(() => {
+    if (!user?.uid || loading) {
+      return;
+    }
+    initializePushNotificationsIfEnabled(user.uid).catch((error) => {
+      console.warn('Push initialization skipped/failed:', error?.message || error);
+    });
+  }, [loading, user?.uid]);
+
   /**
    * Sync templates and instances when user logs in
    */
@@ -167,7 +177,7 @@ export const AuthProvider = ({ children }) => {
         
         if (!result.error && result.templates && result.templates.length > 0) {
           // Generate instances from templates
-          syncInstances(uid, result.templates)
+          syncInstances(uid, result.templates, { businessId: result.businessId || null })
             .then(() => {
               // Only update lastSyncedUid if sync completed successfully and still mounted
               if (mounted && uid === lastSyncedUid.current) {
@@ -209,6 +219,7 @@ export const AuthProvider = ({ children }) => {
         const cacheResults = await Promise.allSettled([
           clearTemplateCache(user.uid),
           clearInstanceCache(user.uid),
+          unregisterPushTokens(user.uid),
         ]);
         
         // Log any cache clearing failures but don't block sign-out

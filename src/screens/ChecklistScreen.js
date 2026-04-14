@@ -33,6 +33,8 @@ import { CHECKLIST_STATUS } from '../constants/constants';
 import { MOCK_CHECKLIST_CATEGORIES } from '../utils/mockData';
 import { syncTemplates, getCachedTemplates } from '../services/checklistTemplateSync';
 import { setupInstancesListener, syncInstances, getCachedInstances } from '../services/checklistInstanceSync';
+import { updateChecklistItemCompletion } from '../services/checklistItems';
+import { logAnalyticsEvent } from '../services/analytics';
 
 const TABS = {
     TODAY: 'today',
@@ -300,30 +302,28 @@ const ChecklistScreen = () => {
     const handleToggleComplete = useCallback(
         async (item) => {
             try {
-                const updatedData = {
+                const result = await updateChecklistItemCompletion({
+                    itemId: item.id,
                     completed: !item.completed,
-                    completedAt: item.completed ? null : new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                };
-
-                // Real Firestore:
-                // await updateDocument('checklistItems', item.id, {
-                //   completed: !item.completed,
-                //   completedAt: item.completed ? null : serverTimestamp(),
-                //   updatedAt: serverTimestamp(),
-                // });
-
-                const result = await updateDocument('checklistItems', item.id, updatedData);
+                    userId: user?.uid,
+                    dueDate: item.dueDate,
+                });
 
                 if (result.error) {
                     Alert.alert('Error', 'Failed to update checklist item. Please try again.');
+                } else if (!item.completed) {
+                    logAnalyticsEvent('checklist_item_completed', {
+                        item_id: item.id,
+                        priority: item.priority || 'unknown',
+                        source: 'checklist_screen',
+                    });
                 }
             } catch (error) {
                 console.error('Error toggling complete:', error);
                 Alert.alert('Error', 'An unexpected error occurred.');
             }
         },
-        []
+        [user?.uid]
     );
 
     /**

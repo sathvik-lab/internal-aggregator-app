@@ -79,7 +79,7 @@ const getDateOptions = () => {
  * @param {Function} props.onSuccess - Callback when item is successfully created
  */
 const AddChecklistItemModal = ({ visible, onClose, onSuccess }) => {
-    const { user } = useAuth();
+    const { user, userProfile } = useAuth();
     const { colors } = useTheme();
     const useGlass = colors.glassBackground != null;
     const glassColors = colors.glassBackground
@@ -262,6 +262,7 @@ const AddChecklistItemModal = ({ visible, onClose, onSuccess }) => {
         try {
             const checklistData = {
                 userId: user.uid,
+                ...(userProfile?.defaultBusinessId ? { businessId: userProfile.defaultBusinessId } : {}),
                 title: title.trim(),
                 description: description.trim() || null,
                 dueDate: dueDate || null,

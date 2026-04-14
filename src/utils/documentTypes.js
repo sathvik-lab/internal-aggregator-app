@@ -167,8 +167,19 @@ export const getDocumentExpiryLabel = (expiryDateValue) => {
   });
 };
 
-export const buildDocumentMetadata = ({ selectedType, fileName, selectedFile, notes, userId, uploadUrl, storagePath, expiryDate }) => ({
+export const buildDocumentMetadata = ({
+  selectedType,
+  fileName,
+  selectedFile,
+  notes,
   userId,
+  businessId = null,
+  uploadUrl,
+  storagePath,
+  expiryDate,
+}) => ({
+  userId,
+  ...(businessId ? { businessId } : {}),
   name: fileName,
   type: selectedType,
   category: getDocumentTypeOption(selectedType).filterLabel,

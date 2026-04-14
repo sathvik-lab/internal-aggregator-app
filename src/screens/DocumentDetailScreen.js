@@ -39,7 +39,8 @@ import EmptyState from '../components/common/EmptyState';
 import { COLORS } from '../constants/colors';
 import { getDocument, updateDocument, deleteDocument, queryDocuments } from '../services/firestore';
 import { deleteFile } from '../services/storage';
-import { getDocumentExpiryBadge, getDocumentExpiryLabel } from '../utils/documentTypes';
+import { getDocumentExpiryLabel } from '../utils/documentTypes';
+import { getDocumentExpiryStatus } from '../utils/documentExpiryStatus';
 
 /**
  * Get file type icon based on MIME type
@@ -93,6 +94,12 @@ const formatDate = (dateString) => {
 };
 
 const DocumentDetailScreen = () => {
+    const statusToneColors = {
+        critical: COLORS.error,
+        warning: COLORS.warning,
+        success: COLORS.success,
+        neutral: COLORS.textSecondary,
+    };
     const route = useRoute();
     const navigation = useNavigation();
     const { user } = useAuth();
@@ -367,7 +374,8 @@ const DocumentDetailScreen = () => {
 
     const fileIcon = getFileIcon(document.mimeType);
     const fileIconColor = getFileIconColor(document.mimeType);
-    const expiryBadge = useMemo(() => getDocumentExpiryBadge(document), [document]);
+    const expiryStatus = useMemo(() => getDocumentExpiryStatus(document?.expiryDate), [document?.expiryDate]);
+    const expiryBadgeColor = statusToneColors[expiryStatus.tone] || COLORS.textSecondary;
     const expiryDateLabel = getDocumentExpiryLabel(document.expiryDate);
 
     return (
@@ -386,6 +394,13 @@ const DocumentDetailScreen = () => {
 
                 {/* Document Name */}
                 <Text style={styles.documentName}>{document.name}</Text>
+                <View
+                    style={[styles.headerStatusBadge, { backgroundColor: `${expiryBadgeColor}18`, borderColor: expiryBadgeColor }]}
+                    accessible
+                    accessibilityLabel={`Document status ${expiryStatus.label}`}
+                >
+                    <Text style={[styles.headerStatusText, { color: expiryBadgeColor }]}>{expiryStatus.label}</Text>
+                </View>
 
                 {/* Action Buttons */}
                 <View style={styles.actionsContainer}>
@@ -487,11 +502,9 @@ const DocumentDetailScreen = () => {
                                 <Text style={styles.metadataLabel}>Expiry Date</Text>
                                 <View style={styles.expiryRow}>
                                     <Text style={styles.metadataValue}>{expiryDateLabel}</Text>
-                                    {expiryBadge && (
-                                        <View style={[styles.expiryStatusBadge, { backgroundColor: `${expiryBadge.color}15`, borderColor: expiryBadge.color }]}> 
-                                            <Text style={[styles.expiryStatusText, { color: expiryBadge.color }]}>{expiryBadge.label}</Text>
-                                        </View>
-                                    )}
+                                    <View style={[styles.expiryStatusBadge, { backgroundColor: `${expiryBadgeColor}15`, borderColor: expiryBadgeColor }]}> 
+                                        <Text style={[styles.expiryStatusText, { color: expiryBadgeColor }]}>{expiryStatus.label}</Text>
+                                    </View>
                                 </View>
                             </View>
                         </View>
@@ -614,8 +627,21 @@ const styles = StyleSheet.create({
         color: COLORS.text,
         textAlign: 'center',
         paddingHorizontal: 20,
-        paddingVertical: 20,
+        paddingTop: 20,
+        paddingBottom: 10,
         backgroundColor: COLORS.surface,
+    },
+    headerStatusBadge: {
+        alignSelf: 'center',
+        borderWidth: 1,
+        borderRadius: 12,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        marginBottom: 12,
+    },
+    headerStatusText: {
+        fontSize: 12,
+        fontWeight: '700',
     },
     actionsContainer: {
         flexDirection: 'row',

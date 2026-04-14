@@ -160,7 +160,9 @@ const OwnerOnboardingScreen = () => {
         throw new Error(templateResult.error.message || 'Unable to sync checklist templates.');
       }
 
-      const instanceResult = await syncInstances(user.uid, templateResult.templates || []);
+      const instanceResult = await syncInstances(user.uid, templateResult.templates || [], {
+        businessId: templateResult.businessId || null,
+      });
       if (instanceResult.error) {
         throw new Error(instanceResult.error.message || 'Unable to generate your checklist items.');
       }

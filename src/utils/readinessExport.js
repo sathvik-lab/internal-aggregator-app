@@ -388,3 +388,54 @@ export const shareReadinessSummary = async (dashboardData, scoreData, businessPr
     throw error;
   }
 };
+
+/**
+ * Export readiness summary as PDF and open native share sheet.
+ *
+ * @param {Object} dashboardData - Dashboard snapshot data
+ * @param {Object} scoreData - Compliance score breakdown
+ * @param {Object} businessProfile - Business profile
+ * @returns {Promise<{uri: string}>}
+ */
+export const exportReadinessSummaryPdf = async (dashboardData, scoreData, businessProfile = {}) => {
+  const Print = await import('expo-print');
+  const Sharing = await import('expo-sharing');
+  const { Share, Platform } = await import('react-native');
+
+  const html = generateReadinessHtml(dashboardData, scoreData, businessProfile);
+  const { business_name = 'Food Truck' } = businessProfile;
+
+  const { uri } = await Print.printToFileAsync({
+    html,
+    base64: false,
+  });
+
+  const canUseExpoSharing = await Sharing.isAvailableAsync();
+  if (canUseExpoSharing) {
+    await Sharing.shareAsync(uri, {
+      mimeType: 'application/pdf',
+      dialogTitle: `${business_name} Readiness Summary`,
+      UTI: 'com.adobe.pdf',
+    });
+    return { uri };
+  }
+
+  // Platform note:
+  // - iOS: Share API generally supports file:// URLs directly via `url`.
+  // - Android: file URL support through RN Share can vary by target app; when unreliable,
+  //   include a text fallback that contains the local URI.
+  if (Platform.OS === 'ios') {
+    await Share.share({
+      title: `${business_name} Readiness Summary`,
+      url: uri,
+      message: 'Inspection readiness summary PDF',
+    });
+  } else {
+    await Share.share({
+      title: `${business_name} Readiness Summary`,
+      message: `Inspection readiness summary PDF: ${uri}`,
+    });
+  }
+
+  return { uri };
+};

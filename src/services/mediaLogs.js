@@ -9,6 +9,7 @@ import { getFirebaseAuth } from './firebase';
 import { createDocument, deleteDocument, getDocument, queryDocuments } from './firestore';
 import { uploadFile, deleteFile } from './storage';
 import { STORAGE_PATHS, PAGINATION } from '../constants/constants';
+import { getDefaultBusinessId } from './userProfile';
 
 const UNAUTHENTICATED_ERROR = {
   code: 'auth/unauthenticated',
@@ -117,6 +118,7 @@ export const uploadMediaLog = async ({ uri, mediaType, note = null, onProgress }
     };
   }
 
+  const { businessId } = await getDefaultBusinessId(userId);
   const extension = uri.split('.').pop() || '';
   const fileName = `${Date.now()}-${userId}.${extension}`;
   const storageBasePath = STORAGE_PATHS.MEDIA_LOGS;
@@ -146,6 +148,7 @@ export const uploadMediaLog = async ({ uri, mediaType, note = null, onProgress }
 
   const { id, error } = await createDocument('mediaLogs', {
     userId,
+    ...(businessId ? { businessId } : {}),
     mediaType,
     storagePath: uploadResult.path,
     thumbnailPath: null,
@@ -185,23 +188,58 @@ export const fetchMediaLogs = async (rangeType = 'daily', opts = {}) => {
 
   const { startDate, endDate } = getDateRangeForType(rangeType);
 
-  const conditions = [
-    { field: 'userId', operator: '==', value: userId },
-  ];
+  const fallbackBusiness = await getDefaultBusinessId(userId);
+  const preferredBusinessId = opts.businessId || fallbackBusiness.businessId || null;
 
+  const rangeConditions = [];
   if (startDate && endDate) {
-    conditions.push(
+    rangeConditions.push(
       { field: 'logDate', operator: '>=', value: startDate },
       { field: 'logDate', operator: '<=', value: endDate },
     );
   }
 
-  const { data, error } = await queryDocuments('mediaLogs', conditions, {
+  const businessQuery = preferredBusinessId
+    ? queryDocuments('mediaLogs', [
+        { field: 'businessId', operator: '==', value: preferredBusinessId },
+        ...rangeConditions,
+      ], {
+        orderBy: { field: 'createdAt', direction: 'desc' },
+        limit: PAGINATION.DEFAULT_PAGE_SIZE,
+      })
+    : Promise.resolve({ data: [], error: null });
+
+  const userQuery = queryDocuments('mediaLogs', [
+    { field: 'userId', operator: '==', value: userId },
+    ...rangeConditions,
+  ], {
     orderBy: { field: 'createdAt', direction: 'desc' },
     limit: PAGINATION.DEFAULT_PAGE_SIZE,
   });
 
-  return { data, error };
+  const [businessResult, userResult] = await Promise.all([businessQuery, userQuery]);
+  const error = businessResult.error || userResult.error;
+  if (error) {
+    return { data: [], error };
+  }
+
+  const mergedById = new Map();
+  (businessResult.data || []).forEach((item) => {
+    mergedById.set(item.id, item);
+  });
+  (userResult.data || []).forEach((item) => {
+    if (!item?.businessId || !mergedById.has(item.id)) {
+      mergedById.set(item.id, item);
+    }
+  });
+
+  const data = Array.from(mergedById.values()).sort((a, b) => {
+    const aDate = new Date(a.createdAt || a.logDate || 0).getTime();
+    const bDate = new Date(b.createdAt || b.logDate || 0).getTime();
+    return bDate - aDate;
+  });
+
+  return { data, error: null };
 };
 
 /**

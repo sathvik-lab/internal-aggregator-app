@@ -7,6 +7,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   Platform,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,6 +16,7 @@ import Header from '../components/common/Header';
 import QuickActions from '../components/common/QuickActions';
 import ScoreBreakdownModal from '../components/common/ScoreBreakdownModal';
 import ReminderBanner from '../components/common/ReminderBanner';
+import DocumentExpiryBanner, { shouldShowDocumentExpiryBanner } from '../components/common/DocumentExpiryBanner';
 import ChecklistItem from '../components/checklist/ChecklistItem';
 import DocumentItem from '../components/documents/DocumentItem';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
@@ -25,6 +27,7 @@ import { fetchUserPreferences, dismissReminder } from '../services/userPreferenc
 import { calculateComplianceScore } from '../utils/complianceScore';
 import { ROUTES } from '../navigation/navigationConfig';
 import { PADDING, SPACING, moderateScale } from '../utils/responsive';
+import { getErrorMessage, isNetworkError } from '../utils/errorHandler';
 
 const formatDateLabel = (value) => {
   if (!value) return 'Unknown date';
@@ -81,7 +84,15 @@ const SectionHeader = ({ title, count, actionLabel, onAction, colors }) => (
   </View>
 );
 
-const ReadinessSummaryCard = ({ readiness, counts, onChecklistPress, onDocumentsPress, onScorePress, colors }) => {
+const ReadinessSummaryCard = ({
+  readiness,
+  counts,
+  hasRequiredDocumentsState = false,
+  onChecklistPress,
+  onDocumentsPress,
+  onScorePress,
+  colors,
+}) => {
   const toneColors = {
     good: colors.success,
     warning: colors.warning,
@@ -119,6 +130,11 @@ const ReadinessSummaryCard = ({ readiness, counts, onChecklistPress, onDocuments
       <Text style={[styles.summaryNextAction, { color: colors.textSecondary || colors.text?.secondary }]}>
         {readiness.nextAction}
       </Text>
+      {hasRequiredDocumentsState && counts?.missingRequiredDocuments > 0 ? (
+        <Text style={[styles.missingRequiredText, { color: colors.warning }]}>
+          Missing required: {counts.missingRequiredDocuments}
+        </Text>
+      ) : null}
 
       <View style={styles.summaryStatsRow}>
         <View style={styles.summaryStat}>
@@ -197,6 +213,7 @@ const DashboardScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [scoreBreakdownVisible, setScoreBreakdownVisible] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [scoreData, setScoreData] = useState(null);
   const [userPreferences, setUserPreferences] = useState(null);
   const [dashboardData, setDashboardData] = useState({
@@ -212,6 +229,8 @@ const DashboardScreen = () => {
     expiringDocuments: [],
     expiredDocuments: [],
     recentMediaLogs: [],
+    incidents: [],
+    maintenanceTasks: [],
     counts: {
       documents: 0,
       dueToday: 0,
@@ -219,6 +238,8 @@ const DashboardScreen = () => {
       expiringDocuments: 0,
       expiredDocuments: 0,
       recentMediaLogs: 0,
+      incidents: 0,
+      maintenanceTasks: 0,
     },
     allChecklistItems: [],
   });
@@ -232,12 +253,19 @@ const DashboardScreen = () => {
     if (showLoading) {
       setLoading(true);
     }
+    setLoadError('');
 
     try {
       const result = await fetchDashboardSnapshot(user.uid);
 
       if (result.error) {
         console.error('Error loading dashboard:', result.error);
+        const isNetwork = isNetworkError(result.error);
+        const message = isNetwork
+          ? 'Could not refresh dashboard. Check your connection and try again. Data shown may be stale.'
+          : getErrorMessage(result.error, 'Could not refresh dashboard right now. Pull to retry.');
+        setLoadError(message);
+        return { errorMessage: message };
       } else if (result.data) {
         setDashboardData(result.data);
         
@@ -249,6 +277,8 @@ const DashboardScreen = () => {
           expiringDocuments: result.data.expiringDocuments || [],
           expiredDocuments: result.data.expiredDocuments || [],
           mediaLogs: result.data.recentMediaLogs || [],
+          incidents: result.data.incidents || [],
+          maintenanceTasks: result.data.maintenanceTasks || [],
         });
         setScoreData(scoreResult);
       }
@@ -260,9 +290,16 @@ const DashboardScreen = () => {
       }
     } catch (error) {
       console.error('Unexpected error loading dashboard:', error);
+      const isNetwork = isNetworkError(error);
+      const message = isNetwork
+        ? 'Could not refresh dashboard. Check your connection and try again. Data shown may be stale.'
+        : getErrorMessage(error, 'Could not refresh dashboard right now. Pull to retry.');
+      setLoadError(message);
+      return { errorMessage: message };
     } finally {
       setLoading(false);
     }
+    return { errorMessage: null };
   }, [user?.uid]);
 
   useEffect(() => {
@@ -271,8 +308,14 @@ const DashboardScreen = () => {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadDashboard({ showLoading: false });
+    const refreshResult = await loadDashboard({ showLoading: false });
     setRefreshing(false);
+    if (refreshResult?.errorMessage) {
+      Alert.alert('Refresh failed', refreshResult.errorMessage, [
+        { text: 'Dismiss', style: 'cancel' },
+        { text: 'Retry', onPress: () => { loadDashboard({ showLoading: false }); } },
+      ]);
+    }
   }, [loadDashboard]);
 
   const notificationCount = dashboardData.counts.overdue + dashboardData.counts.dueToday;
@@ -324,10 +367,25 @@ const DashboardScreen = () => {
     navigation.navigate(ROUTES.MAIN.PROFILE);
   }, [navigation]);
 
+  const handleIncidentsPress = useCallback(() => {
+    navigation.navigate(ROUTES.MAIN.INCIDENTS, { screen: ROUTES.INCIDENTS.LIST });
+  }, [navigation]);
+
+  const handleMaintenancePress = useCallback(() => {
+    navigation.navigate(ROUTES.MAIN.MAINTENANCE, { screen: ROUTES.MAINTENANCE.LIST });
+  }, [navigation]);
+
   const handleReminderDismiss = useCallback(
-    (reminderId) => {
+    async (reminderId) => {
       if (user?.uid) {
-        dismissReminder(user.uid, reminderId);
+        await dismissReminder(user.uid, reminderId);
+        setUserPreferences((prev) => ({
+          ...(prev || {}),
+          lastDismissed: {
+            ...(prev?.lastDismissed || {}),
+            [reminderId]: new Date().toISOString(),
+          },
+        }));
       }
     },
     [user?.uid]
@@ -407,6 +465,34 @@ const DashboardScreen = () => {
             </>
           ) : (
             <>
+              {loadError ? (
+                <View
+                  style={[
+                    styles.errorBanner,
+                    {
+                      backgroundColor: `${colors.warning}12`,
+                      borderColor: `${colors.warning}40`,
+                    },
+                  ]}
+                >
+                  <View style={styles.errorBannerTextWrap}>
+                    <Text style={[styles.errorBannerTitle, { color: colors.warning }]}>
+                      Update needed
+                    </Text>
+                    <Text style={[styles.errorBannerText, { color: colors.text?.primary || colors.text }]}>
+                      {loadError}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.errorBannerRetry, { borderColor: colors.warning }]}
+                    onPress={() => loadDashboard({ showLoading: false })}
+                    accessibilityRole="button"
+                    accessibilityLabel="Retry dashboard refresh"
+                  >
+                    <Text style={[styles.errorBannerRetryText, { color: colors.warning }]}>Retry</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
               <ReminderBanner
                 dueTodayCount={dashboardData.counts.dueToday}
                 overdueCount={dashboardData.counts.overdue}
@@ -415,10 +501,25 @@ const DashboardScreen = () => {
                 onDismiss={handleReminderDismiss}
                 onNavigate={handleReminderNavigate}
               />
+              {shouldShowDocumentExpiryBanner(
+                {
+                  expiringCount: dashboardData.counts.expiringDocuments,
+                  expiredCount: dashboardData.counts.expiredDocuments,
+                },
+                userPreferences
+              ) && (
+                <DocumentExpiryBanner
+                  expiringCount={dashboardData.counts.expiringDocuments}
+                  expiredCount={dashboardData.counts.expiredDocuments}
+                  onOpenDocuments={handleDocumentsPress}
+                  onDismiss={() => handleReminderDismiss('documentExpiry')}
+                />
+              )}
 
               <ReadinessSummaryCard
                 readiness={dashboardData.readiness}
                 counts={dashboardData.counts}
+                hasRequiredDocumentsState={dashboardData.hasRequiredDocumentsState}
                 onChecklistPress={() => handleChecklistPress('today')}
                 onDocumentsPress={handleDocumentsPress}
                 onScorePress={() => setScoreBreakdownVisible(true)}
@@ -431,6 +532,36 @@ const DashboardScreen = () => {
                 onDocumentsPress={handleDocumentsPress}
                 onReportsPress={handleReportsPress}
               />
+
+              <View style={styles.section}>
+                <SectionHeader
+                  title="Operations"
+                  count={(dashboardData.counts.incidents || 0) + (dashboardData.counts.maintenanceTasks || 0)}
+                  actionLabel="Open"
+                  onAction={handleIncidentsPress}
+                  colors={colors}
+                />
+                <View style={styles.summaryActions}>
+                  <TouchableOpacity
+                    style={[styles.summaryActionButton, { backgroundColor: `${colors.error}12` }]}
+                    onPress={handleIncidentsPress}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open incidents, ${dashboardData.counts.incidents || 0} total`}
+                  >
+                    <Text style={[styles.summaryActionText, { color: colors.error }]}>Incidents ({dashboardData.counts.incidents || 0})</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.summaryActionButton, { backgroundColor: `${colors.warning}12` }]}
+                    onPress={handleMaintenancePress}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open maintenance, ${dashboardData.counts.maintenanceTasks || 0} total`}
+                  >
+                    <Text style={[styles.summaryActionText, { color: colors.warning }]}>Maintenance ({dashboardData.counts.maintenanceTasks || 0})</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
 
               <View style={styles.section}>
                 <SectionHeader
@@ -633,6 +764,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 16,
   },
+  missingRequiredText: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
   summaryStatsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -740,6 +876,40 @@ const styles = StyleSheet.create({
   mediaNote: {
     fontSize: 14,
     lineHeight: 21,
+  },
+  errorBanner: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  errorBannerTextWrap: {
+    flex: 1,
+  },
+  errorBannerTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  errorBannerText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  errorBannerRetry: {
+    minHeight: 36,
+    minWidth: 64,
+    borderWidth: 1,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
+  errorBannerRetryText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
 });
 

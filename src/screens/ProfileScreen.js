@@ -28,13 +28,15 @@ import EditProfileModal from '../components/profile/EditProfileModal';
 import BusinessProfileModal from '../components/profile/BusinessProfileModal';
 import { clearTemplateCache, syncTemplates } from '../services/checklistTemplateSync';
 import { syncInstances } from '../services/checklistInstanceSync';
+import { updateBusinessVisibilitySettings, updateUserVisibilitySettings } from '../services/userProfile';
 import {
     TRUCK_TYPE_LABELS,
     FOOD_TYPE_LABELS,
     BUSINESS_TYPE_LABELS,
     COMPLIANCE_AREA_LABELS,
 } from '../constants/checklistConstants';
-import { USER_ROLES } from '../constants/constants';
+import { ROUTES } from '../navigation/navigationConfig';
+import { useEffectiveRole } from '../hooks/useEffectiveRole';
 
 /**
  * Format file size for display
@@ -116,6 +118,7 @@ const SettingsSection = ({ title, children, colors }) => {
  */
 const ProfileScreen = () => {
     const { user, signOut } = useAuth();
+    const { isOwner } = useEffectiveRole();
     const navigation = useNavigation();
     const { colors, theme, setTheme, isDark } = useTheme();
     const [loading, setLoading] = useState(true);
@@ -131,6 +134,13 @@ const ProfileScreen = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showBusinessProfileModal, setShowBusinessProfileModal] = useState(false);
     const [businessProfile, setBusinessProfile] = useState(null);
+    const [businessId, setBusinessId] = useState(null);
+    const [visibilitySettings, setVisibilitySettings] = useState({
+        userPublicProfileEnabled: false,
+        userPublicScoreEnabled: false,
+        businessPublicProfileEnabled: false,
+        businessPublicScoreEnabled: false,
+    });
 
     /**
      * Fetch user preferences from Firestore
@@ -202,15 +212,58 @@ const ProfileScreen = () => {
 
         try {
             const result = await getDocument('users', user.uid);
-            if (result.data && result.data.businessProfile) {
-                setBusinessProfile(result.data.businessProfile);
+            if (result.data) {
+                setBusinessProfile(result.data.businessProfile || null);
+                setBusinessId(result.data.defaultBusinessId || null);
+                setVisibilitySettings((prev) => ({
+                    ...prev,
+                    userPublicProfileEnabled: Boolean(result.data.publicProfileEnabled),
+                    userPublicScoreEnabled: Boolean(result.data.publicScoreEnabled),
+                }));
+                if (result.data.defaultBusinessId) {
+                    const businessResult = await getDocument('businesses', result.data.defaultBusinessId);
+                    if (businessResult.data) {
+                        setVisibilitySettings((prev) => ({
+                            ...prev,
+                            businessPublicProfileEnabled: Boolean(businessResult.data.publicProfileEnabled),
+                            businessPublicScoreEnabled: Boolean(businessResult.data.publicScoreEnabled),
+                        }));
+                    }
+                }
             } else {
                 setBusinessProfile(null);
+                setBusinessId(null);
             }
         } catch (error) {
             console.error('Error fetching business profile:', error);
         }
     }, [user]);
+
+    const handleVisibilityToggle = async (target, key) => {
+        const stateKey = `${target}${key}`; // userPublicProfileEnabled / businessPublicScoreEnabled
+        const previous = visibilitySettings[stateKey];
+        const next = !previous;
+
+        setVisibilitySettings((prev) => ({ ...prev, [stateKey]: next }));
+
+        let result;
+        if (target === 'user') {
+            result = await updateUserVisibilitySettings(user?.uid, {
+                ...(key === 'PublicProfileEnabled' ? { publicProfileEnabled: next } : {}),
+                ...(key === 'PublicScoreEnabled' ? { publicScoreEnabled: next } : {}),
+            });
+        } else if (target === 'business') {
+            result = await updateBusinessVisibilitySettings(businessId, {
+                ...(key === 'PublicProfileEnabled' ? { publicProfileEnabled: next } : {}),
+                ...(key === 'PublicScoreEnabled' ? { publicScoreEnabled: next } : {}),
+            });
+        }
+
+        if (result?.error) {
+            setVisibilitySettings((prev) => ({ ...prev, [stateKey]: previous }));
+            Alert.alert('Update failed', 'Could not save visibility preference. Please try again.');
+        }
+    };
 
     useEffect(() => {
         fetchUserPreferences();
@@ -414,7 +467,11 @@ const ProfileScreen = () => {
      * Handle navigate to Staff screen
      */
     const handleNavigateToStaff = () => {
-        navigation.navigate('Staff');
+        if (!isOwner) {
+            Alert.alert('Access restricted', 'Team management is available to owners only.');
+            return;
+        }
+        navigation.navigate(ROUTES.PROFILE.STAFF);
     };
 
     /**
@@ -663,27 +720,69 @@ const ProfileScreen = () => {
             </SettingsSection>
 
             {/* Business Profile Section */}
-            <SettingsSection title="Business Profile" colors={colors}>
+            {isOwner && (
+                <SettingsSection title="Business Profile" colors={colors}>
+                    <SettingsRow
+                        icon="truck-outline"
+                        title="Business Profile"
+                        subtitle={formatBusinessProfileDisplay()}
+                        value={businessProfile?.lastTemplateSync ? `Last synced: ${new Date(businessProfile.lastTemplateSync).toLocaleDateString()}` : null}
+                        onPress={handleEditBusinessProfile}
+                        colors={colors}
+                    />
+                    <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
+                    <SettingsRow
+                        icon="information-outline"
+                        title="About Business Profile"
+                        subtitle="Customize your checklist templates based on your business type, location, and food types"
+                        colors={colors}
+                        showChevron={false}
+                    />
+                </SettingsSection>
+            )}
+
+            <SettingsSection title="Public Visibility (Consent)" colors={colors}>
                 <SettingsRow
-                    icon="truck-outline"
-                    title="Business Profile"
-                    subtitle={formatBusinessProfileDisplay()}
-                    value={businessProfile?.lastTemplateSync ? `Last synced: ${new Date(businessProfile.lastTemplateSync).toLocaleDateString()}` : null}
-                    onPress={handleEditBusinessProfile}
+                    icon="shield-account-outline"
+                    title="Public Profile Preview"
+                    subtitle="Allow future public endpoints to show your profile summary. This can expose business name, truck type, and location context."
+                    rightComponent={
+                        <Switch
+                            value={isOwner ? visibilitySettings.businessPublicProfileEnabled : visibilitySettings.userPublicProfileEnabled}
+                            onValueChange={() => handleVisibilityToggle(isOwner && businessId ? 'business' : 'user', 'PublicProfileEnabled')}
+                            color={colors.primary}
+                        />
+                    }
                     colors={colors}
+                    showChevron={false}
+                />
+                <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
+                <SettingsRow
+                    icon="chart-line"
+                    title="Public Score Preview"
+                    subtitle="Allow future public endpoints to show your readiness score. Turn off to keep score private."
+                    rightComponent={
+                        <Switch
+                            value={isOwner ? visibilitySettings.businessPublicScoreEnabled : visibilitySettings.userPublicScoreEnabled}
+                            onValueChange={() => handleVisibilityToggle(isOwner && businessId ? 'business' : 'user', 'PublicScoreEnabled')}
+                            color={colors.primary}
+                        />
+                    }
+                    colors={colors}
+                    showChevron={false}
                 />
                 <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
                 <SettingsRow
                     icon="information-outline"
-                    title="About Business Profile"
-                    subtitle="Customize your checklist templates based on your business type, location, and food types"
+                    title="Consent impact"
+                    subtitle="Defaults are private. These flags do not create public reads today; they are consent signals for future public API rollout."
                     colors={colors}
                     showChevron={false}
                 />
             </SettingsSection>
 
             {/* Team Management Section (Owner Only) */}
-            {user && user.role === USER_ROLES.OWNER && (
+            {isOwner && (
                 <SettingsSection title="Team Management" colors={colors}>
                     <SettingsRow
                         icon="account-multiple-outline"

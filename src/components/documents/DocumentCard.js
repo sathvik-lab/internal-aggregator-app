@@ -12,7 +12,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../constants/colors';
 import { GLASS } from '../../utils/glassmorphism';
-import { getDocumentExpiryBadge } from '../../utils/documentTypes';
+import { getDocumentExpiryStatus } from '../../utils/documentExpiryStatus';
 
 /**
  * Get file type icon based on MIME type
@@ -77,6 +77,12 @@ const formatDate = (dateString) => {
  * @param {Function} props.onMenuPress - Callback when menu button is pressed (for actions)
  */
 const DocumentCard = ({ document, onPress, onMenuPress }) => {
+    const statusToneColors = {
+        critical: COLORS.error,
+        warning: COLORS.warning,
+        success: COLORS.success,
+        neutral: COLORS.textSecondary,
+    };
     const { colors } = useTheme();
     const useGlass = colors.glassBackground != null;
 
@@ -132,11 +138,13 @@ const DocumentCard = ({ document, onPress, onMenuPress }) => {
 
     // Memoize accessibility label
     const accessibilityLabel = useMemo(() => {
-        return `${document.name}, ${document.category || 'document'}, ${formatFileSize(document.size)}, uploaded ${formatDate(document.uploadDate)}`;
-    }, [document.name, document.category, document.size, document.uploadDate]);
+        const status = getDocumentExpiryStatus(document.expiryDate);
+        return `${document.name}, ${document.category || 'document'}, ${formatFileSize(document.size)}, uploaded ${formatDate(document.uploadDate)}, status ${status.label}`;
+    }, [document.name, document.category, document.size, document.uploadDate, document.expiryDate]);
     
     const accessibilityHint = onPress ? 'Double tap to view document details' : undefined;
-    const expiryBadge = useMemo(() => getDocumentExpiryBadge(document), [document]);
+    const expiryStatus = useMemo(() => getDocumentExpiryStatus(document.expiryDate), [document.expiryDate]);
+    const expiryColor = statusToneColors[expiryStatus.tone] || COLORS.textSecondary;
 
     const containerStyle = useGlass
         ? [
@@ -212,11 +220,9 @@ const DocumentCard = ({ document, onPress, onMenuPress }) => {
                 )}
 
                 {/* Expiry status */}
-                {expiryBadge && (
-                    <View style={[styles.expiryBadge, { backgroundColor: expiryBadge.backgroundColor || 'rgba(0,0,0,0.08)', borderColor: expiryBadge.color }]}> 
-                        <Text style={[styles.expiryBadgeText, { color: expiryBadge.color }]}>{expiryBadge.label}</Text>
-                    </View>
-                )}
+                <View style={[styles.expiryBadge, { backgroundColor: `${expiryColor}18`, borderColor: expiryColor }]}>
+                    <Text style={[styles.expiryBadgeText, { color: expiryColor }]}>{expiryStatus.label}</Text>
+                </View>
 
                 {/* Metadata */}
                 <View style={styles.metadata}>

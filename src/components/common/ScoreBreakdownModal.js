@@ -34,7 +34,16 @@ const ScoreBreakdownModal = ({ visible, scoreData, onClose }) => {
 
   if (!scoreData) return null;
 
-  const { score, factors, checklistCompletion, overduePenalty, expiryPenalty, mediaBonus } = scoreData;
+  const {
+    score,
+    factors,
+    checklistCompletion,
+    overduePenalty,
+    expiryPenalty,
+    openHighSeverityIncidentPenalty,
+    overdueMaintenancePenalty,
+    mediaBonus,
+  } = scoreData;
   const description = getScoreDescription(score);
 
   return (
@@ -137,6 +146,36 @@ const ScoreBreakdownModal = ({ visible, scoreData, onClose }) => {
                       </View>
                     </View>
                     <Text style={[styles.factorValue, { color: COLORS.warning }]}>-{expiryPenalty}%</Text>
+                  </View>
+                )}
+
+                {openHighSeverityIncidentPenalty > 0 && (
+                  <View style={styles.factorRow}>
+                    <View style={styles.factorLabel}>
+                      <MaterialCommunityIcons name="alert-octagon-outline" size={20} color={COLORS.error} />
+                      <View style={styles.factorLabelText}>
+                        <Text style={[styles.factorName, { color: COLORS.text }]}>Open Severe Incidents</Text>
+                        <Text style={[styles.factorDetail, { color: COLORS.textSecondary }]}>
+                          {factors.openHighSeverityIncidentCount} severe incident{factors.openHighSeverityIncidentCount === 1 ? '' : 's'} unresolved
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.factorValue, { color: COLORS.error }]}>-{openHighSeverityIncidentPenalty}%</Text>
+                  </View>
+                )}
+
+                {overdueMaintenancePenalty > 0 && (
+                  <View style={styles.factorRow}>
+                    <View style={styles.factorLabel}>
+                      <MaterialCommunityIcons name="tools" size={20} color={COLORS.warning} />
+                      <View style={styles.factorLabelText}>
+                        <Text style={[styles.factorName, { color: COLORS.text }]}>Overdue Maintenance</Text>
+                        <Text style={[styles.factorDetail, { color: COLORS.textSecondary }]}>
+                          {factors.overdueMaintenanceCount} overdue task{factors.overdueMaintenanceCount === 1 ? '' : 's'}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.factorValue, { color: COLORS.warning }]}>-{overdueMaintenancePenalty}%</Text>
                   </View>
                 )}
 

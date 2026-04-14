@@ -12,6 +12,8 @@ import {
   sendPasswordResetEmail,
   updateProfile,
   onAuthStateChanged as firebaseOnAuthStateChanged,
+  PhoneAuthProvider,
+  signInWithCredential,
 } from 'firebase/auth';
 import { getErrorMessage } from '../utils/errorHandler';
 
@@ -28,6 +30,10 @@ const AUTH_ERROR_MESSAGES = {
   'auth/network-request-failed': 'Network error. Please check your connection and try again.',
   'auth/missing-email': 'Email is required.',
   'auth/no-current-user': 'You must be signed in to continue.',
+  'auth/invalid-phone-number': 'Please enter a valid phone number in international format.',
+  'auth/missing-verification-code': 'Verification code is required.',
+  'auth/invalid-verification-code': 'Invalid verification code.',
+  'auth/code-expired': 'Verification code has expired. Request a new one.',
 };
 
 const formatAuthError = (error, defaultMessage) => ({
@@ -88,6 +94,34 @@ export const signInUser = async (email, password) => {
     return {
       user: null,
       error: formatAuthError(error, 'Unable to sign in right now. Please try again.'),
+    };
+  }
+};
+
+export const requestPhoneSignInCode = async ({ phoneNumber, recaptchaVerifier }) => {
+  try {
+    const authInstance = getFirebaseAuth();
+    const phoneProvider = new PhoneAuthProvider(authInstance);
+    const verificationId = await phoneProvider.verifyPhoneNumber(phoneNumber, recaptchaVerifier);
+    return { verificationId, error: null };
+  } catch (error) {
+    return {
+      verificationId: null,
+      error: formatAuthError(error, 'Unable to send verification code right now. Please try again.'),
+    };
+  }
+};
+
+export const confirmPhoneSignInCode = async ({ verificationId, verificationCode }) => {
+  try {
+    const authInstance = getFirebaseAuth();
+    const credential = PhoneAuthProvider.credential(verificationId, verificationCode);
+    const userCredential = await signInWithCredential(authInstance, credential);
+    return { user: userCredential.user, error: null };
+  } catch (error) {
+    return {
+      user: null,
+      error: formatAuthError(error, 'Unable to verify code right now. Please try again.'),
     };
   }
 };

@@ -18,6 +18,7 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import LoginScreen from '../screens/auth/LoginScreen';
+import PhoneLoginScreen from '../screens/auth/PhoneLoginScreen';
 import SignupScreen from '../screens/auth/SignupScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import { ROUTES } from './navigationConfig';
@@ -53,6 +54,14 @@ const AuthNavigator = () => {
         options={{
           title: 'Login',
           // Prevent going back from login screen (first screen in stack)
+          gestureEnabled: false,
+        }}
+      />
+      <Stack.Screen
+        name={ROUTES.AUTH.PHONE_LOGIN}
+        component={PhoneLoginScreen}
+        options={{
+          title: 'Phone Login',
           gestureEnabled: false,
         }}
       />

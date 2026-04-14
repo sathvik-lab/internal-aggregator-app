@@ -10,54 +10,60 @@ service firebase.storage {
     // Paths like: user_documents/permits/{userId}/{fileName}, user_documents/licenses/{userId}/{fileName}, etc.
     match /user_documents/{category}/{userId}/{fileName} {
       allow read: if isAuthenticated() && request.auth.uid == userId;
-      allow write: if isAuthenticated() && request.auth.uid == userId 
+      allow create, update: if isAuthenticated() && request.auth.uid == userId 
         && request.resource.size < 10485760 // 10MB max
         && request.resource.contentType.matches('(image/.*|application/pdf|application/msword|application/vnd.openxmlformats-officedocument.wordprocessingml.document)');
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
     
     // User profile pictures - users can only access their own profile
     match /user_profiles/{userId}/{fileName} {
       allow read: if isAuthenticated() && request.auth.uid == userId;
-      allow write: if isAuthenticated() && request.auth.uid == userId
+      allow create, update: if isAuthenticated() && request.auth.uid == userId
         && request.resource != null
         && request.resource.size < 5242880 // 5MB max for profile pics
         && request.resource.contentType.matches('image/.*');
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
     
     // Checklist photos - users can only access their own photos
     match /checklist_photos/{userId}/{fileName} {
       allow read: if isAuthenticated() && request.auth.uid == userId;
-      allow write: if isAuthenticated() && request.auth.uid == userId
+      allow create, update: if isAuthenticated() && request.auth.uid == userId
         && request.resource != null
         && request.resource.size < 5242880 // 5MB max
         && request.resource.contentType.matches('image/.*');
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
     
     // Incident photos - users can only access their own photos (reserved for future use)
     match /incident_photos/{userId}/{fileName} {
       allow read: if isAuthenticated() && request.auth.uid == userId;
-      allow write: if isAuthenticated() && request.auth.uid == userId
+      allow create, update: if isAuthenticated() && request.auth.uid == userId
         && request.resource != null
         && request.resource.size < 5242880 // 5MB max
         && request.resource.contentType.matches('image/.*');
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
     
     // Certifications - users can only access their own certifications (reserved for future use)
     match /certifications/{userId}/{fileName} {
       allow read: if isAuthenticated() && request.auth.uid == userId;
-      allow write: if isAuthenticated() && request.auth.uid == userId
+      allow create, update: if isAuthenticated() && request.auth.uid == userId
         && request.resource != null
         && request.resource.size < 10485760 // 10MB max
         && request.resource.contentType.matches('(image/.*|application/pdf)');
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
     
     // Media logs - users can only access their own photo/video logs
     match /media_logs/{userId}/{fileName} {
       allow read: if isAuthenticated() && request.auth.uid == userId;
-      allow write: if isAuthenticated() && request.auth.uid == userId
+      allow create, update: if isAuthenticated() && request.auth.uid == userId
         && request.resource != null
         && request.resource.size < 20971520 // 20MB max for photos/videos
         && request.resource.contentType.matches('(image/.*|video/.*)');
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
   }
 }

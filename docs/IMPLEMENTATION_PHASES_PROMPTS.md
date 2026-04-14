@@ -11,7 +11,7 @@ This document turns the seven-phase rollout plan into **copy-paste prompts** for
 **Repository context (prepend to any prompt if needed)**
 
 ```text
-Repository: internal-aggregator-app — Expo React Native + Firebase (Auth, Firestore, Storage). Product code under src/. Firebase only via src/services/. Functional components + hooks; StyleSheet at file bottom. Follow AGENTS.md / Agents.md conventions.
+Repository: internal-aggregator-app — Expo React Native + Firebase (Auth, Firestore, Storage). Product code under src/. Firebase only via src/services/. Functional components + hooks; StyleSheet at file bottom. Follow AGENTS.md / Agents.md conventions. do not explain what you are doing
 ```
 
 ---

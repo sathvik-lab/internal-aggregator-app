@@ -19,7 +19,7 @@ const COMPLETED_CACHE_KEY_PREFIX = '@checklist_completed_';
  * @param {Array} templates - Applicable templates
  * @returns {Promise<{items: Array, error: null}>}
  */
-export const syncInstances = async (userId, templates) => {
+export const syncInstances = async (userId, templates, options = {}) => {
   try {
     if (!userId) {
       return { items: [], error: { message: 'User ID is required' } };
@@ -30,10 +30,17 @@ export const syncInstances = async (userId, templates) => {
     }
 
     // Get existing active instances
-    const existingResult = await queryDocuments('checklistItems', [
-      { field: 'userId', operator: '==', value: userId },
-      { field: 'completed', operator: '==', value: false }
-    ]);
+    const businessId = options?.businessId || null;
+    const activeConditions = businessId
+      ? [
+          { field: 'businessId', operator: '==', value: businessId },
+          { field: 'completed', operator: '==', value: false },
+        ]
+      : [
+          { field: 'userId', operator: '==', value: userId },
+          { field: 'completed', operator: '==', value: false },
+        ];
+    const existingResult = await queryDocuments('checklistItems', activeConditions);
 
     if (existingResult.error) {
       return { items: [], error: existingResult.error };
@@ -55,7 +62,8 @@ export const syncInstances = async (userId, templates) => {
     const newInstances = await generateChecklistInstances(
       userId,
       templates,
-      uniqueInstances
+      uniqueInstances,
+      { businessId }
     );
 
     // Combine deduped existing + new

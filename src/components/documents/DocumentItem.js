@@ -9,6 +9,7 @@ import React, { memo, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/colors';
+import { getDocumentExpiryStatus } from '../../utils/documentExpiryStatus';
 
 /**
  * Get file type icon based on MIME type
@@ -76,6 +77,13 @@ const formatDate = (dateString) => {
  */
 const DocumentItem = ({ document, onPress }) => {
     const fileIcon = useMemo(() => getFileIcon(document?.mimeType), [document?.mimeType]);
+    const expiryStatus = useMemo(() => getDocumentExpiryStatus(document?.expiryDate), [document?.expiryDate]);
+    const expiryToneColor = useMemo(() => {
+        if (expiryStatus.tone === 'critical') return COLORS.error;
+        if (expiryStatus.tone === 'warning') return COLORS.warning;
+        if (expiryStatus.tone === 'success') return COLORS.success;
+        return COLORS.textSecondary;
+    }, [expiryStatus.tone]);
 
     const handlePress = useCallback(() => {
         if (onPress && document) {
@@ -92,6 +100,8 @@ const DocumentItem = ({ document, onPress }) => {
             style={styles.container}
             onPress={handlePress}
             activeOpacity={0.7}
+            accessibilityLabel={`${document.name}, ${document.category || 'document'}, status ${expiryStatus.label}`}
+            accessibilityRole="button"
         >
             {/* File Icon */}
             <View style={styles.iconContainer}>
@@ -113,6 +123,9 @@ const DocumentItem = ({ document, onPress }) => {
                     <Text style={styles.size}>{formatFileSize(document.size)}</Text>
                 </View>
                 <Text style={styles.date}>{formatDate(document.uploadDate)}</Text>
+                <View style={[styles.statusBadge, { borderColor: expiryToneColor, backgroundColor: `${expiryToneColor}18` }]}>
+                    <Text style={[styles.statusBadgeText, { color: expiryToneColor }]}>{expiryStatus.label}</Text>
+                </View>
             </View>
 
             {/* Arrow Icon */}
@@ -189,6 +202,18 @@ const styles = StyleSheet.create({
     date: {
         fontSize: 12,
         color: COLORS.textLight,
+    },
+    statusBadge: {
+        alignSelf: 'flex-start',
+        marginTop: 6,
+        borderWidth: 1,
+        borderRadius: 10,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+    },
+    statusBadgeText: {
+        fontSize: 11,
+        fontWeight: '600',
     },
 });
 

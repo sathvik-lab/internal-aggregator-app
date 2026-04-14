@@ -23,11 +23,22 @@ const getChecklistCompletionScore = (checklistItems = []) => {
 /**
  * Calculate overdue penalty
  * Deducts 8 points per overdue item, max 40 points
+ * Uses checklist item `priority` as canonical critical signal.
+ * Critical overdue items add an extra 6 points each, max 18.
  * @param {Array} overdueItems
- * @returns {number} Penalty (0–40)
+ * @returns {Object} { totalPenalty, basePenalty, criticalPenalty, criticalOverdueCount }
  */
 const getOverduePenalty = (overdueItems = []) => {
-  return Math.min(40, overdueItems.length * 8);
+  const basePenalty = Math.min(40, overdueItems.length * 8);
+  const criticalOverdueCount = overdueItems.filter((item) => item?.priority === 'critical').length;
+  const criticalPenalty = Math.min(18, criticalOverdueCount * 6);
+
+  return {
+    totalPenalty: basePenalty + criticalPenalty,
+    basePenalty,
+    criticalPenalty,
+    criticalOverdueCount,
+  };
 };
 
 /**
@@ -67,6 +78,30 @@ const getMediaActivityBonus = (mediaLogs = []) => {
   return 0;
 };
 
+const getOpenHighSeverityIncidentPenalty = (incidents = []) => {
+  const openHighSeverityCount = incidents.filter((incident) => {
+    const severity = String(incident?.severity || '').toLowerCase();
+    const status = String(incident?.status || '').toLowerCase();
+    const isOpen = status !== 'resolved' && status !== 'closed';
+    return isOpen && severity === 'severe';
+  }).length;
+  const penalty = Math.min(16, openHighSeverityCount * 4);
+  return { penalty, openHighSeverityCount };
+};
+
+const getOverdueMaintenancePenalty = (maintenanceTasks = []) => {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const overdueMaintenanceCount = maintenanceTasks.filter((task) => {
+    const dueDate = new Date(task?.dueDate);
+    const status = String(task?.status || '').toLowerCase();
+    const isClosed = status === 'completed' || status === 'resolved' || status === 'closed';
+    return !Number.isNaN(dueDate.getTime()) && dueDate < now && !isClosed;
+  }).length;
+  const penalty = Math.min(14, overdueMaintenanceCount * 3);
+  return { penalty, overdueMaintenanceCount };
+};
+
 /**
  * Calculate compliance readiness score v2
  *
@@ -75,8 +110,10 @@ const getMediaActivityBonus = (mediaLogs = []) => {
  * Adjustments:
  *   - Overdue penalty (0–40)
  *   - Expiring/expired penalty (0–30)
+ *   - Open severe incident penalty (0–16)
+ *   - Overdue maintenance penalty (0–14)
  *   + Media bonus (0–10)
- * Result = clamp(Base - overduePenalty - expiryPenalty + mediaBonus, 0, 100)
+ * Result = clamp(Base - overduePenalty - expiryPenalty - incidentPenalty - maintenancePenalty + mediaBonus, 0, 100)
  *
  * @param {Object} params
  * @param {Array} params.checklistItems - All checklist items
@@ -84,18 +121,27 @@ const getMediaActivityBonus = (mediaLogs = []) => {
  * @param {Array} params.expiringDocuments - Expiring documents (next 30 days)
  * @param {Array} params.expiredDocuments - Already expired documents
  * @param {Array} params.mediaLogs - All media logs
+ * @param {Array} params.incidents - Incident items
+ * @param {Array} params.maintenanceTasks - Maintenance items
  * @returns {Object} {
  *   score: number (0–100),
  *   checklistCompletion: number (0–100),
- *   overduePenalty: number (0–40),
+ *   overduePenalty: number (0–58),
+ *   overdueBasePenalty: number (0–40),
+ *   criticalOverduePenalty: number (0–18),
  *   expiryPenalty: number (0–30),
+ *   openHighSeverityIncidentPenalty: number (0–16),
+ *   overdueMaintenancePenalty: number (0–14),
  *   mediaBonus: number (0–10),
  *   factors: {
  *     totalChecklistItems: number,
  *     completedChecklistItems: number,
  *     overdueCount: number,
+ *     criticalOverdueCount: number,
  *     expiringCount: number,
  *     expiredCount: number,
+ *     openHighSeverityIncidentCount: number,
+ *     overdueMaintenanceCount: number,
  *     recentMediaLogsCount: number,
  *   }
  * }
@@ -106,13 +152,33 @@ export const calculateComplianceScore = ({
   expiringDocuments = [],
   expiredDocuments = [],
   mediaLogs = [],
+  incidents = [],
+  maintenanceTasks = [],
 } = {}) => {
   const checklistCompletion = getChecklistCompletionScore(checklistItems);
-  const overduePenalty = getOverduePenalty(overdueItems);
+  const {
+    totalPenalty: overduePenalty,
+    basePenalty: overdueBasePenalty,
+    criticalPenalty: criticalOverduePenalty,
+    criticalOverdueCount,
+  } = getOverduePenalty(overdueItems);
   const expiryPenalty = getExpiryDocumentPenalty(expiringDocuments, expiredDocuments);
   const mediaBonus = getMediaActivityBonus(mediaLogs);
+  const {
+    penalty: openHighSeverityIncidentPenalty,
+    openHighSeverityCount,
+  } = getOpenHighSeverityIncidentPenalty(incidents);
+  const {
+    penalty: overdueMaintenancePenalty,
+    overdueMaintenanceCount,
+  } = getOverdueMaintenancePenalty(maintenanceTasks);
 
-  let score = checklistCompletion - overduePenalty - expiryPenalty + mediaBonus;
+  let score = checklistCompletion
+    - overduePenalty
+    - expiryPenalty
+    - openHighSeverityIncidentPenalty
+    - overdueMaintenancePenalty
+    + mediaBonus;
   score = Math.max(0, Math.min(100, Math.round(score)));
 
   // Count recent media logs (last 7 days)
@@ -127,14 +193,21 @@ export const calculateComplianceScore = ({
     score,
     checklistCompletion,
     overduePenalty,
+    overdueBasePenalty,
+    criticalOverduePenalty,
     expiryPenalty,
+    openHighSeverityIncidentPenalty,
+    overdueMaintenancePenalty,
     mediaBonus,
     factors: {
       totalChecklistItems: checklistItems.length,
       completedChecklistItems: checklistItems.filter((item) => item.completed).length,
       overdueCount: overdueItems.length,
+      criticalOverdueCount,
       expiringCount: expiringDocuments.length,
       expiredCount: expiredDocuments.length,
+      openHighSeverityIncidentCount: openHighSeverityCount,
+      overdueMaintenanceCount,
       recentMediaLogsCount,
     },
   };

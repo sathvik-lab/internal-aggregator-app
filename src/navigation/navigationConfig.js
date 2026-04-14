@@ -17,6 +17,7 @@ export const ROUTES = {
   // Auth Stack
   AUTH: {
     LOGIN: 'Login',
+    PHONE_LOGIN: 'PhoneLogin',
     SIGNUP: 'Signup',
     FORGOT_PASSWORD: 'ForgotPassword',
   },
@@ -33,6 +34,8 @@ export const ROUTES = {
     PROFILE: 'Profile',
     MEDIA_LOGS: 'MediaLogs',
     INSPECTION_READINESS: 'InspectionReadiness',
+    INCIDENTS: 'Incidents',
+    MAINTENANCE: 'Maintenance',
   },
   
   // Documents Stack
@@ -45,6 +48,16 @@ export const ROUTES = {
   PROFILE: {
     MAIN: 'ProfileMain',
     STAFF: 'Staff',
+  },
+
+  INCIDENTS: {
+    LIST: 'IncidentsList',
+    DETAIL: 'IncidentDetail',
+  },
+
+  MAINTENANCE: {
+    LIST: 'MaintenanceList',
+    DETAIL: 'MaintenanceDetail',
   },
   
   // Future routes (for deep linking)
@@ -70,6 +83,7 @@ export const DEEP_LINKING_CONFIG = {
     screens: {
       // Auth screens
       Login: 'login',
+      PhoneLogin: 'phone-login',
       Signup: 'signup',
       ForgotPassword: 'forgot-password',
       OwnerOnboarding: 'onboarding',
@@ -93,6 +107,20 @@ export const DEEP_LINKING_CONFIG = {
       },
       MediaLogs: 'logs',
       InspectionReadiness: 'readiness',
+      Incidents: {
+        path: 'incidents',
+        screens: {
+          IncidentsList: '',
+          IncidentDetail: ':incidentId',
+        },
+      },
+      Maintenance: {
+        path: 'maintenance',
+        screens: {
+          MaintenanceList: '',
+          MaintenanceDetail: ':taskId',
+        },
+      },
       
       // Future screens
       Reports: 'reports',
@@ -122,6 +150,8 @@ export const NavigationGuards = {
       ROUTES.MAIN.PROFILE,
       ROUTES.MAIN.MEDIA_LOGS,
       ROUTES.MAIN.INSPECTION_READINESS,
+      ROUTES.MAIN.INCIDENTS,
+      ROUTES.MAIN.MAINTENANCE,
     ];
     
     if (protectedRoutes.includes(routeName)) {
@@ -140,6 +170,7 @@ export const NavigationGuards = {
   canNavigateToAuthRoute: (user, routeName) => {
     const authRoutes = [
       ROUTES.AUTH.LOGIN,
+      ROUTES.AUTH.PHONE_LOGIN,
       ROUTES.AUTH.SIGNUP,
       ROUTES.AUTH.FORGOT_PASSWORD,
     ];

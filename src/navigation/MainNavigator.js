@@ -37,6 +37,7 @@ import { useTheme } from '../context/ThemeContext';
 import { COLORS } from '../constants/colors';
 import { ROUTES } from './navigationConfig';
 import { sanitizeStyleForGestures } from '../utils/glassmorphism';
+import { useEffectiveRole } from '../hooks/useEffectiveRole';
 
 // Import screens
 import DashboardScreen from '../screens/DashboardScreen';
@@ -47,6 +48,10 @@ import ProfileScreen from '../screens/ProfileScreen';
 import MediaLogScreen from '../screens/MediaLogScreen';
 import InspectionReadinessScreen from '../screens/InspectionReadinessScreen';
 import StaffScreen from '../screens/StaffScreen';
+import IncidentsScreen from '../screens/IncidentsScreen';
+import IncidentDetailScreen from '../screens/IncidentDetailScreen';
+import MaintenanceTasksScreen from '../screens/MaintenanceTasksScreen';
+import MaintenanceTaskDetailScreen from '../screens/MaintenanceTaskDetailScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -121,6 +126,8 @@ const DocumentsStack = () => {
  * - StaffScreen → ProfileScreen (back button)
  */
 const ProfileStack = () => {
+  const { isOwner } = useEffectiveRole();
+
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
@@ -131,17 +138,49 @@ const ProfileStack = () => {
           headerShown: false, // Custom header in the screen
         }}
       />
-      <Stack.Screen
-        name="Staff"
-        component={StaffScreen}
-        options={{
-          title: 'Team Management',
-          headerShown: false,
-        }}
-      />
+      {isOwner && (
+        <Stack.Screen
+          name={ROUTES.PROFILE.STAFF}
+          component={StaffScreen}
+          options={{
+            title: 'Team Management',
+            headerShown: false,
+          }}
+        />
+      )}
     </Stack.Navigator>
   );
 };
+
+const IncidentsStack = () => (
+  <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Screen
+      name={ROUTES.INCIDENTS.LIST}
+      component={IncidentsScreen}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
+      name={ROUTES.INCIDENTS.DETAIL}
+      component={IncidentDetailScreen}
+      options={{ headerShown: false }}
+    />
+  </Stack.Navigator>
+);
+
+const MaintenanceStack = () => (
+  <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Screen
+      name={ROUTES.MAINTENANCE.LIST}
+      component={MaintenanceTasksScreen}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
+      name={ROUTES.MAINTENANCE.DETAIL}
+      component={MaintenanceTaskDetailScreen}
+      options={{ headerShown: false }}
+    />
+  </Stack.Navigator>
+);
 
 /**
  * MainNavigator Component
@@ -304,6 +343,22 @@ const MainNavigator = () => {
         options={{
           title: 'Readiness',
           headerTitle: 'Inspection Readiness',
+        }}
+      />
+      <Tab.Screen
+        name={ROUTES.MAIN.INCIDENTS}
+        component={IncidentsStack}
+        options={{
+          headerShown: false,
+          tabBarButton: () => null,
+        }}
+      />
+      <Tab.Screen
+        name={ROUTES.MAIN.MAINTENANCE}
+        component={MaintenanceStack}
+        options={{
+          headerShown: false,
+          tabBarButton: () => null,
         }}
       />
     </Tab.Navigator>

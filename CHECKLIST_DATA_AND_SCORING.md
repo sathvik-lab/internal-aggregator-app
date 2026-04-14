@@ -96,14 +96,16 @@ queryDocuments('checklistItems', conditions, options);
 Let:
 
 - **Base** = checklist completion percentage (0–100): completed items ÷ total items (0 if no items).
-- **Overdue penalty** = min(40, 8 × number of overdue items).
+- **Overdue penalty** = min(40, 8 × overdue items) + min(18, 6 × critical overdue items).
 - **Expiry penalty** = min(30, 3 × expiring-within-30-days docs + 10 × expired docs).
+- **Incident penalty** = min(16, 4 × open severe incidents).
+- **Maintenance penalty** = min(14, 3 × overdue maintenance tasks).
 - **Media bonus** = 0, 5, or 10 based on media logs in the last 7 days (see file for thresholds).
 
 Then:
 
 ```text
-score = clamp(round(base - overduePenalty - expiryPenalty + mediaBonus), 0, 100)
+score = clamp(round(base - overduePenalty - expiryPenalty - incidentPenalty - maintenancePenalty + mediaBonus), 0, 100)
 ```
 
 The function returns `score`, intermediate values, and a **`factors`** object (counts for UI and export).
@@ -112,8 +114,8 @@ The function returns `score`, intermediate values, and a **`factors`** object (c
 
 | Location | Use |
 |----------|-----|
-| `src/screens/DashboardScreen.js` | Passes snapshot lists into `calculateComplianceScore`; shows score and breakdown entry points. |
-| `src/screens/InspectionReadinessScreen.js` | Same score for readiness + share/export. |
+| `src/screens/DashboardScreen.js` | Passes checklist/doc/media/incident/maintenance arrays from `fetchDashboardSnapshot` into `calculateComplianceScore`; shows score and breakdown entry points. |
+| `src/screens/InspectionReadinessScreen.js` | Same score inputs for readiness + issue cards + share/export. |
 | `src/components/common/ScoreBreakdownModal.js` | Uses `getScoreDescription` for labels/copy. |
 | `src/utils/readinessExport.js` | Embeds score and factors in shared plaintext/HTML summaries. |
 
@@ -142,14 +144,13 @@ The function returns `score`, intermediate values, and a **`factors`** object (c
 
 ## Limitations vs full PRD §6.5
 
-The PRD also mentions **incidents**, **maintenance backlog**, and richer **certification** modeling. Those are **not** inputs to `calculateComplianceScore` today. See [`docs/PRD_TRACEABILITY.md`](docs/PRD_TRACEABILITY.md) §6.4–6.5.
+The PRD also mentions richer **certification** modeling. Incident severity and overdue maintenance backlog now contribute to score penalties, but certification-specific weighting is still not modeled. See [`docs/PRD_TRACEABILITY.md`](docs/PRD_TRACEABILITY.md) §6.4–6.5.
 
 Reasonable next enhancements (product-dependent):
 
 1. Weight **critical** checklist items higher (needs reliable item metadata).
-2. Fold **incident** severity into score once a collection + UI exist.
-3. Deeper **certification** rules (required doc classes by state).
-4. Historical score trend (new storage or aggregates).
+2. Deeper **certification** rules (required doc classes by state).
+3. Historical score trend (new storage or aggregates).
 
 ---
 

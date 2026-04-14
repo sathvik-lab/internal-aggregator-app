@@ -42,6 +42,22 @@ import MainNavigator from './MainNavigator';
 import OnboardingNavigator from './OnboardingNavigator';
 import { COLORS } from '../constants/colors';
 import { DEEP_LINKING_CONFIG } from './navigationConfig';
+import { logScreenView } from '../services/analytics';
+
+const getActiveRouteName = (state) => {
+  if (!state || typeof state.index !== 'number' || !Array.isArray(state.routes)) {
+    return null;
+  }
+
+  const route = state.routes[state.index];
+  if (!route) return null;
+
+  if (route.state) {
+    return getActiveRouteName(route.state);
+  }
+
+  return route.name || null;
+};
 
 /**
  * Loading Screen Component
@@ -72,6 +88,7 @@ const AppNavigator = () => {
   const { user, loading, profileLoading, needsOwnerOnboarding } = useAuth();
   const navigationRef = useRef(null);
   const previousUserRef = useRef(user);
+  const lastLoggedScreenRef = useRef(null);
 
   // Handle Android back button to prevent going back after logout
   useEffect(() => {
@@ -112,8 +129,13 @@ const AppNavigator = () => {
       linking={DEEP_LINKING_CONFIG}
       // Prevent going back to auth screens after login
       onStateChange={(state) => {
-        // Navigation state change handler
-        // Can be used for analytics or additional navigation guards
+        const activeRouteName = getActiveRouteName(state);
+        if (!activeRouteName || activeRouteName === lastLoggedScreenRef.current) {
+          return;
+        }
+
+        lastLoggedScreenRef.current = activeRouteName;
+        logScreenView(activeRouteName);
       }}
     >
       {/* Root auth guard: unauthenticated users only get the auth stack, owners with incomplete business profiles must finish onboarding, and signed-in ready users get the main tabs. */}

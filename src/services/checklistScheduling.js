@@ -287,10 +287,11 @@ export const dedupeChecklistInstances = (instances = []) => {
  * @param {Array} existingInstances - Array of existing checklist items
  * @returns {Promise<Array>} - Array of newly created instances
  */
-export const generateChecklistInstances = async (userId, templates, existingInstances = []) => {
+export const generateChecklistInstances = async (userId, templates, existingInstances = [], options = {}) => {
   if (!userId || !templates || templates.length === 0) {
     return [];
   }
+  const businessId = options?.businessId || null;
 
   const today = new Date();
   const newInstances = [];
@@ -303,6 +304,7 @@ export const generateChecklistInstances = async (userId, templates, existingInst
 
       const instanceData = {
         userId,
+        ...(businessId ? { businessId } : {}),
         title: template.title,
         description: template.description || null,
         category: template.category,

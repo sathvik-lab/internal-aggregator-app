@@ -315,6 +315,62 @@ FIREBASE_APP_ID=1:123456789012:web:abcdef123456
 
 ---
 
+## 8. Phone Authentication (Android Spike)
+
+This repo includes optional phone sign-in using Firebase Auth phone provider and Expo reCAPTCHA flow.
+
+### 8.1 Enable Phone Provider in Firebase
+
+1. Firebase Console → **Authentication** → **Sign-in method**
+2. Enable **Phone**
+3. Add test phone numbers in Firebase Console for local testing (recommended)
+
+### 8.2 Install/Build Requirements
+
+- Package used: `expo-firebase-recaptcha`
+- Run in a **native dev build** (not plain Expo Go for reliable flow)
+- Android-first spike path is implemented in `PhoneLoginScreen`
+
+Commands:
+
+```bash
+npx expo run:android
+```
+
+### 8.3 App Flow
+
+1. Open login screen
+2. Tap **Sign In with Phone**
+3. Enter number in E.164 format, e.g. `+15555550123`
+4. Request code, then enter 6-digit verification code
+5. On success, Firebase signs in user
+
+### 8.4 Production Readiness Checklist
+
+#### Android
+
+- [ ] Register Android app in Firebase with exact package name
+- [ ] Add SHA-1 and SHA-256 cert fingerprints in Firebase project settings
+  - Debug keystore for dev builds
+  - Release keystore for production builds
+- [ ] Re-download `google-services.json` after adding SHA fingerprints (if changed)
+- [ ] Verify SMS region policy in Firebase Auth settings
+
+#### iOS (when enabled later)
+
+- [ ] Register iOS app in Firebase with exact bundle ID
+- [ ] Configure APNs key/certificate in Apple Developer account
+- [ ] Upload APNs auth key in Firebase Cloud Messaging settings
+- [ ] Ensure associated capabilities are configured in iOS project/profile as needed
+
+### 8.5 Common Phone Auth Failures
+
+- `auth/invalid-phone-number`: Number format is invalid; use E.164 format.
+- `auth/too-many-requests`: Throttled by Firebase; wait and retry.
+- Verification UI not appearing: run in native dev build and verify network/connectivity.
+
+---
+
 ## Security Best Practices
 
 1. **Never commit `.env` file** - It's already in `.gitignore`

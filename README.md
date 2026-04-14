@@ -38,6 +38,12 @@ Firebase config is loaded from environment variables. Copy `.env.example` to `.e
 
 When Firebase config is missing in development, the app is designed to fall back to mock behavior for parts of the UI while warning that real Firebase features are unavailable.
 
+### Firestore Persistence Behavior
+
+- `src/services/firebase.js` enables Firestore IndexedDB persistence on `web` only.
+- React Native (iOS/Android) with the Firebase JS SDK does **not** use IndexedDB persistence; offline-first behavior is not guaranteed there.
+- The app surfaces retry guidance on network failures instead of promising offline support in unsupported environments.
+
 ## Running Locally
 
 1. Install dependencies with `npm install`.

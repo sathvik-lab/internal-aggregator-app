@@ -55,11 +55,13 @@ import SortDropdown from '../components/documents/SortDropdown';
 import UploadDocumentModal from '../components/documents/UploadDocumentModal';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
 import EmptyState from '../components/common/EmptyState';
+import DocumentExpiryBanner, { shouldShowDocumentExpiryBanner } from '../components/common/DocumentExpiryBanner';
 import { COLORS } from '../constants/colors';
 import { setupRealtimeListener } from '../services/firestore';
 import { PAGINATION } from '../constants/constants';
 import { ROUTES } from '../navigation/navigationConfig';
 import { DOCUMENT_FILTERS, getDocumentFilterLabel } from '../utils/documentTypes';
+import { dismissReminder, fetchUserPreferences } from '../services/userPreferences';
 
 const DOCUMENT_CATEGORIES = DOCUMENT_FILTERS;
 
@@ -134,6 +136,7 @@ const DocumentsScreen = () => {
     const [lastDocument, setLastDocument] = useState(null); // For pagination
     const [hasMore, setHasMore] = useState(true);
     const [uploadModalVisible, setUploadModalVisible] = useState(false);
+    const [userPreferences, setUserPreferences] = useState(null);
 
     useEffect(() => {
         const nextCategory = route.params?.initialCategory;
@@ -234,6 +237,17 @@ const DocumentsScreen = () => {
         };
     }, [setupDocumentsListener]);
 
+    useEffect(() => {
+        const loadPreferences = async () => {
+            if (!user?.uid) return;
+            const result = await fetchUserPreferences(user.uid);
+            if (result.data) {
+                setUserPreferences(result.data);
+            }
+        };
+        loadPreferences();
+    }, [user?.uid]);
+
     // Apply filters and sorting to documents
     const filteredAndSortedDocuments = useMemo(() => {
         let filtered = filterDocuments(documents, searchQuery, selectedCategory);
@@ -253,6 +267,25 @@ const DocumentsScreen = () => {
 
         return sortDocuments(filtered, sortOption);
     }, [documents, route.params?.highlightExpiring, searchQuery, selectedCategory, sortOption]);
+
+    const documentExpiryCounts = useMemo(() => {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const cutoff = new Date(now);
+        cutoff.setDate(cutoff.getDate() + 30);
+
+        return documents.reduce((acc, doc) => {
+            if (!doc?.expiryDate) return acc;
+            const expiryDate = new Date(doc.expiryDate);
+            if (Number.isNaN(expiryDate.getTime())) return acc;
+            if (expiryDate < now) {
+                acc.expired += 1;
+            } else if (expiryDate <= cutoff) {
+                acc.expiring += 1;
+            }
+            return acc;
+        }, { expired: 0, expiring: 0 });
+    }, [documents]);
 
     // Pull-to-refresh handler
     const onRefresh = useCallback(async () => {
@@ -344,6 +377,30 @@ const DocumentsScreen = () => {
     // Memoize header to prevent re-renders
     const renderHeader = useCallback(() => (
         <View style={styles.header}>
+            {shouldShowDocumentExpiryBanner(
+                {
+                    expiringCount: documentExpiryCounts.expiring,
+                    expiredCount: documentExpiryCounts.expired,
+                },
+                userPreferences
+            ) && (
+                <DocumentExpiryBanner
+                    expiringCount={documentExpiryCounts.expiring}
+                    expiredCount={documentExpiryCounts.expired}
+                    onOpenDocuments={() => {
+                        setSelectedCategory('All');
+                        setSortOption('date-asc');
+                    }}
+                    onDismiss={async () => {
+                        if (!user?.uid) return;
+                        await dismissReminder(user.uid, 'documentExpiry');
+                        const refreshed = await fetchUserPreferences(user.uid);
+                        if (refreshed.data) {
+                            setUserPreferences(refreshed.data);
+                        }
+                    }}
+                />
+            )}
             {/* Search Bar */}
             <SearchBar
                 value={searchQuery}
@@ -375,7 +432,7 @@ const DocumentsScreen = () => {
                 <SortDropdown value={sortOption} onChange={setSortOption} />
             </View>
         </View>
-    ), [searchQuery, selectedCategory, sortOption, colors, handleSearchClear, setSelectedCategory, setSortOption]);
+    ), [searchQuery, selectedCategory, sortOption, colors, handleSearchClear, documentExpiryCounts.expiring, documentExpiryCounts.expired, userPreferences, user?.uid]);
 
     // Memoize empty state render
     const renderEmpty = useCallback(() => {

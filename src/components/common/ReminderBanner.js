@@ -54,7 +54,7 @@ const ReminderBanner = ({
 
     if (expiringCount > 0 && expiringDocumentsEnabled) {
       reminders.push({
-        id: 'expiring',
+        id: 'expiringDocuments',
         severity: 'warning',
         icon: 'calendar-alert',
         title: `${expiringCount} Document${expiringCount === 1 ? '' : 's'} Expiring Soon`,

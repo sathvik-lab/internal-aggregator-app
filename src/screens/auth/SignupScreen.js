@@ -26,6 +26,7 @@ import {
 import { BlurView } from 'expo-blur';
 import { signUpUser } from '../../services/auth';
 import { createDocument } from '../../services/firestore';
+import { ensureOwnerBusinessSetup } from '../../services/userProfile';
 import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../constants/colors';
 import { GLASS } from '../../utils/glassmorphism';
@@ -293,6 +294,9 @@ const SignupScreen = ({ navigation }) => {
         displayName: fullName.trim(),
         email: email.trim(),
         role: USER_ROLES.OWNER, // Staff accounts will be created through invites later.
+        defaultBusinessId: null,
+        publicProfileEnabled: false,
+        publicScoreEnabled: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -317,6 +321,12 @@ const SignupScreen = ({ navigation }) => {
         );
         return;
       }
+
+      await ensureOwnerBusinessSetup({
+        user,
+        businessProfile: {},
+        businessName: fullName.trim(),
+      });
     } catch (error) {
       setAuthError('Unable to create your account right now. Please try again.');
       console.error('Signup error:', error);

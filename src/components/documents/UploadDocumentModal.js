@@ -35,6 +35,7 @@ import {
     buildDocumentMetadata,
     getDocumentStorageBasePath,
 } from '../../utils/documentTypes';
+import { logAnalyticsEvent } from '../../services/analytics';
 
 /**
  * Success Animation Component
@@ -121,7 +122,7 @@ const SuccessAnimation = ({ message, onAnimationComplete }) => {
  * @param {Function} props.onUploadSuccess - Callback when upload succeeds
  */
 const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
-    const { user } = useAuth();
+    const { user, userProfile } = useAuth();
     const { colors } = useTheme();
     const useGlass = colors.glassBackground != null;
     const glassColors = colors.glassBackground
@@ -348,6 +349,7 @@ const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
                 notes,
                 expiryDate: expiryDate ? new Date(expiryDate).toISOString() : null,
                 userId: user.uid,
+                businessId: userProfile?.defaultBusinessId || null,
                 uploadUrl: uploadResult.url,
                 storagePath,
             });
@@ -357,6 +359,12 @@ const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
             if (createResult.error) {
                 throw new Error(createResult.error.message);
             }
+
+            logAnalyticsEvent('document_uploaded', {
+                document_id: createResult.id || null,
+                document_type: selectedType || 'unknown',
+                source: 'upload_document_modal',
+            });
 
             // Success - show success state briefly then close
             setStep('success');

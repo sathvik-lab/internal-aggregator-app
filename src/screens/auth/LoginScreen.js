@@ -185,6 +185,10 @@ const LoginScreen = ({ navigation }) => {
     navigation.navigate(ROUTES.AUTH.SIGNUP);
   };
 
+  const handlePhoneLogin = () => {
+    navigation.navigate(ROUTES.AUTH.PHONE_LOGIN);
+  };
+
   const surfaceStyle = useGlass
     ? [
         styles.surface,
@@ -340,6 +344,19 @@ const LoginScreen = ({ navigation }) => {
               {loading ? 'Signing In...' : 'Sign In'}
             </Button>
 
+            <Button
+              mode="outlined"
+              onPress={handlePhoneLogin}
+              disabled={loading}
+              style={styles.phoneLoginButton}
+              contentStyle={styles.loginButtonContent}
+              textColor={COLORS.primary}
+              accessibilityLabel="Phone sign in button"
+              accessibilityHint="Press to sign in with your phone number"
+            >
+              Sign In with Phone
+            </Button>
+
             {/* Sign Up Link */}
             <View style={styles.signUpContainer}>
               <Text style={styles.signUpText}>Don&apos;t have an account? </Text>
@@ -473,6 +490,9 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     marginTop: 8,
+    marginBottom: 12,
+  },
+  phoneLoginButton: {
     marginBottom: 24,
   },
   loginButtonContent: {

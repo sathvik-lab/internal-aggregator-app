@@ -177,6 +177,7 @@ module.exports = {
   expo: {
     name: 'Food Truck Compliance',
     slug: 'internal-aggregator-app',
+    scheme: 'foodtruckcompliance',
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
@@ -190,6 +191,7 @@ module.exports = {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.internalaggregator.app',
+      associatedDomains: ['applinks:foodtruckcompliance.app'],
     },
     android: {
       adaptiveIcon: {
@@ -197,10 +199,28 @@ module.exports = {
         backgroundColor: '#1B365D',
       },
       package: 'com.internalaggregator.app',
+      intentFilters: [
+        {
+          action: 'VIEW',
+          autoVerify: true,
+          data: [
+            {
+              scheme: 'https',
+              host: 'foodtruckcompliance.app',
+              pathPrefix: '/',
+            },
+          ],
+          category: ['BROWSABLE', 'DEFAULT'],
+        },
+      ],
     },
     web: {
       favicon: './assets/favicon.png',
     },
+    plugins: [
+      '@react-native-firebase/app',
+      '@react-native-firebase/analytics',
+    ],
     extra: {
       // Firebase configuration from environment variables
       // These are accessed via expo-constants in the app

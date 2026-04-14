@@ -51,8 +51,8 @@
 
 | PRD bullet | Primary implementation files | Status | Notes |
 |------------|------------------------------|--------|--------|
-| Incident types, fields, media | `src/constants/constants.js` (`INCIDENT_TYPES`, `INCIDENT_SEVERITY`) | **Missing** | Constants only; no screens/services/collections wired. |
-| Maintenance tasks, assign, track | — | **Missing** | |
+| Incident types, fields, media | `src/services/incidents.js`, `src/screens/IncidentsScreen.js`, `src/screens/IncidentDetailScreen.js`, `src/services/dashboard.js` | **Partial** | List/create/detail + optional media attachment implemented. Assignment/workflow automation still limited. |
+| Maintenance tasks, assign, track | `src/services/maintenanceTasks.js`, `src/screens/MaintenanceTasksScreen.js`, `src/screens/MaintenanceTaskDetailScreen.js`, `src/services/dashboard.js` | **Partial** | List/create/detail + status updates implemented; assignment lifecycle still basic. |
 
 ---
 
@@ -60,7 +60,7 @@
 
 | PRD bullet | Primary implementation files | Status | Notes |
 |------------|------------------------------|--------|--------|
-| Inputs: completion, incidents, certs overdue, maintenance | `src/utils/complianceScore.js` | **Partial** | Uses checklist completion, overdue items, expiring/expired **documents**, recent **media logs** — not incidents/maintenance backlog. |
+| Inputs: completion, incidents, certs overdue, maintenance | `src/utils/complianceScore.js`, `src/services/dashboard.js`, `src/components/common/ScoreBreakdownModal.js` | **Partial** | Uses checklist completion, overdue items (including critical), expiring/expired docs, open severe incidents, overdue maintenance, and recent media logs. Certification-specific weighting remains out of scope. |
 | 0–100 + green/yellow/red style status | `complianceScore.js` (`getScoreDescription`), `DashboardScreen.js`, `src/components/common/ScoreBreakdownModal.js`, `InspectionReadinessScreen.js` | **Done** | Labels: Excellent / Good / Fair / Low (bands in `getScoreDescription`). |
 | Dashboard insights / tips | `src/services/dashboard.js` (`buildReadinessSummary`), `DashboardScreen.js` | **Done** | Narrative readiness copy is separate from the numeric `calculateComplianceScore` formula. |
 

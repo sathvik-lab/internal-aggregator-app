@@ -60,13 +60,13 @@ export const syncTemplates = async (userId, forceRefresh = false) => {
     // Get user profile
     const userResult = await getDocument('users', userId);
     if (userResult.error || !userResult.data) {
-      return { templates: [], fromCache: false, error: userResult.error || { message: 'User not found' } };
+      return { templates: [], fromCache: false, businessId: null, error: userResult.error || { message: 'User not found' } };
     }
 
     const userProfile = userResult.data.businessProfile;
     if (!userProfile) {
       // No business profile set - return empty but no error
-      return { templates: [], fromCache: false, error: null };
+      return { templates: [], fromCache: false, businessId: userResult.data?.defaultBusinessId || null, error: null };
     }
 
     const profileHash = hashProfile(userProfile);
@@ -83,7 +83,12 @@ export const syncTemplates = async (userId, forceRefresh = false) => {
           // 1. Less than 24 hours old
           // 2. Profile hasn't changed
           if (cacheAge < CACHE_VALIDITY_MS && cacheData.userProfileHash === profileHash) {
-            return { templates: cacheData.templates || [], fromCache: true, error: null };
+            return {
+              templates: cacheData.templates || [],
+              fromCache: true,
+              businessId: userResult.data?.defaultBusinessId || null,
+              error: null,
+            };
           }
         }
       } catch (cacheError) {
@@ -103,12 +108,17 @@ export const syncTemplates = async (userId, forceRefresh = false) => {
         const cached = await AsyncStorage.getItem(cacheKey);
         if (cached) {
           const cacheData = JSON.parse(cached);
-          return { templates: cacheData.templates || [], fromCache: true, error: templatesResult.error };
+          return {
+            templates: cacheData.templates || [],
+            fromCache: true,
+            businessId: userResult.data?.defaultBusinessId || null,
+            error: templatesResult.error,
+          };
         }
       } catch (cacheError) {
         // Ignore cache error
       }
-      return { templates: [], fromCache: false, error: templatesResult.error };
+      return { templates: [], fromCache: false, businessId: userResult.data?.defaultBusinessId || null, error: templatesResult.error };
     }
 
     // Filter templates by user profile
@@ -142,10 +152,15 @@ export const syncTemplates = async (userId, forceRefresh = false) => {
       // Don't fail the sync if this update fails
     }
 
-    return { templates: applicableTemplates, fromCache: false, error: null };
+    return {
+      templates: applicableTemplates,
+      fromCache: false,
+      businessId: userResult.data?.defaultBusinessId || null,
+      error: null,
+    };
   } catch (error) {
     console.error('Error syncing templates:', error);
-    return { templates: [], fromCache: false, error: { message: error.message || 'Unknown error' } };
+    return { templates: [], fromCache: false, businessId: null, error: { message: error.message || 'Unknown error' } };
   }
 };
 

@@ -27,11 +27,20 @@ const PREFERENCES_DEFAULTS = {
     newMediaLogsEnabled: false, // Notification for new activity
   },
 
+  notificationPreferences: {
+    enabled: false,
+    dueTodayNotifications: true,
+    overdueNotifications: true,
+    expiringDocumentNotifications: true,
+    inAppRemindersOnly: false,
+  },
+
   // When reminders last checked / dismissed (for smart notification frequency)
   lastDismissed: {
     dueToday: null, // ISO string
     overdue: null,
     expiringDocuments: null,
+    documentExpiry: null,
   },
 
   // Frequency preferences (for future Cloud Functions scheduling)
@@ -170,7 +179,7 @@ export const updateReminderSetting = async (userId, reminderKey, value) => {
 /**
  * Dismiss a reminder type (set lastDismissed timestamp)
  * @param {string} userId - Firebase UID
- * @param {string} reminderType - 'dueToday' | 'overdue' | 'expiringDocuments'
+ * @param {string} reminderType - 'dueToday' | 'overdue' | 'expiringDocuments' | 'documentExpiry'
  * @returns {Promise<Object>} { error } on fail
  */
 export const dismissReminder = async (userId, reminderType) => {
@@ -217,6 +226,25 @@ export const updateDailyDigestTime = async (userId, time) => {
   }
 };
 
+export const updateNotificationPreference = async (userId, key, value) => {
+  if (!userId) {
+    return { error: new Error('userId required') };
+  }
+
+  const prefsRef = doc(db, 'users', userId, 'preferences', 'settings');
+
+  try {
+    await updateDoc(prefsRef, {
+      [`notificationPreferences.${key}`]: value,
+      '_metadata.updatedAt': Timestamp.now(),
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating notification preference:', error);
+    return { error };
+  }
+};
+
 export default {
   initializeUserPreferences,
   fetchUserPreferences,
@@ -224,5 +252,6 @@ export default {
   updateReminderSetting,
   dismissReminder,
   updateDailyDigestTime,
+  updateNotificationPreference,
   PREFERENCES_DEFAULTS,
 };

@@ -10,6 +10,31 @@ service cloud.firestore {
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
+
+    function isMemberOf(businessId) {
+      return isAuthenticated()
+        && businessId != null
+        && exists(/databases/$(database)/documents/businessMembers/$(businessId)/members/$(request.auth.uid));
+    }
+
+    function memberRole(businessId) {
+      return isMemberOf(businessId)
+        ? get(/databases/$(database)/documents/businessMembers/$(businessId)/members/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function isBusinessOwner(businessId) {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/businesses/$(businessId)).data.owner == request.auth.uid;
+    }
+
+    function canWriteBusinessChecklist(businessId) {
+      return isBusinessOwner(businessId) || memberRole(businessId) == 'staff';
+    }
+
+    function canWriteBusinessOperations(businessId) {
+      return isBusinessOwner(businessId) || memberRole(businessId) == 'staff';
+    }
     
     // Users collection - users can only access their own document
     match /users/{userId} {
@@ -20,29 +45,193 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
     }
+
+    // Businesses collection - owner can create/read/update their business
+    match /businesses/{businessId} {
+      allow create: if isAuthenticated()
+        && request.resource.data.owner == request.auth.uid;
+      allow read: if isMemberOf(businessId) || resource.data.owner == request.auth.uid;
+      allow update, delete: if isBusinessOwner(businessId);
+    }
+
+    // Business members - owner manages memberships; member can read own record
+    match /businessMembers/{businessId}/members/{memberUserId} {
+      allow create: if isBusinessOwner(businessId)
+        && request.resource.data.businessId == businessId;
+      allow read: if isAuthenticated()
+        && (
+          request.auth.uid == memberUserId
+          || isBusinessOwner(businessId)
+        );
+      allow update, delete: if isBusinessOwner(businessId);
+    }
+
+    // Invite codes - owner-only management for manual share flow
+    match /businessMembers/{businessId}/inviteCodes/{inviteId} {
+      allow read, delete: if isBusinessOwner(businessId);
+      allow create, update: if isBusinessOwner(businessId)
+        && request.resource.data.businessId == businessId;
+    }
     
     // Documents collection - users can only access their own documents
     match /documents/{documentId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid;
-      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Legacy path (no businessId): owner-only by userId
+      allow read, delete: if isAuthenticated()
+        && resource.data.businessId == null
+        && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated()
+        && request.resource.data.businessId == null
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated()
+        && resource.data.businessId == null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+
+      // Business-scoped: members can read, owner can write
+      allow read: if isAuthenticated()
+        && resource.data.businessId != null
+        && isMemberOf(resource.data.businessId);
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && (
+          request.resource.data.businessId == null
+          || (
+            request.resource.data.businessId != null
+            && isMemberOf(request.resource.data.businessId)
+            && isBusinessOwner(request.resource.data.businessId)
+          )
+        );
+      allow update, delete: if isAuthenticated()
+        && resource.data.businessId != null
+        && isBusinessOwner(resource.data.businessId);
     }
     
     // Checklist items collection - users can only access their own items
     match /checklistItems/{itemId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid;
-      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Legacy path (no businessId): owner-only by userId
+      allow read, delete: if isAuthenticated()
+        && resource.data.businessId == null
+        && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated()
+        && request.resource.data.businessId == null
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated()
+        && resource.data.businessId == null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+
+      // Business-scoped: members can read; owner + staff can write checklist items
+      allow read: if isAuthenticated()
+        && resource.data.businessId != null
+        && isMemberOf(resource.data.businessId);
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && (
+          request.resource.data.businessId == null
+          || (
+            request.resource.data.businessId != null
+            && canWriteBusinessChecklist(request.resource.data.businessId)
+          )
+        );
+      allow update, delete: if isAuthenticated()
+        && resource.data.businessId != null
+        && canWriteBusinessChecklist(resource.data.businessId);
     }
     
     // Media logs collection - users can only access their own photo/video logs
     match /mediaLogs/{logId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid;
-      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Legacy path (no businessId): owner-only by userId
+      allow read, delete: if isAuthenticated()
+        && resource.data.businessId == null
+        && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated()
+        && request.resource.data.businessId == null
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated()
+        && resource.data.businessId == null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+
+      // Business-scoped: members can read, owner can write
+      allow read: if isAuthenticated()
+        && resource.data.businessId != null
+        && isMemberOf(resource.data.businessId);
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && (
+          request.resource.data.businessId == null
+          || (
+            request.resource.data.businessId != null
+            && isBusinessOwner(request.resource.data.businessId)
+          )
+        );
+      allow update, delete: if isAuthenticated()
+        && resource.data.businessId != null
+        && isBusinessOwner(resource.data.businessId);
+    }
+
+    // Incidents collection - legacy user-scoped + optional business-scoped
+    match /incidents/{incidentId} {
+      // Legacy path (no businessId): owner-only by userId
+      allow read, delete: if isAuthenticated()
+        && resource.data.businessId == null
+        && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated()
+        && request.resource.data.businessId == null
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated()
+        && resource.data.businessId == null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+
+      // Business-scoped: members can read; owner + staff can write
+      allow read: if isAuthenticated()
+        && resource.data.businessId != null
+        && isMemberOf(resource.data.businessId);
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && (
+          request.resource.data.businessId == null
+          || (
+            request.resource.data.businessId != null
+            && canWriteBusinessOperations(request.resource.data.businessId)
+          )
+        );
+      allow update, delete: if isAuthenticated()
+        && resource.data.businessId != null
+        && canWriteBusinessOperations(resource.data.businessId);
+    }
+
+    // Maintenance tasks collection - legacy user-scoped + optional business-scoped
+    match /maintenanceTasks/{taskId} {
+      // Legacy path (no businessId): owner-only by userId
+      allow read, delete: if isAuthenticated()
+        && resource.data.businessId == null
+        && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated()
+        && request.resource.data.businessId == null
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated()
+        && resource.data.businessId == null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+
+      // Business-scoped: members can read; owner + staff can write
+      allow read: if isAuthenticated()
+        && resource.data.businessId != null
+        && isMemberOf(resource.data.businessId);
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && (
+          request.resource.data.businessId == null
+          || (
+            request.resource.data.businessId != null
+            && canWriteBusinessOperations(request.resource.data.businessId)
+          )
+        );
+      allow update, delete: if isAuthenticated()
+        && resource.data.businessId != null
+        && canWriteBusinessOperations(resource.data.businessId);
     }
     
     // Checklist templates collection - readable by all authenticated users
