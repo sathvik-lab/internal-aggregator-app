@@ -177,6 +177,9 @@ module.exports = {
   expo: {
     name: 'Food Truck Compliance',
     slug: 'internal-aggregator-app',
+    // Deep links + phone/SMS: scheme must match src/navigation/navigationConfig.js prefixes (foodtruckcompliance://).
+    // iOS universal links: host AASA at https://foodtruckcompliance.app/.well-known/apple-app-site-association (and www if used). Team ID + bundleId must match file contents.
+    // Android: intent filters below + Digital Asset Links for autoVerify (see NAVIGATION_DOCUMENTATION.md).
     scheme: 'foodtruckcompliance',
     version: '1.0.0',
     orientation: 'portrait',
@@ -191,7 +194,10 @@ module.exports = {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.internalaggregator.app',
-      associatedDomains: ['applinks:foodtruckcompliance.app'],
+      associatedDomains: [
+        'applinks:foodtruckcompliance.app',
+        'applinks:www.foodtruckcompliance.app',
+      ],
     },
     android: {
       adaptiveIcon: {
@@ -207,6 +213,11 @@ module.exports = {
             {
               scheme: 'https',
               host: 'foodtruckcompliance.app',
+              pathPrefix: '/',
+            },
+            {
+              scheme: 'https',
+              host: 'www.foodtruckcompliance.app',
               pathPrefix: '/',
             },
           ],
@@ -225,6 +236,10 @@ module.exports = {
       // Firebase configuration from environment variables
       // These are accessed via expo-constants in the app
       ...firebaseConfig,
+      // Optional — App Check (see FIREBASE_SETUP.md §9). Not part of required firebaseConfig gate above.
+      firebaseAppCheckSiteKey: process.env.FIREBASE_APPCHECK_SITE_KEY?.trim() || null,
+      firebaseAppCheckDebugToken: process.env.FIREBASE_APPCHECK_DEBUG_TOKEN?.trim() || null,
+      firebaseAppCheckUseV3: process.env.FIREBASE_APPCHECK_USE_V3 === 'true',
     },
   },
 };

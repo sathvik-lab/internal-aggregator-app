@@ -1,3 +1,6 @@
+/**
+ * Secure readiness report HTTPS endpoints — see docs/SECURE_REPORT_LINKS.md.
+ */
 import Constants from 'expo-constants';
 import { getFirebaseAuth } from './firebase';
 

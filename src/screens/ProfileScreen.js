@@ -73,7 +73,11 @@ const SettingsRow = ({
         >
             <View style={styles.settingsRowLeft}>
                 {icon && (
-                    <View style={[styles.settingsIconContainer, { backgroundColor: `${defaultIconColor}15` }]}>
+                    <View
+                        style={[styles.settingsIconContainer, { backgroundColor: `${defaultIconColor}15` }]}
+                        accessibilityElementsHidden
+                        importantForAccessibility="no-hide-descendants"
+                    >
                         <MaterialCommunityIcons name={icon} size={20} color={defaultIconColor} />
                     </View>
                 )}
@@ -91,6 +95,8 @@ const SettingsRow = ({
                         size={20}
                         color={colors?.textSecondary}
                         style={styles.chevron}
+                        accessibilityElementsHidden
+                        importantForAccessibility="no-hide-descendants"
                     />
                 )}
             </View>
@@ -104,7 +110,15 @@ const SettingsRow = ({
 const SettingsSection = ({ title, children, colors }) => {
     return (
         <View style={styles.settingsSection}>
-            {title && <Text style={[styles.settingsSectionTitle, { color: colors?.textSecondary }]}>{title}</Text>}
+            {title ? (
+                <Text
+                    style={[styles.settingsSectionTitle, { color: colors?.textSecondary }]}
+                    accessibilityRole="header"
+                    accessibilityLevel={2}
+                >
+                    {title}
+                </Text>
+            ) : null}
             <View style={[styles.settingsSectionContent, { backgroundColor: colors?.surface, borderColor: colors?.border }]}>{children}</View>
         </View>
     );
@@ -115,7 +129,7 @@ const SettingsSection = ({ title, children, colors }) => {
  */
 const ProfileScreen = () => {
     const { user, signOut } = useAuth();
-    const { isOwner } = useEffectiveRole();
+    const { isOwner, isStaff } = useEffectiveRole();
     const navigation = useNavigation();
     const { colors, theme, setTheme } = useTheme();
     const [loading, setLoading] = useState(true);
@@ -490,7 +504,12 @@ const ProfileScreen = () => {
 
     if (loading) {
         return (
-            <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+            <View
+                style={[styles.loadingContainer, { backgroundColor: colors.background }]}
+                accessible
+                accessibilityLabel="Loading profile"
+                accessibilityRole="progressbar"
+            >
                 <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
@@ -500,7 +519,12 @@ const ProfileScreen = () => {
 
     return (
         <>
-        <ScrollView style={[styles.container, { backgroundColor }]} showsVerticalScrollIndicator={false}>
+        <ScrollView
+            style={[styles.container, { backgroundColor }]}
+            showsVerticalScrollIndicator={false}
+            accessibilityRole="main"
+            accessibilityLabel="Profile and settings"
+        >
             {/* Header Section */}
             <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
                 <View style={styles.profileHeader}>
@@ -517,17 +541,33 @@ const ProfileScreen = () => {
                             <Image source={{ uri: user.photoURL }} style={styles.profilePicture} />
                         ) : (
                             <View style={[styles.profilePicturePlaceholder, { backgroundColor: colors.primary }]}>
-                                <Text style={[styles.profilePictureText, { color: colors.textInverse }]}>{getUserInitials()}</Text>
+                                <Text
+                                    style={[styles.profilePictureText, { color: colors.textInverse }]}
+                                    accessibilityElementsHidden
+                                    importantForAccessibility="no-hide-descendants"
+                                >
+                                    {getUserInitials()}
+                                </Text>
                             </View>
                         )}
-                        <View style={[styles.editProfileBadge, { backgroundColor: colors.primary, borderColor: colors.surface }]}>
+                        <View
+                            style={[styles.editProfileBadge, { backgroundColor: colors.primary, borderColor: colors.surface }]}
+                            accessibilityElementsHidden
+                            importantForAccessibility="no-hide-descendants"
+                        >
                             <MaterialCommunityIcons name="camera" size={16} color={colors.textInverse} />
                         </View>
                     </TouchableOpacity>
 
                     {/* User Info */}
                     <View style={styles.userInfo}>
-                        <Text style={[styles.userName, { color: colors.text }]}>{user?.displayName || 'User'}</Text>
+                        <Text
+                            style={[styles.userName, { color: colors.text }]}
+                            accessibilityRole="header"
+                            accessibilityLevel={1}
+                        >
+                            {user?.displayName || 'User'}
+                        </Text>
                         <Text style={[styles.userEmail, { color: colors.textSecondary }]}>{user?.email || ''}</Text>
                     </View>
 
@@ -539,7 +579,13 @@ const ProfileScreen = () => {
                         accessibilityRole="button"
                         accessibilityLabel="Edit profile"
                     >
-                        <MaterialCommunityIcons name="pencil" size={20} color={colors.primary} />
+                        <MaterialCommunityIcons
+                            name="pencil"
+                            size={20}
+                            color={colors.primary}
+                            accessibilityElementsHidden
+                            importantForAccessibility="no-hide-descendants"
+                        />
                         <Text style={[styles.editButtonText, { color: colors.primary }]}>Edit</Text>
                     </TouchableOpacity>
                 </View>
@@ -739,6 +785,11 @@ const ProfileScreen = () => {
             )}
 
             <SettingsSection title="Public Visibility (Consent)" colors={colors}>
+                {isStaff ? (
+                    <Text style={[styles.roleHint, { color: colors.textSecondary }]}>
+                        Team accounts adjust personal consent on your user profile. Business-wide visibility is controlled by the owner.
+                    </Text>
+                ) : null}
                 <SettingsRow
                     icon="shield-account-outline"
                     title="Public Profile Preview"
@@ -971,6 +1022,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         marginBottom: 8,
         letterSpacing: 0.5,
+    },
+    roleHint: {
+        fontSize: 13,
+        lineHeight: 18,
+        paddingHorizontal: 20,
+        marginBottom: 10,
     },
     settingsSectionContent: {
         borderTopWidth: 1,

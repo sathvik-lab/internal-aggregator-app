@@ -27,7 +27,8 @@ import { fetchUserPreferences, dismissReminder } from '../services/userPreferenc
 import { calculateComplianceScore } from '../utils/complianceScore';
 import { ROUTES } from '../navigation/navigationConfig';
 import { PADDING, SPACING, moderateScale } from '../utils/responsive';
-import { getErrorMessage, isNetworkError } from '../utils/errorHandler';
+import { getFirestoreLoadUserMessage } from '../utils/firestoreUiErrors';
+import { useEffectiveRole } from '../hooks/useEffectiveRole';
 
 const formatDateLabel = (value) => {
   if (!value) return 'Unknown date';
@@ -60,7 +61,11 @@ const formatLogTimestamp = (log) => {
 const SectionHeader = ({ title, count, actionLabel, onAction, colors }) => (
   <View style={styles.sectionHeader}>
     <View style={styles.sectionTitleRow}>
-      <Text style={[styles.sectionTitle, { color: colors.text?.primary || colors.text }]}>
+      <Text
+        style={[styles.sectionTitle, { color: colors.text?.primary || colors.text }]}
+        accessibilityRole="header"
+        accessibilityLevel={2}
+      >
         {title}
       </Text>
       {typeof count === 'number' ? (
@@ -104,11 +109,21 @@ const ReadinessSummaryCard = ({
   return (
     <View style={[styles.summaryCard, { backgroundColor: colors.surface?.surface || colors.surface, borderColor: colors.border }]}>
       <View style={styles.summaryHeader}>
-        <View style={[styles.summaryIconWrap, { backgroundColor: `${accent}18` }]}>
+        <View
+          style={[styles.summaryIconWrap, { backgroundColor: `${accent}18` }]}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
           <MaterialCommunityIcons name="shield-check-outline" size={24} color={accent} />
         </View>
         <View style={styles.summaryHeaderText}>
-          <Text style={[styles.summaryEyebrow, { color: accent }]}>Readiness Summary</Text>
+          <Text
+            style={[styles.summaryEyebrow, { color: accent }]}
+            accessibilityRole="header"
+            accessibilityLevel={2}
+          >
+            Readiness Summary
+          </Text>
           <Text style={[styles.summaryTitle, { color: colors.text?.primary || colors.text }]}>
             {readiness.title}
           </Text>
@@ -131,8 +146,11 @@ const ReadinessSummaryCard = ({
         {readiness.nextAction}
       </Text>
       {hasRequiredDocumentsState && counts?.missingRequiredDocuments > 0 ? (
-        <Text style={[styles.missingRequiredText, { color: colors.warning }]}>
-          Missing required: {counts.missingRequiredDocuments}
+        <Text
+          style={[styles.missingRequiredText, { color: colors.text?.primary || colors.text }]}
+          accessibilityRole="alert"
+        >
+          Missing required documents: {counts.missingRequiredDocuments}
         </Text>
       ) : null}
 
@@ -209,6 +227,7 @@ const DashboardScreen = () => {
   const navigation = useNavigation();
   const { user } = useAuth();
   const { colors } = useTheme();
+  const { isOwner, loading: roleLoading } = useEffectiveRole();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -260,10 +279,7 @@ const DashboardScreen = () => {
 
       if (result.error) {
         console.error('Error loading dashboard:', result.error);
-        const isNetwork = isNetworkError(result.error);
-        const message = isNetwork
-          ? 'Could not refresh dashboard. Check your connection and try again. Data shown may be stale.'
-          : getErrorMessage(result.error, 'Could not refresh dashboard right now. Pull to retry.');
+        const message = getFirestoreLoadUserMessage(result.error, { staleDataHint: true });
         setLoadError(message);
         return { errorMessage: message };
       } else if (result.data) {
@@ -290,10 +306,7 @@ const DashboardScreen = () => {
       }
     } catch (error) {
       console.error('Unexpected error loading dashboard:', error);
-      const isNetwork = isNetworkError(error);
-      const message = isNetwork
-        ? 'Could not refresh dashboard. Check your connection and try again. Data shown may be stale.'
-        : getErrorMessage(error, 'Could not refresh dashboard right now. Pull to retry.');
+      const message = getFirestoreLoadUserMessage(error, { staleDataHint: true });
       setLoadError(message);
       return { errorMessage: message };
     } finally {
@@ -357,11 +370,21 @@ const DashboardScreen = () => {
   }, [createFocusKey, navigation]);
 
   const handleUploadPress = useCallback(() => {
+    if (roleLoading) {
+      return;
+    }
+    if (!isOwner) {
+      Alert.alert(
+        'Owner only',
+        'Only the business owner can upload documents for this workspace. Ask an owner to upload or adjust your role.',
+      );
+      return;
+    }
     navigation.navigate(ROUTES.MAIN.DOCUMENTS, {
       openUploadModal: true,
       focusKey: createFocusKey(),
     });
-  }, [createFocusKey, navigation]);
+  }, [createFocusKey, navigation, isOwner, roleLoading]);
 
   const handleReportsPress = useCallback(() => {
     navigation.navigate(ROUTES.MAIN.PROFILE);
@@ -477,7 +500,7 @@ const DashboardScreen = () => {
                 >
                   <View style={styles.errorBannerTextWrap}>
                     <Text style={[styles.errorBannerTitle, { color: colors.warning }]}>
-                      Update needed
+                      Could not load dashboard
                     </Text>
                     <Text style={[styles.errorBannerText, { color: colors.text?.primary || colors.text }]}>
                       {loadError}
@@ -531,6 +554,7 @@ const DashboardScreen = () => {
                 onChecklistPress={handleChecklistPress}
                 onDocumentsPress={handleDocumentsPress}
                 onReportsPress={handleReportsPress}
+                uploadDisabled={roleLoading || !isOwner}
               />
 
               <View style={styles.section}>

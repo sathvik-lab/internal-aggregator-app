@@ -1,6 +1,9 @@
 /**
  * Main Navigator
- * 
+ *
+ * Role-aware stacks: Profile → Staff is registered only for owners (`useEffectiveRole`).
+ * See docs/ROLE_MATRIX.md for owner vs staff write UX (RULES-02 ↔ firestore.rules).
+ *
  * Bottom tab navigation for authenticated users.
  * Features 4 main tabs: Dashboard, Documents, Checklist, and Profile.
  * 

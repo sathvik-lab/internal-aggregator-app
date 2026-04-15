@@ -31,6 +31,7 @@ import {
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useEffectiveRole } from '../hooks/useEffectiveRole';
 import EditDocumentModal from '../components/documents/EditDocumentModal';
 import DocumentCard from '../components/documents/DocumentCard';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
@@ -103,6 +104,7 @@ const DocumentDetailScreen = () => {
     const route = useRoute();
     const navigation = useNavigation();
     const { user } = useAuth();
+    const { isOwner, loading: roleLoading } = useEffectiveRole();
 
     const { documentId } = route.params || {};
 
@@ -272,7 +274,7 @@ const DocumentDetailScreen = () => {
     };
 
     const performDelete = async () => {
-        if (!document) return;
+        if (!document || !canMutateDocument) return;
 
         try {
             setDeleting(true);
@@ -309,11 +311,14 @@ const DocumentDetailScreen = () => {
     };
 
     const handleEdit = () => {
+        if (!canMutateDocument) {
+            return;
+        }
         setEditModalVisible(true);
     };
 
     const handleSaveEdit = async (updatedData) => {
-        if (!document) return;
+        if (!document || !canMutateDocument) return;
 
         try {
             setUpdating(true);
@@ -358,6 +363,14 @@ const DocumentDetailScreen = () => {
         [expiryStatus.tone]
     );
     const expiryDateLabel = useMemo(() => getDocumentExpiryLabel(document?.expiryDate), [document?.expiryDate]);
+
+    const canMutateDocument = useMemo(() => {
+        if (!document || roleLoading) return false;
+        if (!document.businessId) {
+            return document.userId === user?.uid;
+        }
+        return isOwner;
+    }, [document, isOwner, user?.uid, roleLoading]);
 
     if (loading) {
         return (
@@ -427,19 +440,30 @@ const DocumentDetailScreen = () => {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.actionButton, styles.editButton]}
+                        style={[
+                            styles.actionButton,
+                            styles.editButton,
+                            !canMutateDocument && styles.actionButtonDisabled,
+                        ]}
                         onPress={handleEdit}
                         activeOpacity={0.7}
+                        disabled={!canMutateDocument}
+                        accessibilityState={{ disabled: !canMutateDocument }}
                     >
                         <MaterialCommunityIcons name="pencil" size={20} color={COLORS.textInverse} />
                         <Text style={styles.actionButtonText}>Edit</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.actionButton, styles.deleteButton]}
+                        style={[
+                            styles.actionButton,
+                            styles.deleteButton,
+                            !canMutateDocument && styles.actionButtonDisabled,
+                        ]}
                         onPress={handleDelete}
                         activeOpacity={0.7}
-                        disabled={deleting}
+                        disabled={deleting || !canMutateDocument}
+                        accessibilityState={{ disabled: deleting || !canMutateDocument }}
                     >
                         {deleting ? (
                             <ActivityIndicator size="small" color={COLORS.textInverse} />
@@ -677,6 +701,9 @@ const styles = StyleSheet.create({
     },
     deleteButton: {
         backgroundColor: COLORS.error,
+    },
+    actionButtonDisabled: {
+        opacity: 0.4,
     },
     actionButtonText: {
         fontSize: 14,

@@ -33,7 +33,7 @@
  * ```
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
     View,
     Text,
@@ -43,9 +43,11 @@ import {
     TouchableOpacity,
     Alert,
     Platform,
+    ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { useEffectiveRole } from '../hooks/useEffectiveRole';
 import { useTheme } from '../context/ThemeContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import DocumentCard from '../components/documents/DocumentCard';
@@ -57,13 +59,20 @@ import LoadingSkeleton from '../components/common/LoadingSkeleton';
 import EmptyState from '../components/common/EmptyState';
 import DocumentExpiryBanner, { shouldShowDocumentExpiryBanner } from '../components/common/DocumentExpiryBanner';
 import { COLORS } from '../constants/colors';
-import { setupRealtimeListener } from '../services/firestore';
+import { setupRealtimeListener, fetchDocumentsPage } from '../services/firestore';
 import { PAGINATION } from '../constants/constants';
 import { ROUTES } from '../navigation/navigationConfig';
 import { DOCUMENT_FILTERS, getDocumentFilterLabel } from '../utils/documentTypes';
 import { dismissReminder, fetchUserPreferences } from '../services/userPreferences';
+import { getFirestoreLoadUserMessage } from '../utils/firestoreUiErrors';
 
 const DOCUMENT_CATEGORIES = DOCUMENT_FILTERS;
+
+/** Estimated row height (DocumentCard marginBottom + card) for getItemLayout; keep in sync with DocumentCard layout. */
+const DOCUMENT_LIST_ROW_HEIGHT = 228;
+const DOCUMENT_LIST_WINDOW_SIZE = 8;
+const DOCUMENT_LIST_INITIAL_RENDER = 10;
+const DOCUMENT_LIST_MAX_BATCH = 12;
 
 /**
  * Sort documents based on sort option
@@ -120,23 +129,41 @@ const filterDocuments = (documents, searchQuery, selectedCategory) => {
     return filtered;
 };
 
+const mergeDocumentsById = (live, extra) => {
+    const map = new Map();
+    [...live, ...extra].forEach((d) => {
+        if (d && d.id) map.set(d.id, d);
+    });
+    return Array.from(map.values());
+};
+
 const DocumentsScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
     const { user } = useAuth();
+    const { isOwner, loading: roleLoading } = useEffectiveRole();
     const { colors } = useTheme();
 
     // State management
-    const [documents, setDocuments] = useState([]);
+    const [liveDocuments, setLiveDocuments] = useState([]);
+    const [paginatedDocuments, setPaginatedDocuments] = useState([]);
+    const documentsCursorRef = useRef(null);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [sortOption, setSortOption] = useState('date-desc');
-    const [, setLastDocument] = useState(null); // For pagination
-    const [hasMore, setHasMore] = useState(true);
+    const [hasMore, setHasMore] = useState(false);
     const [uploadModalVisible, setUploadModalVisible] = useState(false);
     const [userPreferences, setUserPreferences] = useState(null);
+    const [loadError, setLoadError] = useState('');
+    const [documentsListenerKey, setDocumentsListenerKey] = useState(0);
+
+    const mergedDocuments = useMemo(
+        () => mergeDocumentsById(liveDocuments, paginatedDocuments),
+        [liveDocuments, paginatedDocuments],
+    );
 
     useEffect(() => {
         const nextCategory = route.params?.initialCategory;
@@ -157,7 +184,18 @@ const DocumentsScreen = () => {
         }
 
         if (shouldOpenUpload) {
-            setUploadModalVisible(true);
+            if (roleLoading) {
+                return;
+            }
+            if (isOwner) {
+                setUploadModalVisible(true);
+            } else {
+                Alert.alert(
+                    'Owner only',
+                    'Only the business owner can upload documents for this workspace.',
+                );
+            }
+            navigation.setParams({ openUploadModal: undefined });
         }
     }, [
         route.params?.focusKey,
@@ -165,6 +203,9 @@ const DocumentsScreen = () => {
         route.params?.initialSortOption,
         route.params?.initialSearchQuery,
         route.params?.openUploadModal,
+        isOwner,
+        roleLoading,
+        navigation,
     ]);
 
     /**
@@ -190,35 +231,36 @@ const DocumentsScreen = () => {
      * });
      * ```
      */
-    const setupDocumentsListener = useCallback(() => {
+    // Real-time documents query; `documentsListenerKey` bumps to re-subscribe after errors / refresh.
+    useEffect(() => {
         if (!user?.uid) {
             setLoading(false);
-            return () => {};
+            return undefined;
         }
 
         setLoading(true);
+        setLoadError('');
 
-        // Set up real-time listener for user's documents
-        // Real Firestore: query(collection(db, 'documents'),
-        //   where('userId', '==', user.uid),
-        //   orderBy('uploadDate', 'desc'),
-        //   limit(PAGINATION.DEFAULT_PAGE_SIZE))
         const unsubscribe = setupRealtimeListener(
             'documents',
             [{ field: 'userId', operator: '==', value: user.uid }],
-            (docs, error) => {
+            (docs, error, pagingMeta) => {
                 if (error) {
                     console.error('Error fetching documents:', error);
-                    setDocuments([]);
+                    setLiveDocuments([]);
+                    setPaginatedDocuments([]);
+                    documentsCursorRef.current = null;
+                    setHasMore(false);
+                    setLoadError(getFirestoreLoadUserMessage(error));
                 } else {
-                    // For mock data, we get all documents, but in real Firestore,
-                    // we'd get paginated results
-                    setDocuments(docs || []);
-                    // In real implementation, set lastDocument and hasMore based on snapshot
-                    setLastDocument(null);
-                    setHasMore(false); // Mock data doesn't support pagination
+                    setLoadError('');
+                    setLiveDocuments(docs || []);
+                    setPaginatedDocuments([]);
+                    documentsCursorRef.current = pagingMeta?.lastDocumentSnapshot ?? null;
+                    setHasMore(Boolean(pagingMeta?.fullPage));
                 }
                 setLoading(false);
+                setRefreshing(false);
             },
             {
                 orderBy: { field: 'uploadDate', direction: 'desc' },
@@ -226,16 +268,10 @@ const DocumentsScreen = () => {
             }
         );
 
-        return unsubscribe;
-    }, [user]);
-
-    // Set up listener on mount and when user changes
-    useEffect(() => {
-        const unsubscribe = setupDocumentsListener();
         return () => {
             if (unsubscribe) unsubscribe();
         };
-    }, [setupDocumentsListener]);
+    }, [user?.uid, documentsListenerKey]);
 
     useEffect(() => {
         const loadPreferences = async () => {
@@ -250,7 +286,7 @@ const DocumentsScreen = () => {
 
     // Apply filters and sorting to documents
     const filteredAndSortedDocuments = useMemo(() => {
-        let filtered = filterDocuments(documents, searchQuery, selectedCategory);
+        let filtered = filterDocuments(mergedDocuments, searchQuery, selectedCategory);
 
         if (route.params?.highlightExpiring) {
             const now = new Date();
@@ -266,7 +302,7 @@ const DocumentsScreen = () => {
         }
 
         return sortDocuments(filtered, sortOption);
-    }, [documents, route.params?.highlightExpiring, searchQuery, selectedCategory, sortOption]);
+    }, [mergedDocuments, route.params?.highlightExpiring, searchQuery, selectedCategory, sortOption]);
 
     const documentExpiryCounts = useMemo(() => {
         const now = new Date();
@@ -274,7 +310,7 @@ const DocumentsScreen = () => {
         const cutoff = new Date(now);
         cutoff.setDate(cutoff.getDate() + 30);
 
-        return documents.reduce((acc, doc) => {
+        return mergedDocuments.reduce((acc, doc) => {
             if (!doc?.expiryDate) return acc;
             const expiryDate = new Date(doc.expiryDate);
             if (Number.isNaN(expiryDate.getTime())) return acc;
@@ -285,37 +321,39 @@ const DocumentsScreen = () => {
             }
             return acc;
         }, { expired: 0, expiring: 0 });
-    }, [documents]);
+    }, [mergedDocuments]);
 
     // Pull-to-refresh handler
-    const onRefresh = useCallback(async () => {
+    const onRefresh = useCallback(() => {
         setRefreshing(true);
-        setTimeout(() => {
-            setRefreshing(false);
-        }, 400);
+        setDocumentsListenerKey((k) => k + 1);
+    }, []);
+
+    const handleRetryDocuments = useCallback(() => {
+        setLoadError('');
+        setDocumentsListenerKey((k) => k + 1);
     }, []);
 
     // Load more documents (pagination)
-    const loadMore = useCallback(() => {
-        if (!hasMore || loading) return;
-
-        // TODO: Implement pagination with Firestore startAfter
-        // Real Firestore implementation:
-        // ```javascript
-        // const nextQuery = query(
-        //   collection(db, 'documents'),
-        //   where('userId', '==', user.uid),
-        //   orderBy('uploadDate', 'desc'),
-        //   startAfter(lastDocument),
-        //   limit(PAGINATION.DEFAULT_PAGE_SIZE)
-        // );
-        // const snapshot = await getDocs(nextQuery);
-        // const newDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        // setDocuments([...documents, ...newDocs]);
-        // setLastDocument(snapshot.docs[snapshot.docs.length - 1]);
-        // setHasMore(snapshot.docs.length === PAGINATION.DEFAULT_PAGE_SIZE);
-        // ```
-    }, [hasMore, loading]);
+    const loadMore = useCallback(async () => {
+        if (!hasMore || loading || loadingMore || !user?.uid || !documentsCursorRef.current) {
+            return;
+        }
+        setLoadingMore(true);
+        const res = await fetchDocumentsPage({
+            userId: user.uid,
+            pageSize: PAGINATION.DEFAULT_PAGE_SIZE,
+            startAfterSnapshot: documentsCursorRef.current,
+        });
+        if (res.error) {
+            setLoadingMore(false);
+            return;
+        }
+        setPaginatedDocuments((prev) => [...prev, ...res.data]);
+        documentsCursorRef.current = res.cursor;
+        setHasMore(res.hasMore);
+        setLoadingMore(false);
+    }, [hasMore, loading, loadingMore, user?.uid]);
 
     // Handlers
     const handleDocumentPress = useCallback((document) => {
@@ -356,8 +394,18 @@ const DocumentsScreen = () => {
     }, []);
 
     const handleUploadPress = useCallback(() => {
+        if (roleLoading) {
+            return;
+        }
+        if (!isOwner) {
+            Alert.alert(
+                'Owner only',
+                'Only the business owner can upload documents for this workspace.',
+            );
+            return;
+        }
         setUploadModalVisible(true);
-    }, []);
+    }, [isOwner, roleLoading]);
 
     const handleUploadSuccess = () => {};
 
@@ -376,7 +424,11 @@ const DocumentsScreen = () => {
 
     // Memoize header to prevent re-renders
     const renderHeader = useCallback(() => (
-        <View style={styles.header}>
+        <View
+            style={styles.header}
+            accessibilityRole="region"
+            accessibilityLabel="Documents: search, category filters, and sort"
+        >
             {shouldShowDocumentExpiryBanner(
                 {
                     expiringCount: documentExpiryCounts.expiring,
@@ -423,12 +475,21 @@ const DocumentsScreen = () => {
                         />
                     )}
                     contentContainerStyle={styles.filtersList}
+                    initialNumToRender={12}
+                    maxToRenderPerBatch={12}
+                    windowSize={5}
+                    removeClippedSubviews={Platform.OS === 'android'}
                 />
             </View>
 
             {/* Sort Dropdown */}
             <View style={styles.sortContainer}>
-                <Text style={[styles.sortLabel, { color: colors.textSecondary || colors.text?.secondary || COLORS.textSecondary }]}>Sort:</Text>
+                <Text
+                    style={[styles.sortLabel, { color: colors.textSecondary || colors.text?.secondary || COLORS.textSecondary }]}
+                    accessibilityRole="text"
+                >
+                    Sort:
+                </Text>
                 <SortDropdown value={sortOption} onChange={setSortOption} />
             </View>
         </View>
@@ -438,6 +499,19 @@ const DocumentsScreen = () => {
     const renderEmpty = useCallback(() => {
         if (loading) {
             return <LoadingSkeleton type="card" count={3} />;
+        }
+
+        if (loadError) {
+            return (
+                <EmptyState
+                    icon="alert-circle-outline"
+                    title="Could not load documents"
+                    message={loadError}
+                    showAction
+                    actionLabel="Retry"
+                    onAction={handleRetryDocuments}
+                />
+            );
         }
 
         if (searchQuery.trim().length > 0 || selectedCategory !== 'All') {
@@ -454,13 +528,17 @@ const DocumentsScreen = () => {
             <EmptyState
                 icon="file-document-outline"
                 title="No documents yet"
-                message="Upload your first compliance document to get started."
-                showAction
+                message={
+                    isOwner
+                        ? 'Upload your first compliance document to get started.'
+                        : 'Documents will appear here when the business owner uploads compliance files.'
+                }
+                showAction={isOwner && !roleLoading}
                 actionLabel="Upload Document"
                 onAction={handleUploadPress}
             />
         );
-    }, [loading, searchQuery, selectedCategory, handleUploadPress]);
+    }, [loading, loadError, searchQuery, selectedCategory, handleUploadPress, handleRetryDocuments, isOwner, roleLoading]);
 
     // Use dark background for glassmorphism
     const backgroundColor = colors.zinc950 || colors.background;
@@ -470,9 +548,15 @@ const DocumentsScreen = () => {
             <FlatList
                 data={filteredAndSortedDocuments}
                 renderItem={renderDocument}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item, index) => (item?.id != null ? String(item.id) : `doc-${index}`)}
                 ListHeaderComponent={renderHeader}
                 ListEmptyComponent={renderEmpty}
+                ListFooterComponent={
+                    loadingMore ? (
+                        <ActivityIndicator style={styles.listFooterSpinner} color={COLORS.primary} />
+                    ) : null
+                }
+                accessibilityLabel="Documents list"
                 contentContainerStyle={[
                     styles.listContent,
                     filteredAndSortedDocuments.length === 0 && styles.listContentEmpty,
@@ -488,37 +572,45 @@ const DocumentsScreen = () => {
                     />
                 }
                 onEndReached={loadMore}
-                onEndReachedThreshold={0.5}
+                onEndReachedThreshold={0.35}
                 showsVerticalScrollIndicator={false}
-                // Performance optimizations
-                windowSize={10} // Render 10 screens worth of items (5 above, 5 below)
-                initialNumToRender={10} // Render 10 items initially
-                maxToRenderPerBatch={10} // Render 10 items per batch
-                updateCellsBatchingPeriod={50} // Batch updates every 50ms
-                removeClippedSubviews={true} // Remove off-screen views from native view hierarchy
-                getItemLayout={(data, index) => ({
-                    length: 200, // Approximate item height (card + margin)
-                    offset: 200 * index,
+                windowSize={DOCUMENT_LIST_WINDOW_SIZE}
+                initialNumToRender={DOCUMENT_LIST_INITIAL_RENDER}
+                maxToRenderPerBatch={DOCUMENT_LIST_MAX_BATCH}
+                updateCellsBatchingPeriod={50}
+                removeClippedSubviews={Platform.OS === 'android'}
+                getItemLayout={(_, index) => ({
+                    length: DOCUMENT_LIST_ROW_HEIGHT,
+                    offset: DOCUMENT_LIST_ROW_HEIGHT * index,
                     index,
                 })}
             />
 
-            {/* Floating Action Button */}
-            <TouchableOpacity
-                style={styles.fab}
-                onPress={handleUploadPress}
-                activeOpacity={0.8}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel="Upload document"
-                accessibilityHint="Opens the upload document form"
-            >
-                <MaterialCommunityIcons name="plus" size={28} color={COLORS.textInverse} />
-            </TouchableOpacity>
+            {/* Floating Action Button — business doc writes are owner-only (firestore.rules + ROLE_MATRIX) */}
+            {isOwner && !roleLoading ? (
+                <TouchableOpacity
+                    style={styles.fab}
+                    onPress={handleUploadPress}
+                    activeOpacity={0.8}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel="Upload document"
+                    accessibilityHint="Opens the upload document form"
+                >
+                    <MaterialCommunityIcons
+                        name="plus"
+                        size={28}
+                        color={COLORS.textInverse}
+                        accessibilityElementsHidden
+                        importantForAccessibility="no-hide-descendants"
+                    />
+                </TouchableOpacity>
+            ) : null}
 
             {/* Upload Document Modal */}
             <UploadDocumentModal
                 visible={uploadModalVisible}
+                uploadAllowed={isOwner && !roleLoading}
                 onClose={() => setUploadModalVisible(false)}
                 onUploadSuccess={handleUploadSuccess}
             />
@@ -537,6 +629,9 @@ const styles = StyleSheet.create({
     },
     listContentEmpty: {
         flexGrow: 1,
+    },
+    listFooterSpinner: {
+        paddingVertical: 16,
     },
     header: {
         marginBottom: 20,

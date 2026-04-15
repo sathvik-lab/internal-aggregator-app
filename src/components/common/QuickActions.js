@@ -19,12 +19,14 @@ import { SPACING, moderateScale, PADDING } from '../../utils/responsive';
  * @param {Function} props.onChecklistPress - Callback for view today's checklist action
  * @param {Function} props.onDocumentsPress - Callback for recent documents action
  * @param {Function} props.onReportsPress - Callback for reports action
+ * @param {boolean} props.uploadDisabled - When true, upload quick action is disabled (e.g. staff vs business doc rules)
  */
 const QuickActions = ({
     onUploadPress,
     onChecklistPress,
     onDocumentsPress,
     onReportsPress,
+    uploadDisabled = false,
 }) => {
     // Create styles inside component to ensure COLORS is available
     const styles = useMemo(() => StyleSheet.create({
@@ -46,9 +48,10 @@ const QuickActions = ({
 
     return (
         <View style={styles.container} accessibilityRole="region" accessibilityLabel="Quick Actions section">
-            <Text 
+            <Text
                 style={styles.sectionTitle}
                 accessibilityRole="header"
+                accessibilityLevel={2}
             >
                 Quick Actions
             </Text>
@@ -62,6 +65,7 @@ const QuickActions = ({
                     label="Upload Document"
                     onPress={onUploadPress}
                     color={COLORS.info}
+                    disabled={uploadDisabled}
                 />
                 <QuickActionButton
                     icon="clipboard-check"

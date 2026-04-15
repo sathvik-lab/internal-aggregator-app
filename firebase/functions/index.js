@@ -118,6 +118,90 @@ const getAuthTokenFromRequest = (req) => {
 
 const toList = (snapshot) => snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
+/** Admin .get() returns QuerySnapshot; use empty object for skipped branch. */
+const emptySnap = () => ({ docs: [] });
+
+/** Browser CORS for HTTPS report endpoints (RN fetch often has no Origin). */
+const getAllowedReportOrigins = () => {
+  const env = process.env.REPORT_LINKS_ALLOWED_ORIGINS;
+  if (!env || !String(env).trim()) {
+    return [
+      'http://localhost:8081',
+      'http://localhost:19006',
+      'http://127.0.0.1:8081',
+      'http://127.0.0.1:19006',
+      'https://foodtruckcompliance.app',
+    ];
+  }
+  return String(env).split(',').map((s) => s.trim()).filter(Boolean);
+};
+
+const isReportCorsOriginAllowed = (origin) => {
+  if (!origin) return false;
+  return getAllowedReportOrigins().some((allowed) => {
+    if (allowed === origin) return true;
+    if (allowed.endsWith('*')) return origin.startsWith(allowed.slice(0, -1));
+    return false;
+  });
+};
+
+const finishOptionsPreflight = (req, res) => {
+  if (req.method !== 'OPTIONS') {
+    return false;
+  }
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  res.set('Access-Control-Max-Age', '7200');
+  const origin = req.headers.origin;
+  if (origin && isReportCorsOriginAllowed(origin)) {
+    res.set('Access-Control-Allow-Origin', origin);
+    res.set('Vary', 'Origin');
+  }
+  res.status(204).send('');
+  return true;
+};
+
+/** Call on every POST response so browsers can read JSON error bodies. */
+const attachReportCorsHeadersIfAllowed = (req, res) => {
+  const origin = req.headers.origin;
+  if (origin && isReportCorsOriginAllowed(origin)) {
+    res.set('Access-Control-Allow-Origin', origin);
+    res.set('Vary', 'Origin');
+  }
+};
+
+const fetchUserDefaultBusinessId = async (uid) => {
+  const snap = await db.collection('users').doc(uid).get();
+  if (!snap.exists) return null;
+  const data = snap.data() || {};
+  return data.defaultBusinessId || null;
+};
+
+/** Same merge as dashboard: business rows win id collisions when user row is tenant-scoped. */
+const mergeBusinessAndUserCollections = (businessSnap, userSnap) => {
+  const map = new Map();
+  toList(businessSnap).forEach((item) => {
+    map.set(item.id, item);
+  });
+  toList(userSnap).forEach((item) => {
+    if (!item?.businessId || !map.has(item.id)) {
+      map.set(item.id, item);
+    }
+  });
+  return Array.from(map.values());
+};
+
+const mergeMediaLogsById = (businessSnap, userSnap) => {
+  const map = new Map();
+  toList(businessSnap).forEach((item) => map.set(item.id, item));
+  toList(userSnap).forEach((item) => {
+    if (!item?.businessId || !map.has(item.id)) {
+      map.set(item.id, item);
+    }
+  });
+  return Array.from(map.values());
+};
+
 const createReadinessHtml = (payload) => {
   const { readiness, counts, overdueItems, expiringDocuments, expiredDocuments, generatedAt, uid } = payload;
   return `
@@ -254,11 +338,18 @@ const sendExpoPushNotification = async ({ expoToken, title, body, data = {} }) =
   return payload;
 };
 
-exports.generateSecureReadinessReport = onRequest({ cors: true, region: 'us-central1' }, async (req, res) => {
+exports.generateSecureReadinessReport = onRequest({ cors: false, region: 'us-central1' }, async (req, res) => {
+  if (finishOptionsPreflight(req, res)) {
+    return;
+  }
+
   if (req.method !== 'POST') {
+    attachReportCorsHeadersIfAllowed(req, res);
     res.status(405).json({ error: 'method-not-allowed' });
     return;
   }
+
+  attachReportCorsHeadersIfAllowed(req, res);
 
   try {
     const token = getAuthTokenFromRequest(req);
@@ -288,18 +379,32 @@ exports.generateSecureReadinessReport = onRequest({ cors: true, region: 'us-cent
     const rangeStart = normalizeRangeDate(rawStartDate, 'start');
     const rangeEnd = normalizeRangeDate(rawEndDate, 'end');
 
-    const [documentsSnap, checklistSnap, mediaLogsSnap] = await Promise.all([
+    const businessId = await fetchUserDefaultBusinessId(uid);
+
+    const [docBiz, docUser, chkBiz, chkUser, mediaBiz, mediaUser] = await Promise.all([
+      businessId
+        ? db.collection('documents').where('businessId', '==', businessId).get()
+        : Promise.resolve(emptySnap()),
       db.collection('documents').where('userId', '==', uid).get(),
+      businessId
+        ? db.collection('checklistItems').where('businessId', '==', businessId).get()
+        : Promise.resolve(emptySnap()),
       db.collection('checklistItems').where('userId', '==', uid).get(),
-      db.collection('mediaLogs').where('userId', '==', uid).get(),
+      businessId
+        ? db.collection('mediaLogs').where('businessId', '==', businessId).limit(120).get()
+        : Promise.resolve(emptySnap()),
+      db.collection('mediaLogs').where('userId', '==', uid).limit(120).get(),
     ]);
 
-    const documents = toList(documentsSnap);
-    const checklistItems = toList(checklistSnap).filter((item) => {
+    const documents = mergeBusinessAndUserCollections(docBiz, docUser);
+    const checklistItemsAll = mergeBusinessAndUserCollections(chkBiz, chkUser);
+    const mediaLogsMerged = mergeMediaLogsById(mediaBiz, mediaUser);
+
+    const checklistItems = checklistItemsAll.filter((item) => {
       if (!rangeStart && !rangeEnd) return true;
       return isWithinRange(getChecklistActivityDate(item), rangeStart, rangeEnd);
     });
-    const mediaLogs = toList(mediaLogsSnap).filter((item) => {
+    const mediaLogs = mediaLogsMerged.filter((item) => {
       if (!rangeStart && !rangeEnd) return true;
       return isWithinRange(getMediaActivityDate(item), rangeStart, rangeEnd);
     });
@@ -381,6 +486,7 @@ exports.generateSecureReadinessReport = onRequest({ cors: true, region: 'us-cent
           metadata: {
             expiresAt: expiresAt.toISOString(),
             uid,
+            businessId: businessId || '',
             reportId,
             format: 'html',
           },
@@ -394,6 +500,7 @@ exports.generateSecureReadinessReport = onRequest({ cors: true, region: 'us-cent
           metadata: {
             expiresAt: expiresAt.toISOString(),
             uid,
+            businessId: businessId || '',
             reportId,
             format: 'pdf',
           },
@@ -410,12 +517,13 @@ exports.generateSecureReadinessReport = onRequest({ cors: true, region: 'us-cent
     await db.collection('reportLinks').doc(reportId).set({
       reportId,
       uid,
+      ownerUid: uid,
+      businessId: businessId || null,
       path: reportPath,
       format: extension,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
       revokedAt: null,
-      signedUrl,
     });
 
     res.status(200).json({
@@ -489,11 +597,18 @@ exports.getPublicTruckSummary = onRequest({ cors: true, region: 'us-central1' },
   }
 });
 
-exports.revokeSecureReadinessReport = onRequest({ cors: true, region: 'us-central1' }, async (req, res) => {
+exports.revokeSecureReadinessReport = onRequest({ cors: false, region: 'us-central1' }, async (req, res) => {
+  if (finishOptionsPreflight(req, res)) {
+    return;
+  }
+
   if (req.method !== 'POST') {
+    attachReportCorsHeadersIfAllowed(req, res);
     res.status(405).json({ error: 'method-not-allowed' });
     return;
   }
+
+  attachReportCorsHeadersIfAllowed(req, res);
 
   try {
     const token = getAuthTokenFromRequest(req);
@@ -525,7 +640,7 @@ exports.revokeSecureReadinessReport = onRequest({ cors: true, region: 'us-centra
     }
 
     if (reportData.revokedAt) {
-      res.status(200).json({ revoked: true, alreadyRevoked: true });
+      res.status(200).json({ revoked: true, alreadyRevoked: true, reportId });
       return;
     }
 
@@ -533,9 +648,7 @@ exports.revokeSecureReadinessReport = onRequest({ cors: true, region: 'us-centra
       await bucket.file(reportData.path).delete({ ignoreNotFound: true });
     }
 
-    await reportRef.update({
-      revokedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    await reportRef.delete();
 
     res.status(200).json({ revoked: true, reportId });
   } catch (error) {

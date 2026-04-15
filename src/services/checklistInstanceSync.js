@@ -109,7 +109,12 @@ export const setupInstancesListener = (userId, callback) => {
         { field: 'userId', operator: '==', value: userId },
         { field: 'completed', operator: '==', value: false }
       ],
-      async (items) => {
+      async (items, listenerError) => {
+        if (listenerError) {
+          callback([], listenerError);
+          return;
+        }
+
         // Update cache
         try {
           const cacheKey = `${INSTANCES_CACHE_KEY_PREFIX}${userId}`;
@@ -122,8 +127,7 @@ export const setupInstancesListener = (userId, callback) => {
           console.warn('Error updating instance cache:', cacheError);
         }
 
-        // Call callback
-        callback(items || []);
+        callback(items || [], null);
       },
       { orderBy: { field: 'dueDate', direction: 'asc' } }
     );
@@ -131,7 +135,7 @@ export const setupInstancesListener = (userId, callback) => {
     return typeof unsubscribe === 'function' ? unsubscribe : () => {};
   } catch (error) {
     console.error('Error setting up instances listener:', error);
-    callback([]);
+    callback([], error);
     return () => {}; // Return no-op unsubscribe
   }
 };

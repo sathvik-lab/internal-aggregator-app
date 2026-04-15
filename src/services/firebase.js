@@ -12,6 +12,8 @@
  * 
  * Note: If you need Firebase Analytics, Crashlytics, or other native features,
  * you'll need to switch to @react-native-firebase and use Development Builds.
+ *
+ * App Check: initialized in initFirebaseAppCheck() before Firestore/Storage (see src/services/appCheck.js).
  */
 
 import { initializeApp, getApp, getApps } from 'firebase/app';
@@ -21,6 +23,7 @@ import { getStorage } from 'firebase/storage';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { initFirebaseAppCheck } from './appCheck';
 
 // Firebase configuration from environment variables
 // These are exposed via expo-constants from app.json
@@ -178,7 +181,10 @@ try {
       // trying to initialize auth immediately after app initialization
       // Auth initialization happens via getAuthInstance() when first accessed
       if (__DEV__) console.log('⚠️  Firebase Auth will be initialized on first access (lazy initialization)');
-      
+
+      // App Check must register on the FirebaseApp before Firestore / Storage (Firebase JS SDK contract).
+      initFirebaseAppCheck(app);
+
       // Initialize Firestore
       db = getFirestore(app);
       if (__DEV__) console.log('✅ Firestore initialized successfully');

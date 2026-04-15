@@ -40,8 +40,8 @@ import { getDocumentTypeOption } from '../utils/documentTypes';
 const IssueCard = ({ issue, colors }) => {
   const severityColors = {
     critical: { bg: `${COLORS.error}12`, border: COLORS.error, text: COLORS.error, icon: 'alert-circle' },
-    warning: { bg: `${COLORS.warning}12`, border: COLORS.warning, text: COLORS.warning, icon: 'alert' },
-    info: { bg: `${COLORS.info}12`, border: COLORS.info, text: COLORS.info, icon: 'information' },
+    warning: { bg: `${COLORS.warning}12`, border: COLORS.warning, text: COLORS.warningDark, icon: 'alert' },
+    info: { bg: `${COLORS.info}12`, border: COLORS.info, text: COLORS.infoDark, icon: 'information' },
   };
 
   const severity = severityColors[issue.severity] || severityColors.info;
@@ -49,7 +49,13 @@ const IssueCard = ({ issue, colors }) => {
   return (
     <View style={[styles.issueCard, { backgroundColor: severity.bg, borderColor: severity.border, borderLeftWidth: 4 }]}>
       <View style={styles.issueHeader}>
-        <MaterialCommunityIcons name={severity.icon} size={20} color={severity.text} />
+        <MaterialCommunityIcons
+          name={severity.icon}
+          size={20}
+          color={severity.text}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        />
         <Text style={[styles.issueSeverity, { color: severity.text }]}>{issue.severity.toUpperCase()}</Text>
       </View>
       <Text style={[styles.issueTitle, { color: colors.text?.primary || colors.text }]}>{issue.title}</Text>
@@ -62,7 +68,11 @@ const IssueCard = ({ issue, colors }) => {
 
 const StatBlock = ({ icon, label, value, color, colors }) => (
   <View style={[styles.statBlock, { backgroundColor: colors.surface?.surface || colors.surface, borderColor: colors.border }]}>
-    <View style={[styles.statIcon, { backgroundColor: `${color}18` }]}>
+    <View
+      style={[styles.statIcon, { backgroundColor: `${color}18` }]}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
       <MaterialCommunityIcons name={icon} size={24} color={color} />
     </View>
     <View style={styles.statContent}>
@@ -458,6 +468,8 @@ const InspectionReadinessScreen = () => {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        accessibilityRole="main"
+        accessibilityLabel="Inspection readiness content"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -479,7 +491,13 @@ const InspectionReadinessScreen = () => {
             <>
               <View style={[styles.modeToggleCard, { backgroundColor: colors.surface?.surface || colors.surface, borderColor: colors.border }]}>
                 <View style={styles.modeToggleTextWrap}>
-                  <Text style={[styles.modeToggleTitle, { color: colors.text?.primary || colors.text }]}>Inspection mode</Text>
+                  <Text
+                    style={[styles.modeToggleTitle, { color: colors.text?.primary || colors.text }]}
+                    accessibilityRole="header"
+                    accessibilityLevel={2}
+                  >
+                    Inspection mode
+                  </Text>
                   <Text style={[styles.modeToggleSubtitle, { color: colors.textSecondary || colors.text?.secondary }]}>
                     Focus on key readiness metrics and shortcuts
                   </Text>
@@ -510,7 +528,13 @@ const InspectionReadinessScreen = () => {
 
               {/* Score Summary Card */}
               <View style={[styles.rangeCard, { backgroundColor: colors.surface?.surface || colors.surface, borderColor: colors.border }]}>
-                <Text style={[styles.rangeTitle, { color: colors.text?.primary || colors.text }]}>Activity Range</Text>
+                <Text
+                  style={[styles.rangeTitle, { color: colors.text?.primary || colors.text }]}
+                  accessibilityRole="header"
+                  accessibilityLevel={2}
+                >
+                  Activity Range
+                </Text>
                 <View style={styles.rangePresetRow}>
                   {[
                     { key: '7d', label: 'Last 7' },
@@ -560,6 +584,8 @@ const InspectionReadinessScreen = () => {
                     placeholderTextColor={colors.textSecondary || colors.text?.secondary}
                     autoCapitalize="none"
                     autoCorrect={false}
+                    accessibilityLabel="Custom range start date"
+                    accessibilityHint="Enter date as YYYY-MM-DD"
                   />
                   <TextInput
                     style={[
@@ -576,6 +602,8 @@ const InspectionReadinessScreen = () => {
                     placeholderTextColor={colors.textSecondary || colors.text?.secondary}
                     autoCapitalize="none"
                     autoCorrect={false}
+                    accessibilityLabel="Custom range end date"
+                    accessibilityHint="Enter date as YYYY-MM-DD"
                   />
                   <TouchableOpacity
                     style={[styles.applyRangeButton, { backgroundColor: colors.primary }]}
@@ -601,7 +629,11 @@ const InspectionReadinessScreen = () => {
                       </Text>
                     </View>
                   </View>
-                  <View style={[styles.scoreIconWrap, { backgroundColor: `${scoreDescription?.color}18` }]}>
+                  <View
+                    style={[styles.scoreIconWrap, { backgroundColor: `${scoreDescription?.color}18` }]}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  >
                     <MaterialCommunityIcons name="shield-check-outline" size={32} color={scoreDescription?.color} />
                   </View>
                 </View>
@@ -659,7 +691,11 @@ const InspectionReadinessScreen = () => {
               {/* Issues Section */}
               {!inspectionModeEnabled && (
                 <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: colors.text?.primary || colors.text }]}>
+                <Text
+                  style={[styles.sectionTitle, { color: colors.text?.primary || colors.text }]}
+                  accessibilityRole="header"
+                  accessibilityLevel={2}
+                >
                   Readiness Blockers & Reminders
                 </Text>
                 {issues.length > 0 ? (
@@ -670,7 +706,13 @@ const InspectionReadinessScreen = () => {
                   </>
                 ) : (
                   <View style={[styles.successCard, { backgroundColor: `${COLORS.success}12`, borderColor: COLORS.success }]}>
-                    <MaterialCommunityIcons name="check-circle" size={32} color={COLORS.success} />
+                    <MaterialCommunityIcons
+                      name="check-circle"
+                      size={32}
+                      color={COLORS.success}
+                      accessibilityElementsHidden
+                      importantForAccessibility="no-hide-descendants"
+                    />
                     <Text style={[styles.successTitle, { color: COLORS.success }]}>All Clear</Text>
                     <Text style={[styles.successText, { color: colors.text?.primary || colors.text }]}>
                       No critical issues detected. You&apos;re in good shape for inspection.
@@ -682,7 +724,11 @@ const InspectionReadinessScreen = () => {
 
               {/* Quick Actions */}
               <View style={styles.section}>
-                <Text style={[styles.sectionTitle, inspectionModeEnabled && styles.sectionTitleInspectionMode, { color: colors.text?.primary || colors.text }]}>
+                <Text
+                  style={[styles.sectionTitle, inspectionModeEnabled && styles.sectionTitleInspectionMode, { color: colors.text?.primary || colors.text }]}
+                  accessibilityRole="header"
+                  accessibilityLevel={2}
+                >
                   Quick Actions
                 </Text>
                 <TouchableOpacity
@@ -695,11 +741,23 @@ const InspectionReadinessScreen = () => {
                   accessibilityHint="Creates a temporary secure report link"
                   disabled={linkLoading}
                 >
-                  <MaterialCommunityIcons name="link-variant" size={20} color={COLORS.secondary} />
+                  <MaterialCommunityIcons
+                    name="link-variant"
+                    size={20}
+                    color={COLORS.secondary}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  />
                   <Text style={[styles.actionButtonText, { color: COLORS.secondary }]}>
                     {linkLoading ? 'Generating link...' : 'Generate Shareable Link'}
                   </Text>
-                  <MaterialCommunityIcons name="chevron-right" size={20} color={COLORS.secondary} />
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={20}
+                    color={COLORS.secondary}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  />
                 </TouchableOpacity>
 
                 {shareableReport?.url && (
@@ -728,6 +786,7 @@ const InspectionReadinessScreen = () => {
                         onPress={handleRevokeShareableLink}
                         accessibilityRole="button"
                         accessibilityLabel="Revoke shareable link"
+                        accessibilityState={{ disabled: revokeLoading, busy: revokeLoading }}
                         disabled={revokeLoading}
                       >
                         <Text style={[styles.linkActionText, { color: colors.error }]}>
@@ -746,9 +805,21 @@ const InspectionReadinessScreen = () => {
                   accessibilityLabel="Open checklist"
                   accessibilityRole="button"
                 >
-                  <MaterialCommunityIcons name="checkbox-marked-circle-outline" size={20} color={COLORS.primary} />
+                  <MaterialCommunityIcons
+                    name="checkbox-marked-circle-outline"
+                    size={20}
+                    color={COLORS.primary}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  />
                   <Text style={[styles.actionButtonText, { color: COLORS.primary }]}>Complete Checklist</Text>
-                  <MaterialCommunityIcons name="chevron-right" size={20} color={COLORS.primary} />
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={20}
+                    color={COLORS.primary}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  />
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -759,9 +830,21 @@ const InspectionReadinessScreen = () => {
                   accessibilityLabel="Review documents"
                   accessibilityRole="button"
                 >
-                  <MaterialCommunityIcons name="file-document-outline" size={20} color={COLORS.warning} />
-                  <Text style={[styles.actionButtonText, { color: COLORS.warning }]}>Review Documents</Text>
-                  <MaterialCommunityIcons name="chevron-right" size={20} color={COLORS.warning} />
+                  <MaterialCommunityIcons
+                    name="file-document-outline"
+                    size={20}
+                    color={COLORS.warning}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  />
+                  <Text style={[styles.actionButtonText, { color: COLORS.warningDark }]}>Review Documents</Text>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={20}
+                    color={COLORS.warningDark}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  />
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -772,21 +855,46 @@ const InspectionReadinessScreen = () => {
                   accessibilityLabel="Add evidence"
                   accessibilityRole="button"
                 >
-                  <MaterialCommunityIcons name="image-multiple-outline" size={20} color={COLORS.success} />
+                  <MaterialCommunityIcons
+                    name="image-multiple-outline"
+                    size={20}
+                    color={COLORS.success}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  />
                   <Text style={[styles.actionButtonText, { color: COLORS.success }]}>Add Evidence</Text>
-                  <MaterialCommunityIcons name="chevron-right" size={20} color={COLORS.success} />
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={20}
+                    color={COLORS.success}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  />
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[styles.actionButton, { backgroundColor: `${COLORS.error}12` }]}
                   onPress={handleIncidentsPress}
                   activeOpacity={0.8}
+                  accessible
                   accessibilityLabel="Open incidents"
                   accessibilityRole="button"
                 >
-                  <MaterialCommunityIcons name="alert-circle-outline" size={20} color={COLORS.error} />
+                  <MaterialCommunityIcons
+                    name="alert-circle-outline"
+                    size={20}
+                    color={COLORS.error}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  />
                   <Text style={[styles.actionButtonText, { color: COLORS.error }]}>Incidents ({dashboardData?.counts?.incidents || 0})</Text>
-                  <MaterialCommunityIcons name="chevron-right" size={20} color={COLORS.error} />
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={20}
+                    color={COLORS.error}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  />
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -796,9 +904,23 @@ const InspectionReadinessScreen = () => {
                   accessibilityLabel="Open maintenance tasks"
                   accessibilityRole="button"
                 >
-                  <MaterialCommunityIcons name="tools" size={20} color={COLORS.warning} />
-                  <Text style={[styles.actionButtonText, { color: COLORS.warning }]}>Maintenance ({dashboardData?.counts?.maintenanceTasks || 0})</Text>
-                  <MaterialCommunityIcons name="chevron-right" size={20} color={COLORS.warning} />
+                  <MaterialCommunityIcons
+                    name="tools"
+                    size={20}
+                    color={COLORS.warning}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  />
+                  <Text style={[styles.actionButtonText, { color: COLORS.warningDark }]}>
+                    Maintenance ({dashboardData?.counts?.maintenanceTasks || 0})
+                  </Text>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={20}
+                    color={COLORS.warningDark}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  />
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -810,16 +932,34 @@ const InspectionReadinessScreen = () => {
                   accessibilityRole="button"
                   accessibilityHint="Share or save readiness summary"
                 >
-                  <MaterialCommunityIcons name="share-outline" size={20} color={COLORS.info} />
+                  <MaterialCommunityIcons
+                    name="share-outline"
+                    size={20}
+                    color={COLORS.info}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  />
                   <Text style={[styles.actionButtonText, { color: COLORS.info }]}>Export Summary</Text>
-                  <MaterialCommunityIcons name="chevron-right" size={20} color={COLORS.info} />
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={20}
+                    color={COLORS.info}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  />
                 </TouchableOpacity>
               </View>
 
               {/* Disclaimer */}
               {!inspectionModeEnabled && (
                 <View style={[styles.disclaimerCard, { backgroundColor: `${COLORS.warning}08`, borderColor: `${COLORS.warning}30` }]}>
-                <MaterialCommunityIcons name="information-outline" size={16} color={COLORS.warning} />
+                <MaterialCommunityIcons
+                  name="information-outline"
+                  size={16}
+                  color={COLORS.warning}
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                />
                 <Text style={[styles.disclaimerText, { color: colors.textSecondary || colors.text?.secondary }]}>
                   This readiness assessment is not a legal compliance guarantee. Consult local health and safety authorities for definitive requirements.
                 </Text>

@@ -6,10 +6,12 @@ import { useTheme } from '../context/ThemeContext';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
 import EmptyState from '../components/common/EmptyState';
 import { getMaintenanceTaskById, updateMaintenanceTask } from '../services/maintenanceTasks';
+import { useEffectiveRole } from '../hooks/useEffectiveRole';
 
 const MaintenanceTaskDetailScreen = () => {
   const route = useRoute();
   const { colors } = useTheme();
+  const { loading: roleLoading } = useEffectiveRole();
   const taskId = route.params?.taskId;
   const [loading, setLoading] = useState(true);
   const [task, setTask] = useState(null);
@@ -38,6 +40,7 @@ const MaintenanceTaskDetailScreen = () => {
   }, [loadTask]);
 
   const handleStatusUpdate = async (status) => {
+    if (roleLoading) return;
     const result = await updateMaintenanceTask({ taskId, updates: { status } });
     if (result.error) {
       Alert.alert('Update failed', result.error.message || 'Could not update task.');
@@ -66,10 +69,18 @@ const MaintenanceTaskDetailScreen = () => {
 
           <Text style={[styles.sectionTitle, { color: colors.text?.primary || colors.text }]}>Actions</Text>
           <View style={styles.actionsRow}>
-            <TouchableOpacity style={[styles.actionButton, { borderColor: colors.primary }]} onPress={() => handleStatusUpdate('in_progress')}>
+            <TouchableOpacity
+              style={[styles.actionButton, { borderColor: colors.primary }, roleLoading && styles.actionDisabled]}
+              onPress={() => handleStatusUpdate('in_progress')}
+              disabled={roleLoading}
+            >
               <Text style={[styles.actionText, { color: colors.primary }]}>Mark In Progress</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionButton, { borderColor: colors.success }]} onPress={() => handleStatusUpdate('completed')}>
+            <TouchableOpacity
+              style={[styles.actionButton, { borderColor: colors.success }, roleLoading && styles.actionDisabled]}
+              onPress={() => handleStatusUpdate('completed')}
+              disabled={roleLoading}
+            >
               <Text style={[styles.actionText, { color: colors.success }]}>Mark Completed</Text>
             </TouchableOpacity>
           </View>
@@ -97,6 +108,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   actionText: { fontSize: 12, fontWeight: '700' },
+  actionDisabled: { opacity: 0.45 },
 });
 
 export default MaintenanceTaskDetailScreen;

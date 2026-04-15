@@ -134,6 +134,8 @@ A **mobile-first compliance platform** that:
 
 ## **6. Functional Requirements**
 
+§6 implementation trace + MVP checklist: [`docs/PRD_TRACEABILITY.md`](docs/PRD_TRACEABILITY.md), [`docs/MVP_100_PERCENT_CHECKLIST_AND_PROMPTS.md`](docs/MVP_100_PERCENT_CHECKLIST_AND_PROMPTS.md).
+
 ---
 
 ### **6.1 Authentication & Roles**

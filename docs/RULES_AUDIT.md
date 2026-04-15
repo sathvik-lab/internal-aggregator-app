@@ -1,46 +1,56 @@
-# Rules Audit (`src/services/*.js`)
+# Firestore and Storage rules audit
 
-## Firestore collections used by services
+Audit date: 2026-04-15. Scope: `src/services/**` collection names and Storage object prefixes vs `firestore.rules` and `storage.rules`.
 
-- `users`
-  - Read/write in `userProfile.js`, `checklistTemplateSync.js`
-  - Subdocument read/write in `userPreferences.js` at `users/{userId}/preferences/settings`
-- `documents`
-  - Read in `dashboard.js`
-- `checklistItems`
-  - Read/write in `checklistScheduling.js`, `checklistInstanceSync.js`, `checklistItems.js`, `dashboard.js`
-- `mediaLogs`
-  - Read/write in `mediaLogs.js`
-- `checklistTemplates`
-  - Read in `checklistTemplateSync.js` (client writes denied by rules)
+## Tenant model (rules + client)
 
-## Storage paths used by services
+- **Legacy rows:** `businessId == null` (or absent). Access tied to **`resource.data.userId == request.auth.uid`** (or same on create). Single-user / pre-default-business data.
+- **Business rows:** `businessId != null`. **Read:** `isMemberOf(businessId)` (member doc at `businessMembers/{businessId}/members/{uid}`). **Write:** varies by collection — `isBusinessOwner`, `canWriteBusinessChecklist`, or `canWriteBusinessOperations` (see `firestore.rules` and `docs/ROLE_MATRIX.md`).
 
-- Generic storage operations are implemented in `storage.js`
-- Concrete service path in use:
-  - `media_logs/{userId}/{fileName}` from `mediaLogs.js` via `STORAGE_PATHS.MEDIA_LOGS`
+Header comments in `firestore.rules` document this split; per-`match` comments name the owning services.
 
-> Note: Additional storage roots exist in `STORAGE_PATHS` constants and are used by app features outside `src/services/*.js`.
+## Firestore: services → collections → rules
 
-## Rules alignment check
+| Collection / path | Primary services | Rules block |
+| --- | --- | --- |
+| `users` | `userProfile`, `checklistTemplateSync`, `pushNotifications` | `match /users/{userId}` |
+| `users/{uid}/preferences/**` | `userPreferences` | nested under `users` |
+| `businesses` | `userProfile`, `businessMembers` | `match /businesses/{businessId}` |
+| `businessMembers/{bid}/members` | `businessMembers`, `userProfile` | `match /businessMembers/.../members` |
+| `businessMembers/{bid}/inviteCodes` | `businessMembers` | `match /businessMembers/.../inviteCodes` |
+| `documents` | `dashboard` (+ UI via `firestore` service) | `match /documents/{documentId}` — legacy + business |
+| `checklistItems` | `dashboard`, `checklistScheduling`, `checklistInstanceSync`, `checklistItems` | `match /checklistItems/{itemId}` — legacy + business |
+| `checklistTemplates` | `checklistTemplateSync`, `checklistScheduling` | `match /checklistTemplates` — read-only client |
+| `mediaLogs` | `mediaLogs`, `dashboard` | `match /mediaLogs/{logId}` — legacy + business |
+| `incidents` | `incidents`, `dashboard` | `match /incidents/{incidentId}` — legacy + business |
+| `maintenanceTasks` | `maintenanceTasks`, `dashboard` | `match /maintenanceTasks/{taskId}` — legacy + business |
 
-### Firestore (`firestore.rules`)
+No extra top-level collections from this pass required new rule blocks. Default deny covers anything not listed.
 
-- `users/{userId}` + `users/{userId}/preferences/**`: owner-only read/write (aligned)
-- `documents/{documentId}`: read/write only when `userId == request.auth.uid` (aligned)
-- `checklistItems/{itemId}`: read/write only when `userId == request.auth.uid` (aligned)
-- `mediaLogs/{logId}`: read/write only when `userId == request.auth.uid` (aligned)
-- `checklistTemplates/{templateId}`: authenticated read-only, no client writes (aligned with service behavior)
+### Client implementation note (not a rules change)
 
-### Storage (`storage.rules`)
+`businessMembers.js` passes paths like `` `businessMembers/${id}/members` `` into `queryDocuments` / `createDocument` / `getDocument` as a single `collectionName` string. The modular API expects **alternating** collection/document segments (e.g. `doc(db, 'businessMembers', id, 'members', uid)`). If member list or invite writes fail with invalid path errors, refactor `firestore.js` helpers to accept segment arrays or detect nested paths. Security rules already match the intended hierarchy.
 
-- **Fixed mismatch:** previous `allow write` clauses required `request.resource.*`, which blocks delete operations (`request.resource` is null on delete).
-- Updated to:
-  - `allow create, update` with existing file size/content-type constraints
-  - `allow delete` owner-only
-- This preserves strict cross-user denial while allowing intended owner deletes.
+## Storage: constants / usage → rules
 
-## Security outcome
+Paths align with `STORAGE_PATHS` in `src/constants/constants.js`.
 
-- Cross-user access remains denied for all audited Firestore collections and Storage paths.
-- Intended service operations now align with rules, including owner deletes in Storage.
+| Prefix | Writers (representative) | Rules `match` |
+| --- | --- | --- |
+| `user_documents/{category}/...` | Upload flow + `documentTypes` | `/user_documents/{category}/{userId}/{fileName}` |
+| `user_profiles/...` | `EditProfileModal` | `/user_profiles/{userId}/{fileName}` |
+| `checklist_photos/...` | Checklist UI | `/checklist_photos/{userId}/{fileName}` |
+| `incident_photos/...` | `incidents.js`, `maintenanceTasks.js` | `/incident_photos/{userId}/{fileName}` |
+| `certifications/...` | reserved | `/certifications/{userId}/{fileName}` |
+| `media_logs/...` | `mediaLogs.js` | `/media_logs/{userId}/{fileName}` |
+
+All matched rules require **`request.auth.uid == userId`** for the path segment (no broadening).
+
+## Mismatch fixed (this audit)
+
+- **Issue:** `incidents.js` / `maintenanceTasks.js` can set `contentType` to video (e.g. `video/mp4`) under `incident_photos/{userId}/...`, but `storage.rules` previously allowed only `image/.*` and 5MB.
+- **Change:** Same path now allows **`image/.*` and `video/.*`**, **20MB** cap (aligned with `media_logs`), still **owner-only** on `userId`. Auth not weakened — only content type/size aligned with client.
+
+## Maintenance
+
+When adding a new Firestore collection or Storage prefix from `src/services/`, update **both** the service/constants and the corresponding rules file, and extend this doc or the PR description with a one-line mapping.

@@ -38,17 +38,20 @@ export default memo(Component);
 ### 2. FlatList Performance Optimizations
 
 #### Optimizations Applied
-- ✅ **windowSize={10}** - Renders 10 screens worth of items (5 above, 5 below)
-- ✅ **initialNumToRender={10}** - Renders 10 items initially
-- ✅ **maxToRenderPerBatch={10}** - Renders 10 items per batch
+- ✅ **windowSize** — Documents: `8`; Checklist FlatList/SectionList: `8` (fewer off-screen cells than default 21).
+- ✅ **initialNumToRender / maxToRenderPerBatch** — Documents: `10` / `12`; Checklist: `12` / `12`.
 - ✅ **updateCellsBatchingPeriod={50}** - Batches updates every 50ms
-- ✅ **removeClippedSubviews={true}** - Removes off-screen views from native hierarchy
-  - ⚠️ **iOS Caveat**: `removeClippedSubviews` can cause rendering issues on iOS, including disappearing content and component-specific problems. Consider guarding usage with a platform check (e.g., conditionally apply `removeClippedSubviews` only on Android) or test thoroughly on iOS before enabling.
-- ✅ **getItemLayout** - Provided for DocumentsScreen (when item height is known)
+- ✅ **removeClippedSubviews** — `Platform.OS === 'android'` only; reduces iOS glitches (see caveat below).
+- ✅ **getItemLayout** — **DocumentsScreen** only: fixed `DOCUMENT_LIST_ROW_HEIGHT` (228) aligned to `DocumentCard` margin + card; speeds scroll-to-index. **ChecklistScreen** omits `getItemLayout` because `ChecklistItem` height changes when expanded.
+- ✅ **keyExtractor** — Stable string ids: `String(item.id)` with index fallback if `id` missing.
+- ✅ **SectionList** — Upcoming tab uses `stickySectionHeadersEnabled` for section headers while scrolling.
 
 #### Screens Optimized
-- ✅ **DocumentsScreen** - Full FlatList optimizations + getItemLayout
-- ✅ **ChecklistScreen** - Full FlatList/SectionList optimizations
+- ✅ **DocumentsScreen** — Tuned FlatList + `getItemLayout` + category chips row (`initialNumToRender` / `windowSize`)
+- ✅ **ChecklistScreen** — Today / Upcoming / Completed lists tuned; no `getItemLayout`
+
+#### iOS caveat (removeClippedSubviews)
+`removeClippedSubviews` can cause disappearing content on some iOS setups. Lists above enable it **on Android only**; iOS relies on smaller `windowSize` instead.
 
 #### Benefits
 - Faster initial render
@@ -244,18 +247,10 @@ useEffect(() => {
 5. **QuickActionButton** - Simple memoization
 6. **FilterChip** - Simple memoization
 
-### FlatList Optimizations
-1. **DocumentsScreen**:
-   - `windowSize={10}`
-   - `initialNumToRender={10}`
-   - `maxToRenderPerBatch={10}`
-   - `updateCellsBatchingPeriod={50}`
-   - `removeClippedSubviews={true}`
-   - `getItemLayout` provided for known item heights
+### FlatList optimizations
+1. **DocumentsScreen** — `windowSize` 8, `initialNumToRender` 10, `maxToRenderPerBatch` 12, `getItemLayout` height 228, `removeClippedSubviews` Android-only; horizontal category chips: smaller window; Firestore paging via `fetchDocumentsPage` + listener `pagingMeta`.
 
-2. **ChecklistScreen** (all tabs):
-   - Same optimizations as DocumentsScreen
-   - Applied to FlatList (Today, Completed) and SectionList (Upcoming)
+2. **ChecklistScreen** (all tabs) — `windowSize` 8, `initialNumToRender` / `maxToRenderPerBatch` 12, `removeClippedSubviews` Android-only; no `getItemLayout` (variable row height); SectionList sticky headers on Upcoming.
 
 ### useMemo Implementations
 1. **DocumentCard**: File icon/color, accessibility label
@@ -298,6 +293,27 @@ useEffect(() => {
 - Use virtual scrolling for very long lists
 - Cache data appropriately
 - Implement optimistic updates
+
+## Firestore limits and Documents pagination
+
+| Constant | Value | Location |
+|----------|-------|----------|
+| `PAGINATION.DEFAULT_PAGE_SIZE` | `20` | `src/constants/constants.js` |
+| `PAGINATION.MAX_PAGE_SIZE` | `100` | same |
+
+**Documents list (`DocumentsScreen`)**
+
+- **First page:** `setupRealtimeListener('documents', …)` with `where('userId','==',uid)`, `orderBy('uploadDate','desc')`, `limit: DEFAULT_PAGE_SIZE`. Listener callback receives optional third arg `pagingMeta: { lastDocumentSnapshot, fullPage }` when server-side paging applies.
+- **Next pages:** `fetchDocumentsPage` in `src/services/firestore.js` runs a one-shot `getDocs` with the same shape + `startAfter(lastSnapshot)`. App merges live first page with appended pages by document `id` (deduped). Pull-to-refresh resets appended pages and re-subscribes the listener.
+- **Client filters:** Search/category/sort still run on the merged in-memory list; Firestore does not paginate filtered subsets (would need different query shapes / indexes).
+
+**Checklist lists**
+
+- Real-time listeners (`setupInstancesListener`, completed-items listener) load the full active/completed sets Firestore returns for the query; no cursor pagination yet. FlatList tuning reduces render cost for long lists.
+
+**`queryDocuments`**
+
+- Supports `options.startAfter` (Firestore `QueryDocumentSnapshot`) when server `orderBy` matches a `where` field; see `src/services/firestore.js`.
 
 ### 4. Animation Optimization
 - Use `useNativeDriver: true` for animations

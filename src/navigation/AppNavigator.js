@@ -10,6 +10,7 @@
  * AppNavigator (Root)
  * ├── AuthNavigator (when user is not authenticated)
  * │   ├── Login (initial route)
+ * │   ├── PhoneLogin
  * │   ├── Signup
  * │   └── ForgotPassword
  * │
@@ -31,9 +32,11 @@
  * - foodtruckcompliance://documents/detail/:documentId
  * - foodtruckcompliance://checklist
  * - foodtruckcompliance://profile
+ *
+ * Unknown paths fall back to Dashboard (signed-in, onboarding done) or Login / Onboarding otherwise — see createAppLinking().
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet, ActivityIndicator, BackHandler, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
@@ -41,7 +44,7 @@ import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
 import OnboardingNavigator from './OnboardingNavigator';
 import { COLORS } from '../constants/colors';
-import { DEEP_LINKING_CONFIG } from './navigationConfig';
+import { createAppLinking } from './navigationConfig';
 import { logScreenView } from '../services/analytics';
 
 const getActiveRouteName = (state) => {
@@ -90,6 +93,11 @@ const AppNavigator = () => {
   const previousUserRef = useRef(user);
   const lastLoggedScreenRef = useRef(null);
 
+  const linking = useMemo(
+    () => createAppLinking({ user, needsOwnerOnboarding }),
+    [user, needsOwnerOnboarding],
+  );
+
   // Handle Android back button to prevent going back after logout
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -125,8 +133,7 @@ const AppNavigator = () => {
   return (
     <NavigationContainer
       ref={navigationRef}
-      // Deep linking configuration (ready for future implementation)
-      linking={DEEP_LINKING_CONFIG}
+      linking={linking}
       // Prevent going back to auth screens after login
       onStateChange={(state) => {
         const activeRouteName = getActiveRouteName(state);

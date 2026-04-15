@@ -1,4 +1,6 @@
 rules_version = '2';
+// Paths must match STORAGE_PATHS in src/constants/constants.js and uploads from src/services/* + UI.
+// All rules below are auth-scoped (request.auth.uid); tightening = deny unexpected paths only.
 service firebase.storage {
   match /b/{bucket}/o {
     // Helper function to check if user is authenticated
@@ -6,8 +8,8 @@ service firebase.storage {
       return request.auth != null;
     }
     
-    // User documents - users can only access their own documents by category
-    // Paths like: user_documents/permits/{userId}/{fileName}, user_documents/licenses/{userId}/{fileName}, etc.
+    // User documents — UploadDocumentModal / documentTypes use category subfolders under user_documents/*.
+    // Example: user_documents/permits/{userId}/{fileName}
     match /user_documents/{category}/{userId}/{fileName} {
       allow read: if isAuthenticated() && request.auth.uid == userId;
       allow create, update: if isAuthenticated() && request.auth.uid == userId 
@@ -16,7 +18,7 @@ service firebase.storage {
       allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
     
-    // User profile pictures - users can only access their own profile
+    // user_profiles — EditProfileModal (STORAGE_PATHS.PROFILES); not in services/ but same bucket rules
     match /user_profiles/{userId}/{fileName} {
       allow read: if isAuthenticated() && request.auth.uid == userId;
       allow create, update: if isAuthenticated() && request.auth.uid == userId
@@ -26,7 +28,7 @@ service firebase.storage {
       allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
     
-    // Checklist photos - users can only access their own photos
+    // checklist_photos — checklist UI uploads (STORAGE_PATHS.CHECKLIST_PHOTOS); image-only in app
     match /checklist_photos/{userId}/{fileName} {
       allow read: if isAuthenticated() && request.auth.uid == userId;
       allow create, update: if isAuthenticated() && request.auth.uid == userId
@@ -36,13 +38,14 @@ service firebase.storage {
       allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
     
-    // Incident photos - users can only access their own photos (reserved for future use)
+    // Incident + maintenance attachments — src/services/incidents.js and maintenanceTasks.js use
+    // STORAGE_PATHS.INCIDENT_PHOTOS ('incident_photos') with {userId} segment; may upload image or video.
     match /incident_photos/{userId}/{fileName} {
       allow read: if isAuthenticated() && request.auth.uid == userId;
       allow create, update: if isAuthenticated() && request.auth.uid == userId
         && request.resource != null
-        && request.resource.size < 5242880 // 5MB max
-        && request.resource.contentType.matches('image/.*');
+        && request.resource.size < 20971520 // 20MB — same cap as media_logs for short video clips
+        && request.resource.contentType.matches('(image/.*|video/.*)');
       allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
     
@@ -56,7 +59,7 @@ service firebase.storage {
       allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
     
-    // Media logs - users can only access their own photo/video logs
+    // Media logs — src/services/mediaLogs.js (STORAGE_PATHS.MEDIA_LOGS)
     match /media_logs/{userId}/{fileName} {
       allow read: if isAuthenticated() && request.auth.uid == userId;
       allow create, update: if isAuthenticated() && request.auth.uid == userId

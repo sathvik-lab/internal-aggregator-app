@@ -13,10 +13,12 @@ import {
   RefreshControl,
   TouchableOpacity,
   Platform,
+  Alert,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { useEffectiveRole } from '../hooks/useEffectiveRole';
 import { fetchMediaLogs } from '../services/mediaLogs';
 import AddMediaLogModal from '../components/media/AddMediaLogModal';
 import EmptyState from '../components/common/EmptyState';
@@ -33,7 +35,9 @@ const MediaLogScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const { user } = useAuth();
+  const { isOwner, loading: roleLoading } = useEffectiveRole();
   const { colors, typography } = useTheme();
+  const canAddMediaLog = isOwner && !roleLoading;
 
   const [rangeType, setRangeType] = useState('daily');
   const [logs, setLogs] = useState([]);
@@ -50,10 +54,20 @@ const MediaLogScreen = () => {
     }
 
     if (shouldOpenComposer && !modalVisible) {
-      setModalVisible(true);
+      if (roleLoading) {
+        return;
+      }
+      if (isOwner) {
+        setModalVisible(true);
+      } else {
+        Alert.alert(
+          'Owner only',
+          'Only the business owner can add media logs when the business workspace is active.',
+        );
+      }
       navigation.setParams({ openComposer: undefined });
     }
-  }, [modalVisible, navigation, route.params?.focusKey, route.params?.initialRangeType, route.params?.openComposer]);
+  }, [modalVisible, navigation, route.params?.focusKey, route.params?.initialRangeType, route.params?.openComposer, isOwner, roleLoading]);
 
   const loadLogs = useCallback(
     async (type, { showLoading = true } = {}) => {
@@ -92,6 +106,13 @@ const MediaLogScreen = () => {
   }, [loadLogs, rangeType]);
 
   const handleNewLogPress = () => {
+    if (!canAddMediaLog) {
+      Alert.alert(
+        'Owner only',
+        'Only the business owner can add media logs for this workspace (Firestore rules).',
+      );
+      return;
+    }
     setModalVisible(true);
   };
 
@@ -138,8 +159,15 @@ const MediaLogScreen = () => {
     const isPhoto = item.mediaType === 'photo';
     const timestamp = formatTimestamp(item);
 
+    const notePreview = item.note ? item.note.trim().slice(0, 80) : 'No notes';
+    const a11yLabel = `${isPhoto ? 'Photo' : 'Video'} log, ${timestamp || 'unknown time'}. ${notePreview}`;
+
     return (
-      <View style={[styles.card, { backgroundColor: colors.surface?.surface || COLORS.surface }]}>
+      <View
+        style={[styles.card, { backgroundColor: colors.surface?.surface || COLORS.surface }]}
+        accessible
+        accessibilityLabel={a11yLabel}
+      >
         <View style={styles.cardHeader}>
           <View style={styles.mediaTypePill}>
             <Text style={[styles.mediaTypeText, { color: colors.textInverse }]}>
@@ -178,8 +206,12 @@ const MediaLogScreen = () => {
       <EmptyState
         icon="image-multiple-outline"
         title="No media logs yet"
-        message="Capture a photo or video with notes to start your daily/weekly/monthly logs."
-        showAction
+        message={
+          canAddMediaLog
+            ? 'Capture a photo or video with notes to start your daily/weekly/monthly logs.'
+            : 'Logs appear here when you or the owner record activity. Adding new logs is limited to the business owner.'
+        }
+        showAction={canAddMediaLog}
         actionLabel="Add Media Log"
         onAction={handleNewLogPress}
       />
@@ -194,6 +226,8 @@ const MediaLogScreen = () => {
             styles.title,
             { color: colors.text?.primary || COLORS.text, ...typography.textStyles.h2 },
           ]}
+          accessibilityRole="header"
+          accessibilityLevel={1}
         >
           Media Logs
         </Text>
@@ -218,6 +252,8 @@ const MediaLogScreen = () => {
           logs.length === 0 && styles.listContentEmpty,
         ]}
         ListEmptyComponent={renderEmpty}
+        accessibilityLabel="Media logs list"
+        accessibilityRole="main"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -231,17 +267,21 @@ const MediaLogScreen = () => {
         showsVerticalScrollIndicator={false}
       />
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={handleNewLogPress}
-        activeOpacity={0.8}
-        accessible
-        accessibilityLabel="Add new media log"
-        accessibilityRole="button"
-        accessibilityHint="Double tap to capture or upload a photo or video log"
-      >
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
+      {canAddMediaLog ? (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={handleNewLogPress}
+          activeOpacity={0.8}
+          accessible
+          accessibilityLabel="Add new media log"
+          accessibilityRole="button"
+          accessibilityHint="Double tap to capture or upload a photo or video log"
+        >
+          <Text style={styles.fabText} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            +
+          </Text>
+        </TouchableOpacity>
+      ) : null}
 
       <AddMediaLogModal
         visible={modalVisible}

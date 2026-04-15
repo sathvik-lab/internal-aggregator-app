@@ -1,21 +1,46 @@
-const MAIN_TAB_ROUTE_NAMES = new Set([
+import Constants from 'expo-constants';
+
+/** Expo Go — no native RNFirebase Analytics; avoid require + repeated failures. */
+const isExpoGo = Constants.executionEnvironment === 'storeClient';
+
+/**
+ * Deepest route name → logical tab for `logScreenView` (dedupes list ↔ detail within same tab).
+ */
+const ROUTE_TO_TAB_SCREEN = {
+  DocumentsList: 'Documents',
+  DocumentDetail: 'Documents',
+  ProfileMain: 'Profile',
+  Staff: 'Profile',
+  IncidentsList: 'Incidents',
+  IncidentDetail: 'Incidents',
+  MaintenanceList: 'Maintenance',
+  MaintenanceDetail: 'Maintenance',
+};
+
+const LOGGABLE_TAB_SCREENS = new Set([
   'Dashboard',
   'Documents',
   'Checklist',
   'Profile',
   'MediaLogs',
   'InspectionReadiness',
+  'Incidents',
+  'Maintenance',
 ]);
 
 let analyticsInstance = null;
 let analyticsUnavailable = false;
+let lastLoggedTabScreen = null;
 
 const getAnalytics = () => {
   if (analyticsUnavailable) return null;
   if (analyticsInstance) return analyticsInstance;
+  if (isExpoGo) {
+    analyticsUnavailable = true;
+    return null;
+  }
 
   try {
-    // Lazy require avoids crashing when native module is unavailable (e.g., Expo Go).
     const analyticsModule = require('@react-native-firebase/analytics').default;
     analyticsInstance = analyticsModule();
     return analyticsInstance;
@@ -50,18 +75,26 @@ export const logAnalyticsEvent = async (name, params = {}) => {
   }
 };
 
-export const logScreenView = async (screenName) => {
-  if (!screenName || !MAIN_TAB_ROUTE_NAMES.has(screenName)) return;
+/**
+ * @param {string} activeRouteName Deepest focused route from navigation state (e.g. DocumentDetail).
+ */
+export const logScreenView = async (activeRouteName) => {
+  if (!activeRouteName) return;
+  const tabScreen = ROUTE_TO_TAB_SCREEN[activeRouteName] || activeRouteName;
+  if (!LOGGABLE_TAB_SCREENS.has(tabScreen)) return;
+  if (tabScreen === lastLoggedTabScreen) return;
+
   const analytics = getAnalytics();
   if (!analytics) return;
   try {
     await analytics.logScreenView({
-      screen_name: screenName,
+      screen_name: tabScreen,
       screen_class: 'MainTabs',
     });
+    lastLoggedTabScreen = tabScreen;
   } catch (error) {
     if (__DEV__) {
-      console.warn(`Failed to log screen_view for "${screenName}"`, error?.message || error);
+      console.warn(`Failed to log screen_view for "${tabScreen}"`, error?.message || error);
     }
   }
 };

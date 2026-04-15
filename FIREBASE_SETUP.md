@@ -10,6 +10,8 @@ Complete guide to set up Firebase for Food Truck Compliance.
 5. [Set Up Environment Variables](#5-set-up-environment-variables)
 6. [Test the Connection](#6-test-the-connection)
 7. [Troubleshooting](#7-troubleshooting)
+8. [Phone authentication (Firebase + Expo reCAPTCHA)](#8-phone-authentication-firebase--expo-recaptcha)
+9. [Firebase App Check](#9-firebase-app-check)
 
 ---
 
@@ -315,59 +317,117 @@ FIREBASE_APP_ID=1:123456789012:web:abcdef123456
 
 ---
 
-## 8. Phone Authentication (Android Spike)
+## 8. Phone authentication (Firebase + Expo reCAPTCHA)
 
-This repo includes optional phone sign-in using Firebase Auth phone provider and Expo reCAPTCHA flow.
+The app implements phone sign-in in **`src/screens/auth/PhoneLoginScreen.js`** using the Firebase JS SDK (`PhoneAuthProvider`) and **`expo-firebase-recaptcha`** (`FirebaseRecaptchaVerifierModal`). Logic and error mapping live in **`src/services/auth.js`**. The UI **blocks** Expo Go and web with an explicit message; use a **development or production native build**.
 
-### 8.1 Enable Phone Provider in Firebase
+**Never commit** API keys or service account JSON. Use `.env` (see `.env.example`) and rebuild after changing `app.config.js` `extra` fields.
 
-1. Firebase Console → **Authentication** → **Sign-in method**
-2. Enable **Phone**
-3. Add test phone numbers in Firebase Console for local testing (recommended)
+### 8.1 Firebase Console — enable Phone provider
 
-### 8.2 Install/Build Requirements
+1. Open [Firebase Console](https://console.firebase.google.com/) → your project.
+2. Go to **Build** → **Authentication** → **Sign-in method**.
+3. Click **Phone** → turn **Enable** on → **Save**.
+4. (Recommended for dev) In the same **Sign-in method** area, use **Phone numbers for testing** to add E.164 numbers and fixed 6-digit codes so SMS is not consumed during iteration.
 
-- Package used: `expo-firebase-recaptcha`
-- Run in a **native dev build** (not plain Expo Go for reliable flow)
-- Android-first spike path is implemented in `PhoneLoginScreen`
+### 8.2 Authorized domains (reCAPTCHA / web-based verifier)
 
-Commands:
+1. **Authentication** → **Settings** → **Authorized domains**.
+2. Ensure at least: **`your-project-id.firebaseapp.com`**, **`your-project-id.web.app`**, and for local web auth if needed **`localhost`**.
+3. If you use a custom `authDomain`, add that domain here as well.
+4. API keys: In Google Cloud Console, if the browser key is restricted, allow the domains above (Firebase docs: API key restrictions vs Auth).
+
+### 8.3 Register apps to match `app.config.js` (no secrets in repo)
+
+Values must match Firebase **Project settings** → **Your apps** (add Android / iOS app if missing):
+
+| Build field | `app.config.js` location |
+|-------------|---------------------------|
+| Android package name | `expo.android.package` (e.g. `com.internalaggregator.app`) |
+| iOS bundle identifier | `expo.ios.bundleIdentifier` |
+| URL scheme (deep links) | `expo.scheme` (`foodtruckcompliance`) |
+
+This project loads Firebase web config from **`expo.extra`** (populated from `.env` at build time via `dotenv` in `app.config.js`). After editing `.env`, restart Metro and **rebuild** native binaries (`npx expo run:android` / `run:ios`) so `extra` updates on device.
+
+### 8.4 Android — SHA-1 / SHA-256 (required for real SMS)
+
+Phone sign-in on Android expects your app’s signing certs registered on the **same** Firebase Android app entry as `android.package`.
+
+1. Firebase Console → **Project settings** → **Your apps** → Android app.
+2. **Add fingerprint**: SHA-1 and SHA-256 for:
+   - **Debug**: e.g. `cd android && ./gradlew signingReport` (or `keytool` against your debug keystore).
+   - **Release**: keystore you ship with (EAS/Play App Signing as applicable).
+3. Save; wait a few minutes for propagation.
+4. Rebuild the app: `npx expo run:android`
+
+If SHA keys are wrong, Firebase often returns **`auth/app-not-authorized`** or **`auth/invalid-app-credential`** (mapped to friendly copy in the app).
+
+### 8.5 iOS (optional)
+
+1. Register the iOS app in Firebase with the **same** bundle ID as `expo.ios.bundleIdentifier`.
+2. Phone / reCAPTCHA flows may need **APNs** / silent push configuration per Firebase’s current iOS phone auth docs; verify in Console if Apple sign-in or phone flows require extra setup.
+3. Build: `npx expo run:ios`
+
+### 8.6 Local build commands (native dev client)
+
+`expo-firebase-recaptcha` relies on native code paths that are **not reliable in Expo Go**. The app gates phone sign-in when `executionEnvironment === storeClient` (Expo Go).
 
 ```bash
+# Android — from repo root, .env present with FIREBASE_* keys
 npx expo run:android
+
+# iOS
+npx expo run:ios
 ```
 
-### 8.3 App Flow
+### 8.7 In-app flow (manual smoke test)
 
-1. Open login screen
-2. Tap **Sign In with Phone**
-3. Enter number in E.164 format, e.g. `+15555550123`
-4. Request code, then enter 6-digit verification code
-5. On success, Firebase signs in user
+1. **Login** → **Sign In with Phone** (or open Phone route directly in dev).
+2. If you see **“Phone sign-in unavailable”**, read the banner (Expo Go, web, or missing Firebase config).
+3. Enter **E.164** number (e.g. `+15555550123`), **Send Code** — invisible reCAPTCHA on Android may run first; iOS may show a modal challenge.
+4. Enter the **6-digit** SMS (or test code from Console), **Verify and Sign In**.
 
-### 8.4 Production Readiness Checklist
+### 8.8 Common errors (mapped in `auth.js`)
 
-#### Android
+| Code / symptom | What to check |
+|----------------|----------------|
+| `auth/invalid-phone-number` | E.164 with `+` and country code. |
+| `auth/too-many-requests` / `auth/quota-exceeded` | Backoff; add Firebase **test** numbers; billing / SMS quota. |
+| `auth/operation-not-allowed` | Phone provider enabled in Console. |
+| `auth/app-not-authorized`, `auth/invalid-app-credential` | Android SHA-1/256, package name, rebuild. |
+| `auth/unauthorized-domain` | Authorized domains list. |
+| `ERR_FIREBASE_RECAPTCHA_ERROR` | Network; dev build not Expo Go; config / domains. |
+| `ERR_FIREBASE_RECAPTCHA_CANCEL` | User closed the challenge — retry. |
 
-- [ ] Register Android app in Firebase with exact package name
-- [ ] Add SHA-1 and SHA-256 cert fingerprints in Firebase project settings
-  - Debug keystore for dev builds
-  - Release keystore for production builds
-- [ ] Re-download `google-services.json` after adding SHA fingerprints (if changed)
-- [ ] Verify SMS region policy in Firebase Auth settings
+---
 
-#### iOS (when enabled later)
+## 9. Firebase App Check
 
-- [ ] Register iOS app in Firebase with exact bundle ID
-- [ ] Configure APNs key/certificate in Apple Developer account
-- [ ] Upload APNs auth key in Firebase Cloud Messaging settings
-- [ ] Ensure associated capabilities are configured in iOS project/profile as needed
+App Check reduces abuse of Firestore and Storage by attaching a short-lived attestation token to requests. This project uses the **Firebase JS SDK** (`src/services/firebase.js`) with initialization in **`src/services/appCheck.js`**.
 
-### 8.5 Common Phone Auth Failures
+### 9.1 What the app does
 
-- `auth/invalid-phone-number`: Number format is invalid; use E.164 format.
-- `auth/too-many-requests`: Throttled by Firebase; wait and retry.
-- Verification UI not appearing: run in native dev build and verify network/connectivity.
+| Build | Platform | Behavior |
+|-------|----------|----------|
+| **Development** (`__DEV__`) | Web, iOS, Android | **Debug provider**: `globalThis.FIREBASE_APPCHECK_DEBUG_TOKEN` is set before `initializeAppCheck()`. If `FIREBASE_APPCHECK_DEBUG_TOKEN` is set in `.env`, that **string** is used as the debug secret; otherwise `true` so the SDK prints a token to Metro / Xcode / Logcat. Register that token under **Firebase Console → App Check → your app → Manage debug tokens**. |
+| **Production** | **Web** | If `FIREBASE_APPCHECK_SITE_KEY` is in `.env` (surfaced as `expo.extra.firebaseAppCheckSiteKey`), the app uses **reCAPTCHA Enterprise** by default, or **reCAPTCHA v3** if `FIREBASE_APPCHECK_USE_V3=true`. **Do not** turn on Firestore/Storage **enforcement** until this key is configured and tokens verify in Console. |
+| **Production** | **iOS / Android (native)** | **Deferred.** The JS SDK does not ship Device Check / Play Integrity. `initFirebaseAppCheck` **skips** initialization and logs a warning. **Do not enable App Check enforcement** for mobile in Firebase Console until you adopt a supported path (e.g. migrate data access to **`@react-native-firebase/firestore`** + **`@react-native-firebase/app-check`**, or serve tokens via a **Custom provider** backend). |
+
+### 9.2 Environment variables (optional)
+
+Add to `.env` as needed (see `.env.example`):
+
+- `FIREBASE_APPCHECK_SITE_KEY` — Web production reCAPTCHA site key from App Check setup.
+- `FIREBASE_APPCHECK_USE_V3=true` — Use `ReCaptchaV3Provider` instead of Enterprise.
+- `FIREBASE_APPCHECK_DEBUG_TOKEN` — **Development only:** fixed UUID you paste into Console debug tokens (avoids a new random token every cold start when IndexedDB is missing).
+
+Restart Expo after changing `.env`.
+
+### 9.3 Enabling enforcement in Firebase Console
+
+1. Complete debug-token registration for every developer machine (or shared token in `.env` for dev only — treat like a password; never ship in production builds you distribute).
+2. For **web** production builds, set `FIREBASE_APPCHECK_SITE_KEY`, ship, and confirm requests succeed with App Check metrics.
+3. For **native** production, leave enforcement **off** for Firestore/Storage until a native-capable provider is integrated (see table above).
 
 ---
 
@@ -390,7 +450,7 @@ After successful setup:
 2. ✅ Verify data appears in Firebase Console
 3. ✅ Test security rules by trying to access other users' data (should fail)
 4. ✅ Set up billing alerts if using paid tier
-5. ✅ Consider enabling Firebase App Check for additional security
+5. ✅ Enable Firebase App Check for **web** production when `FIREBASE_APPCHECK_SITE_KEY` is set; see [§9](#9-firebase-app-check). Defer native enforcement until a supported provider exists.
 
 ---
 

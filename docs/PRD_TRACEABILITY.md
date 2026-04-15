@@ -19,11 +19,11 @@
 | PRD bullet | Primary implementation files | Status | Notes |
 |------------|------------------------------|--------|--------|
 | Sign up / log in (email) | `src/services/auth.js`, `src/screens/auth/LoginScreen.js`, `src/screens/auth/SignupScreen.js`, `src/context/AuthContext.js` | **Done** | Firebase email/password. |
-| Sign up / log in (phone) | — | **Missing** | No phone auth in `src/`. |
+| Sign up / log in (phone) | `src/services/auth.js` (`requestPhoneSignInCode`, `confirmPhoneSignInCode`), `src/screens/auth/PhoneLoginScreen.js`, `src/screens/auth/LoginScreen.js` (navigate to phone flow), `src/navigation/AuthNavigator.js` | **Partial** | Phone **sign-in** implemented; **no** phone sign-up on `SignupScreen.js`. |
 | Password reset | `src/services/auth.js`, `src/screens/auth/ForgotPasswordScreen.js` | **Done** | |
-| Roles: Owner / Staff | `src/constants/constants.js` (`USER_ROLES`), `SignupScreen.js` (default `OWNER`), Firestore `users` profile | **Partial** | Role is stored; **no** Firestore rules/UI split by role beyond onboarding gate and Staff placeholder. |
-| Owner: all logs/reports, manage staff, visibility, export | `DashboardScreen.js`, `InspectionReadinessScreen.js`, `ProfileScreen.js`, `StaffScreen.js` (placeholder) | **Partial** | Staff management is placeholder; no public visibility controls. |
-| Staff: checklists, incidents, assigned tasks | Checklist/media accessible to all signed-in users | **Partial** | No incident module; no assigned-task model (`docs/BUSINESS_MODEL_RFC.md`). |
+| Roles: Owner / Staff | `src/constants/constants.js` (`USER_ROLES`), `src/screens/auth/SignupScreen.js` (default `OWNER`), Firestore `users` profile | **Partial** | Role is stored; **no** Firestore rules/UI split by role beyond onboarding gate and Staff placeholder. |
+| Owner: all logs/reports, manage staff, visibility, export | `src/screens/DashboardScreen.js`, `src/screens/InspectionReadinessScreen.js`, `src/screens/ProfileScreen.js`, `src/utils/readinessExport.js`, `src/services/reportLinks.js`, `src/screens/StaffScreen.js` (placeholder) | **Partial** | Staff management still placeholder; owner has profile visibility toggles, client PDF export, and optional secure report link (Cloud Functions). |
+| Staff: checklists, incidents, assigned tasks | `src/screens/ChecklistScreen.js`, `src/screens/IncidentsScreen.js`, `src/screens/MaintenanceTasksScreen.js`, related services (see §6.4); owner vs staff UI + rules: [`docs/ROLE_MATRIX.md`](./ROLE_MATRIX.md) | **Partial** | Incidents + maintenance UIs exist; document upload + business doc edit/delete + business media log compose are **owner-only** in app + `firestore.rules`. |
 
 ---
 
@@ -31,8 +31,8 @@
 
 | PRD bullet | Primary implementation files | Status | Notes |
 |------------|------------------------------|--------|--------|
-| Truck/business name, type, category, permits, location | `src/screens/onboarding/OwnerOnboardingScreen.js`, `src/services/userProfile.js`, profile UI on `ProfileScreen.js` | **Partial** | Onboarding enforces minimum business profile; field set may not match every PRD label. |
-| Auto-assign checklists from truck/category | `src/services/checklistTemplateSync.js`, `checklistFiltering.js`, `checklistInstanceSync.js`, `checklistScheduling.js` | **Done** | Template-driven instances in `checklistItems`. |
+| Truck/business name, type, category, permits, location | `src/screens/onboarding/OwnerOnboardingScreen.js`, `src/services/userProfile.js`, `src/screens/ProfileScreen.js` | **Partial** | Onboarding enforces minimum business profile; field set may not match every PRD label. |
+| Auto-assign checklists from truck/category | `src/services/checklistTemplateSync.js`, `src/services/checklistFiltering.js`, `src/services/checklistInstanceSync.js`, `src/services/checklistScheduling.js` | **Done** | Template-driven instances in `checklistItems`. |
 
 ---
 
@@ -40,10 +40,10 @@
 
 | PRD bullet | Primary implementation files | Status | Notes |
 |------------|------------------------------|--------|--------|
-| Daily / weekly / monthly types | Templates + `dueDate` / scheduling in `checklistScheduling.js`, `ChecklistScreen.js` | **Done** | Driven by template metadata and instances. |
+| Daily / weekly / monthly types | Templates + `dueDate` / scheduling in `src/services/checklistScheduling.js`, `src/screens/ChecklistScreen.js` | **Done** | Driven by template metadata and instances. |
 | Pre-filled items from category | Template sync + filtering (services above) | **Done** | |
 | Checkbox/toggle, notes, photos, timestamp, attribution | `src/screens/ChecklistScreen.js`, `src/components/checklist/*`, `src/services/firestore.js` | **Partial** | Attribution/timestamp patterns depend on writes in checklist flows; verify per save path in components. |
-| Incomplete critical items → score; missed → dashboard warnings | `src/utils/complianceScore.js`, `src/services/dashboard.js`, `DashboardScreen.js` | **Partial** | Score uses overdue/completion; **no** separate “critical item” flag in score beyond item data if present in Firestore. |
+| Incomplete critical items → score; missed → dashboard warnings | `src/utils/complianceScore.js` (`priority === 'critical'` on overdue items), `src/services/dashboard.js`, `src/screens/DashboardScreen.js` | **Partial** | Score applies extra penalty for critical overdue items; dashboard surfacing of “missed” vs “overdue” wording may differ from PRD. |
 
 ---
 
@@ -60,9 +60,9 @@
 
 | PRD bullet | Primary implementation files | Status | Notes |
 |------------|------------------------------|--------|--------|
-| Inputs: completion, incidents, certs overdue, maintenance | `src/utils/complianceScore.js`, `src/services/dashboard.js`, `src/components/common/ScoreBreakdownModal.js` | **Partial** | Uses checklist completion, overdue items (including critical), expiring/expired docs, open severe incidents, overdue maintenance, and recent media logs. Certification-specific weighting remains out of scope. |
-| 0–100 + green/yellow/red style status | `complianceScore.js` (`getScoreDescription`), `DashboardScreen.js`, `src/components/common/ScoreBreakdownModal.js`, `InspectionReadinessScreen.js` | **Done** | Labels: Excellent / Good / Fair / Low (bands in `getScoreDescription`). |
-| Dashboard insights / tips | `src/services/dashboard.js` (`buildReadinessSummary`), `DashboardScreen.js` | **Done** | Narrative readiness copy is separate from the numeric `calculateComplianceScore` formula. |
+| Inputs: completion, incidents, certs overdue, maintenance | `src/utils/complianceScore.js` (`calculateComplianceScore`: `checklistItems`, `overdueItems`, `expiringDocuments`, `expiredDocuments`, `mediaLogs`, `incidents`, `maintenanceTasks`), `src/services/dashboard.js`, `src/components/common/ScoreBreakdownModal.js` | **Done** | Permit/cert “overdue” is modeled as expiring/expired **documents** passed into score; open **severe** incidents and overdue **non-closed** maintenance tasks penalize; no separate certification SKU beyond documents. |
+| 0–100 + green/yellow/red style status | `src/utils/complianceScore.js` (`getScoreDescription`), `src/screens/DashboardScreen.js`, `src/components/common/ScoreBreakdownModal.js`, `src/screens/InspectionReadinessScreen.js` | **Done** | Labels: Excellent / Good / Fair / Low (bands in `getScoreDescription`). |
+| Dashboard insights / tips | `src/services/dashboard.js` (`buildReadinessSummary`), `src/screens/DashboardScreen.js` | **Done** | Narrative readiness copy is separate from the numeric `calculateComplianceScore` formula. |
 
 ---
 
@@ -71,9 +71,9 @@
 | PRD bullet | Primary implementation files | Status | Notes |
 |------------|------------------------------|--------|--------|
 | Inspection mode, date filters, aggregated views | `src/screens/InspectionReadinessScreen.js`, `src/services/dashboard.js` (`fetchDashboardSnapshot`) | **Partial** | Readiness screen aggregates snapshot data; not a separate global “mode” toggle across the app. |
-| Export PDF | — | **Missing** | |
-| Shareable report | `src/utils/readinessExport.js` (`shareReadinessSummary`, plaintext/HTML generators) | **Partial** | Native **Share** sheet / plaintext summary; not a hosted secure link. |
-| Secure report link | — | **Missing** | |
+| Export PDF | `src/utils/readinessExport.js` (`exportReadinessSummaryPdf` + dynamic `expo-print`), `src/screens/InspectionReadinessScreen.js` | **Done** | Client-generated PDF and share; depends on `expo-print` + user action. |
+| Shareable report | `src/utils/readinessExport.js` (`shareReadinessSummary`, `generateReadinessPlaintext` / HTML helpers), `src/screens/InspectionReadinessScreen.js` | **Partial** | Native **Share** sheet (plaintext/HTML/PDF path); not a hosted multi-tenant report viewer. |
+| Secure report link | `src/services/reportLinks.js` (`generateShareableReportLink`, `revokeShareableReportLink`), `src/screens/InspectionReadinessScreen.js` | **Partial** | Calls HTTPS Cloud Functions (`generateSecureReadinessReport` / `revokeSecureReadinessReport`); needs `extra.firebaseProjectId` in Expo config and deployed backend. |
 
 ---
 
@@ -81,7 +81,7 @@
 
 | PRD bullet | Primary implementation files | Status | Notes |
 |------------|------------------------------|--------|--------|
-| Permits/certs as documents, expiry, upload | `src/screens/DocumentsScreen.js`, `DocumentDetailScreen.js`, `src/services/storage.js`, `firestore.js` (documents), `src/utils/documentTypes.js` | **Partial** | Document model supports expiry and types; no separate “certification” module or auto-reminder push. |
+| Permits/certs as documents, expiry, upload | `src/screens/DocumentsScreen.js`, `src/screens/DocumentDetailScreen.js`, `src/services/storage.js`, `src/services/firestore.js` (documents), `src/utils/documentTypes.js` | **Partial** | Document model supports expiry and types; no separate “certification” module or auto-reminder push. |
 | Reminders | — | **Missing** | No scheduled notifications (see `NOTIFICATIONS_SPIKE.md`). |
 | Status tags Active / Expiring / Expired | Document list/detail UI + dashboard expiring/expired lists | **Partial** | Surfaced via dashboard/documents flows; wording may differ from PRD tags. |
 
@@ -91,7 +91,7 @@
 
 | PRD bullet | Primary implementation files | Status | Notes |
 |------------|------------------------------|--------|--------|
-| Public truck / score visibility, consent, default private | — | **Missing** | No `publicVisibility` (or similar) in `src/`. |
+| Public truck / score visibility, consent, default private | `src/screens/ProfileScreen.js` (“Public Visibility (Consent)” toggles, `handleVisibilityToggle`), `src/services/userProfile.js` (`updateUserVisibilitySettings`, `updateBusinessVisibilitySettings`) | **Partial** | Defaults private; persists user/business flags. In-app copy: flags are consent signals for future public API — **no** public read surface in app today. |
 
 ---
 
@@ -101,7 +101,7 @@
 |-------|------------------------------|--------|--------|
 | Firestore security rules | `firestore.rules`, `storage.rules` | **Done** | Verify against live paths in `src/services/`. |
 | Offline-first / sync SLA | `src/services/firebase.js` | **Partial** | Online-first MVP; persistence as enabled by SDK, not full offline-first product behavior. |
-| Analytics (§9) | — | **Missing** | Not wired in `src/` from this traceability pass. |
+| Analytics (§9) | `src/services/analytics.js` (`logAnalyticsEvent`), `src/screens/ChecklistScreen.js`, `src/components/documents/UploadDocumentModal.js`, `src/screens/InspectionReadinessScreen.js`, `src/services/incidents.js` | **Partial** | Events: checklist completion, document upload, readiness share, incident created. Full funnel / screen coverage and production `@react-native-firebase/analytics` wiring depend on build type (see project analytics notes if present). |
 
 ---
 
@@ -109,9 +109,9 @@
 
 | Area | Files |
 |------|--------|
-| Auth vs onboarding vs main | `src/navigation/AppNavigator.js`, `AuthNavigator.js`, `OnboardingNavigator.js`, `MainNavigator.js`, `navigationConfig.js` |
-| Deep linking config | `navigationConfig.js` (`DEEP_LINKING_CONFIG`) — product handling still partial |
+| Auth vs onboarding vs main | `src/navigation/AppNavigator.js`, `src/navigation/AuthNavigator.js`, `src/navigation/OnboardingNavigator.js`, `src/navigation/MainNavigator.js`, `src/navigation/navigationConfig.js` |
+| Deep linking config | `src/navigation/navigationConfig.js` (`DEEP_LINKING_CONFIG`) — product handling still partial |
 
 ---
 
-*Last updated to match repository layout as of documentation refresh (see also [`NAVIGATION_DOCUMENTATION.md`](../NAVIGATION_DOCUMENTATION.md) and [`CHECKLIST_DATA_AND_SCORING.md`](../CHECKLIST_DATA_AND_SCORING.md)).*
+*Last updated: 2026-04-15 — aligned to `src/` (PhoneLoginScreen, `reportLinks.js`, `readinessExport` + `expo-print`, Profile visibility toggles, `logAnalyticsEvent`, Incidents/Maintenance screens, `complianceScore.js` inputs). See also [`NAVIGATION_DOCUMENTATION.md`](../NAVIGATION_DOCUMENTATION.md) and [`CHECKLIST_DATA_AND_SCORING.md`](../CHECKLIST_DATA_AND_SCORING.md).*

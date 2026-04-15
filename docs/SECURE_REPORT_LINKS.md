@@ -1,126 +1,114 @@
-# RFC: Secure Report Links
+# Secure readiness report links (Cloud Functions + client)
 
-## Purpose
+`src/services/reportLinks.js` calls two **HTTPS** (not callable) endpoints on the same host:
 
-Define a secure, temporary report-sharing mechanism for readiness exports that:
-- avoids exposing raw Firestore documents,
-- limits access by time and usage,
-- supports revocation and auditability,
-- fits Expo + Firebase architecture.
+| Endpoint | Method | Body | Auth |
+|----------|--------|------|------|
+| `generateSecureReadinessReport` | `POST` | `{ startDate?, endDate?, ttlHours?, format?: 'pdf' \| 'html', userId? }` | `Authorization: Bearer <Firebase ID token>` |
+| `revokeSecureReadinessReport` | `POST` | `{ reportId }` | Same |
 
-This RFC is for team review before implementation.
+Success responses match the client’s expectations:
 
-## Proposed Approach
+- **Generate (200):** `{ reportId, format, expiresAt, signedUrl, tokenId, path, revokeUrl }`
+- **Revoke (200):** `{ revoked: true, reportId }`. If the Firestore row still exists and `revokedAt` was set by an older backend version, `{ revoked: true, alreadyRevoked: true, reportId }` (current code deletes the row instead).
 
-Use a **signed one-time token** delivered to a **Cloud Function endpoint** that returns a sanitized report payload (or generated PDF bytes).  
-Do **not** serve reports through public Storage rules or direct Firestore document links.
+Error JSON uses `{ error: '<code>' }` where `<code>` is one of: `missing-auth-token`, `cross-user-request-denied`, `invalid-report-id`, `report-not-found`, `method-not-allowed`, `internal`, `http-*`.
 
-High-level flow:
-1. Authenticated owner/user requests a secure link from app.
-2. Backend creates token record + metadata (expiry, scope, usage limit).
-3. Backend returns URL: `https://<region>-<project>.cloudfunctions.net/reportAccess?t=<token>`.
-4. Recipient opens link.
-5. Function validates token, TTL, revocation, and usage count.
-6. Function returns report once (or limited count), marks token consumed, writes audit log.
+## What the backend does
 
-## Token Format
+1. **Auth:** Verifies Firebase ID token (`admin.auth().verifyIdToken`). Rejects `body.userId` when it does not match the token UID.
+2. **Data:** Loads `users/{uid}.defaultBusinessId`, then merges **business-scoped** and **legacy user-scoped** `documents`, `checklistItems`, and `mediaLogs` the same way as `src/services/dashboard.js` (so reports match the in-app snapshot).
+3. **Storage:** Writes `reports/{uid}/{reportId}.pdf` or `.html` via Admin SDK, returns a **v4 signed read URL** expiring at `expiresAt`.
+4. **Metadata:** Writes `reportLinks/{reportId}` with `uid`, `ownerUid`, `businessId`, `path`, `format`, `createdAt`, `expiresAt`, `revokedAt` (no persisted `signedUrl` — only returned once in the HTTP response).
+5. **Revoke:** Deletes the Storage object (signed URL stops working), then **deletes** the Firestore metadata document.
 
-Use opaque random token (no embedded business data).
+## Firestore rules
 
-- **Token value:** 256-bit cryptographically secure random bytes, Base64URL encoded.
-- **Transport:** query param `t` or path segment.
-- **Storage:** store **hash(token)** only (SHA-256), never plaintext token at rest.
-- **Lookup key:** `tokenHash`.
+`reportLinks` is **denied** for all client SDK reads/writes (`firestore.rules`). Only the Admin SDK in Cloud Functions touches this collection.
 
-Recommended token document shape (`reportAccessTokens/{tokenId}`):
-- `tokenHash: string` (required)
-- `ownerUserId: string` (required)
-- `businessId: string | null`
-- `reportType: 'readiness_summary'`
-- `createdAt: Timestamp`
-- `expiresAt: Timestamp`
-- `maxUses: number` (default `1`)
-- `usedCount: number` (default `0`)
-- `revokedAt: Timestamp | null`
-- `revokedReason: string | null`
-- `constraints: { ipLock?: string, userAgentHint?: string }` (optional, future)
-- `snapshotRef: string | null` (server-only pointer, not exposed)
+## CORS
 
-## TTL Policy
+- `cors: false` on both HTTPS functions; custom headers instead of wide open `cors: true`.
+- **Allowed origins** default to local Expo ports + `https://foodtruckcompliance.app`. Override with env **`REPORT_LINKS_ALLOWED_ORIGINS`** (comma-separated list). Trailing `*` prefix match is supported (e.g. `https://preview--*.web.app` → use `https://preview-` + `*` pattern by setting a literal prefix + `*` last char per code: `allowed.endsWith('*')` → prefix is `allowed.slice(0, -1)`).
+- **React Native** `fetch` usually sends **no** `Origin`; requests are still authorized by Bearer token. CORS mainly affects **Expo web** and browser-based tests.
 
-Default TTL should be short:
-- **Default:** `48h`
-- **Allowed range:** `24h` to `72h`
-- Reject requests outside allowed range.
-- Expired tokens return `410 Gone` (or normalized error page/message).
+Set in Cloud Functions runtime (Secret Manager or `firebase functions:config:set` legacy / `.env` for emulators):
 
-## Data Included in Shared Report
+```bash
+firebase functions:secrets:set REPORT_LINKS_ALLOWED_ORIGINS
+# value example: https://app.example.com,http://localhost:8081
+```
 
-Include only minimum business compliance summary needed for inspection context:
-- readiness score and label,
-- checklist completion %, overdue counts,
-- expiring/expired document counts,
-- short top-N issue summaries,
-- generated timestamp and business display name/state.
+For v2 params, prefer **defineSecret** in code or Console “Environment variables” for the Functions service account — see current Firebase docs for your CLI version.
 
-Do **not** include:
-- user email/phone,
-- internal user IDs,
-- Firestore collection paths/document IDs,
-- raw media/storage URLs,
-- debug metadata, stack traces, rule internals.
+## Deploy
 
-## Revocation & One-Time Read
+From repo root (with Firebase CLI logged in and project selected):
 
-Revocation requirements:
-- Owner/admin can revoke active token before expiry.
-- Revoked token access must fail immediately.
+```bash
+cd firebase/functions && npm ci
+cd ../..
+firebase deploy --only functions:generateSecureReadinessReport,functions:revokeSecureReadinessReport
+```
 
-One-time read requirements:
-- `maxUses = 1` by default.
-- On successful read, atomically increment `usedCount`.
-- Deny when `usedCount >= maxUses`.
-- Use transaction/atomic write to prevent race-condition double reads.
+Ensure the default Storage bucket exists and the Functions service account has **Storage Admin** (or object create/read/delete) and **Firestore** access.
 
-## Firestore/Storage Exposure Rules
+## Manual runbook (production or emulator)
 
-Security constraints:
-- Client apps must not receive raw Firestore paths for report retrieval.
-- Public Storage rules must not be used as report sharing mechanism.
-- Cloud Function should read protected Firestore data using admin privileges and return sanitized output only.
+### Prereqs
 
-Recommended function endpoints:
-- `createSecureReportLink` (authenticated callable/HTTPS)
-- `accessSecureReport` (public HTTPS with token)
-- `revokeSecureReportLink` (authenticated callable/HTTPS)
+- App has `expo.extra.firebaseProjectId` set (`app.config.js` / `.env`).
+- User signed in; copy a fresh **ID token** (short-lived). In a dev client you can temporarily log `await auth.currentUser.getIdToken()` or use the REST API with email/password against the Auth emulator.
 
-## Audit & Monitoring
+### 1) Generate
 
-Log each token event:
-- creation,
-- access success/failure reason (expired/revoked/used),
-- revocation,
-- optional requester IP hash and user-agent fingerprint (privacy-safe).
+```bash
+export PROJECT_ID=your-project-id
+export TOKEN='eyJhbGciOi...'
 
-Store in `reportAccessAudit` with retention policy (e.g., 30-90 days).
+curl -sS -X POST \
+  "https://us-central1-${PROJECT_ID}.cloudfunctions.net/generateSecureReadinessReport" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"startDate":"2026-01-01","endDate":"2026-04-15","ttlHours":48,"format":"pdf"}' \
+  | jq .
+```
 
-## Failure Modes & UX
+Expect `signedUrl`. Open it in a browser — PDF should download/view until `expiresAt`.
 
-User-facing error states for recipient link:
-- link expired,
-- link already used,
-- link revoked,
-- invalid link.
+### 2) Revoke
 
-Avoid leaking which specific validation check failed beyond broad category.
+```bash
+export REPORT_ID='uuid-from-generate-response'
 
-## Open Questions for Team Review
+curl -sS -X POST \
+  "https://us-central1-${PROJECT_ID}.cloudfunctions.net/revokeSecureReadinessReport" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d "{\"reportId\":\"${REPORT_ID}\"}" \
+  | jq .
+```
 
-1. Should `maxUses` ever exceed 1 for regulator workflows?
-2. Do we require optional passcode on top of token for higher-risk exports?
-3. Should PDF bytes be generated on-demand or pre-rendered snapshot at link creation?
-4. What retention period should apply to token + audit documents?
+Expect `{ "revoked": true, "reportId": "..." }`. Re-fetch the same `signedUrl` — should fail (object removed).
 
----
+### 3) CORS (browser / Expo web)
 
-Implementation is intentionally deferred pending review/approval of this RFC.
+From an **allowed** origin, a preflight should succeed:
+
+```bash
+curl -i -X OPTIONS \
+  "https://us-central1-${PROJECT_ID}.cloudfunctions.net/generateSecureReadinessReport" \
+  -H "Origin: http://localhost:8081" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: authorization,content-type"
+```
+
+Expect `204` and `Access-Control-Allow-Origin: http://localhost:8081` when that origin is allowlisted.
+
+## Score parity note
+
+The PDF/HTML body uses a **lighter** `calculateComplianceScore` helper inside `firebase/functions/index.js` than `src/utils/complianceScore.js` (e.g. no incidents/maintenance penalties). Treat the file as an executive snapshot, not a bit-identical duplicate of the app score.
+
+## Integration test (optional)
+
+There is no automated test in-repo by default (Admin SDK + Storage). The curl flow above is the supported smoke test. Add CI later with the Firebase emulator suite and a rules bypass if you need regression coverage.

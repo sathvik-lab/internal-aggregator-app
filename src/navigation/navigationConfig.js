@@ -1,12 +1,14 @@
 /**
  * Navigation Configuration
- * 
+ *
  * Centralized navigation configuration including:
  * - Deep linking structure
  * - Navigation guards
  * - Route names constants
  * - Navigation helpers
  */
+
+import { getStateFromPath as pathStringToNavigationState } from '@react-navigation/native';
 
 /**
  * Navigation Route Names
@@ -78,7 +80,11 @@ export const ROUTES = {
  * - foodtruckcompliance://profile
  */
 export const DEEP_LINKING_CONFIG = {
-  prefixes: ['foodtruckcompliance://', 'https://foodtruckcompliance.app'],
+  prefixes: [
+    'foodtruckcompliance://',
+    'https://foodtruckcompliance.app',
+    'https://www.foodtruckcompliance.app',
+  ],
   config: {
     screens: {
       // Auth screens
@@ -128,6 +134,66 @@ export const DEEP_LINKING_CONFIG = {
       Notifications: 'notifications',
     },
   },
+};
+
+/** Path roots listed in linking config but not mounted in AppNavigator — treat as unknown → fallback. */
+const UNMOUNTED_LINK_STUBS = new Set(['reports', 'settings', 'notifications']);
+
+/**
+ * Strip query/hash; if full URL, keep pathname only (for universal links).
+ * @param {string} path
+ * @returns {string}
+ */
+export const normalizeIncomingLinkPath = (path) => {
+  if (path == null || path === '') return '';
+  const noQuery = String(path).split(/[?#]/)[0].trim();
+  try {
+    if (noQuery.includes('://')) {
+      const u = new URL(noQuery);
+      return (u.pathname || '/').replace(/^\/+|\/+$/g, '') || '';
+    }
+  } catch (_e) {
+    /* relative path */
+  }
+  return noQuery.replace(/^\/+|\/+$/g, '') || '';
+};
+
+/**
+ * Linking object for NavigationContainer: strict prefixes + unknown path → safe home.
+ *
+ * @param {{ user: object | null, needsOwnerOnboarding: boolean }} auth
+ */
+export const createAppLinking = ({ user, needsOwnerOnboarding }) => {
+  const screens = DEEP_LINKING_CONFIG.config.screens;
+  const pathOptions = { screens };
+
+  return {
+    prefixes: [...DEEP_LINKING_CONFIG.prefixes],
+    config: DEEP_LINKING_CONFIG.config,
+    getStateFromPath(path, options) {
+      const normalized = normalizeIncomingLinkPath(path);
+      const firstSegment = normalized.split('/')[0];
+
+      let state;
+      if (!UNMOUNTED_LINK_STUBS.has(firstSegment)) {
+        state = pathStringToNavigationState(normalized, { ...options, ...pathOptions });
+      }
+      if (!state && normalized) {
+        state = pathStringToNavigationState(`/${normalized}`, { ...options, ...pathOptions });
+      }
+      if (state) {
+        return state;
+      }
+
+      if (!user) {
+        return pathStringToNavigationState('login', pathOptions);
+      }
+      if (needsOwnerOnboarding) {
+        return pathStringToNavigationState('onboarding', pathOptions);
+      }
+      return pathStringToNavigationState('dashboard', pathOptions);
+    },
+  };
 };
 
 /**
@@ -219,6 +285,8 @@ export const NavigationHelpers = {
 export default {
   ROUTES,
   DEEP_LINKING_CONFIG,
+  createAppLinking,
+  normalizeIncomingLinkPath,
   NavigationGuards,
   NavigationHelpers,
 };

@@ -14,6 +14,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
+import { useEffectiveRole } from '../hooks/useEffectiveRole';
 import Header from '../components/common/Header';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
 import EmptyState from '../components/common/EmptyState';
@@ -25,6 +26,7 @@ const STATUS_OPTIONS = ['open', 'in_progress', 'completed'];
 const MaintenanceTasksScreen = () => {
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const { loading: roleLoading } = useEffectiveRole();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [items, setItems] = useState([]);
@@ -129,8 +131,14 @@ const MaintenanceTasksScreen = () => {
       <View style={styles.topActions}>
         <Text style={[styles.screenTitle, { color: colors.text?.primary || colors.text }]}>Maintenance</Text>
         <TouchableOpacity
-          style={[styles.createButton, { backgroundColor: `${colors.primary}15`, borderColor: `${colors.primary}55` }]}
+          style={[
+            styles.createButton,
+            { backgroundColor: `${colors.primary}15`, borderColor: `${colors.primary}55` },
+            roleLoading && styles.createButtonDisabled,
+          ]}
           onPress={() => setCreateVisible(true)}
+          disabled={roleLoading}
+          accessibilityState={{ disabled: roleLoading }}
         >
           <MaterialCommunityIcons name="plus-circle-outline" size={18} color={colors.primary} />
           <Text style={[styles.createButtonText, { color: colors.primary }]}>New Task</Text>
@@ -236,6 +244,7 @@ const styles = StyleSheet.create({
     minHeight: 38,
   },
   createButtonText: { marginLeft: 6, fontSize: 13, fontWeight: '700' },
+  createButtonDisabled: { opacity: 0.45 },
   listContent: { paddingHorizontal: 20, paddingBottom: 24 },
   emptyWrap: { flexGrow: 1, justifyContent: 'center' },
   itemCard: { borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 10 },

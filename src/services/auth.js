@@ -21,7 +21,7 @@ const AUTH_ERROR_MESSAGES = {
   'auth/email-already-in-use': 'This email is already registered. Please sign in or use a different email.',
   'auth/invalid-email': 'Please enter a valid email address.',
   'auth/weak-password': 'Password must be at least 6 characters.',
-  'auth/operation-not-allowed': 'Email/password sign-in is not enabled for this project.',
+  'auth/operation-not-allowed': 'This sign-in method is not enabled in Firebase Console (Authentication → Sign-in method).',
   'auth/user-not-found': 'Invalid email or password.',
   'auth/wrong-password': 'Invalid email or password.',
   'auth/invalid-credential': 'Invalid email or password.',
@@ -34,11 +34,37 @@ const AUTH_ERROR_MESSAGES = {
   'auth/missing-verification-code': 'Verification code is required.',
   'auth/invalid-verification-code': 'Invalid verification code.',
   'auth/code-expired': 'Verification code has expired. Request a new one.',
+  'auth/missing-phone-number': 'Phone number is missing. Enter a number in E.164 format (e.g. +15555550123).',
+  'auth/quota-exceeded': 'SMS quota exceeded for this project. Try again later or use a test number in Firebase Console.',
+  'auth/session-expired': 'This verification session expired. Request a new code.',
+  'auth/captcha-check-failed': 'reCAPTCHA check failed. Retry, or use a dev/production build with correct SHA keys (Android).',
+  'auth/app-not-authorized': 'This app is not authorized for phone sign-in. Add Android SHA-1/SHA-256 in Firebase Console for your package, rebuild, and try again.',
+  'auth/unauthorized-domain': 'This app domain is not allowlisted. In Firebase Console → Authentication → Settings → Authorized domains, add your auth domain or hosting domain.',
+  'auth/invalid-app-credential': 'Invalid app credential (often Android SHA or package name mismatch). Verify Firebase Console app registration matches app.config.js.',
+  'auth/invalid-verification-id': 'Verification session is invalid. Request a new code.',
+  'auth/provider-already-linked': 'This phone number is already linked to another sign-in method.',
+  'auth/credential-already-in-use': 'This phone number is already used by another account.',
+  'auth/recaptcha-not-ready': 'reCAPTCHA is not ready yet. Wait a second and try again.',
+};
+
+/** expo-firebase-recaptcha / verifier CodedError codes (not always prefixed with auth/) */
+const PHONE_FLOW_ERROR_MESSAGES = {
+  ERR_FIREBASE_RECAPTCHA_ERROR: 'Could not load reCAPTCHA. Use a development or production build, check your network, and confirm Firebase Auth settings (authorized domains, API key restrictions).',
+  ERR_FIREBASE_RECAPTCHA_CANCEL: 'reCAPTCHA was cancelled. Try again when you are ready.',
 };
 
 const formatAuthError = (error, defaultMessage) => ({
   code: error?.code || 'auth/unknown-error',
   message:
+    AUTH_ERROR_MESSAGES[error?.code] ||
+    PHONE_FLOW_ERROR_MESSAGES[error?.code] ||
+    getErrorMessage(error, defaultMessage),
+});
+
+const formatPhoneAuthError = (error, defaultMessage) => ({
+  code: error?.code || 'auth/unknown-error',
+  message:
+    PHONE_FLOW_ERROR_MESSAGES[error?.code] ||
     AUTH_ERROR_MESSAGES[error?.code] ||
     getErrorMessage(error, defaultMessage),
 });
@@ -99,6 +125,24 @@ export const signInUser = async (email, password) => {
 };
 
 export const requestPhoneSignInCode = async ({ phoneNumber, recaptchaVerifier }) => {
+  if (!recaptchaVerifier) {
+    return {
+      verificationId: null,
+      error: {
+        code: 'auth/recaptcha-not-ready',
+        message: AUTH_ERROR_MESSAGES['auth/recaptcha-not-ready'],
+      },
+    };
+  }
+  if (!phoneNumber || !String(phoneNumber).trim()) {
+    return {
+      verificationId: null,
+      error: {
+        code: 'auth/missing-phone-number',
+        message: AUTH_ERROR_MESSAGES['auth/missing-phone-number'],
+      },
+    };
+  }
   try {
     const authInstance = getFirebaseAuth();
     const phoneProvider = new PhoneAuthProvider(authInstance);
@@ -107,12 +151,21 @@ export const requestPhoneSignInCode = async ({ phoneNumber, recaptchaVerifier })
   } catch (error) {
     return {
       verificationId: null,
-      error: formatAuthError(error, 'Unable to send verification code right now. Please try again.'),
+      error: formatPhoneAuthError(error, 'Unable to send verification code right now. Please try again.'),
     };
   }
 };
 
 export const confirmPhoneSignInCode = async ({ verificationId, verificationCode }) => {
+  if (!verificationId) {
+    return {
+      user: null,
+      error: {
+        code: 'auth/invalid-verification-id',
+        message: AUTH_ERROR_MESSAGES['auth/invalid-verification-id'],
+      },
+    };
+  }
   try {
     const authInstance = getFirebaseAuth();
     const credential = PhoneAuthProvider.credential(verificationId, verificationCode);
@@ -121,7 +174,7 @@ export const confirmPhoneSignInCode = async ({ verificationId, verificationCode 
   } catch (error) {
     return {
       user: null,
-      error: formatAuthError(error, 'Unable to verify code right now. Please try again.'),
+      error: formatPhoneAuthError(error, 'Unable to verify code right now. Please try again.'),
     };
   }
 };

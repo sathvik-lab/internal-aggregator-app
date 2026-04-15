@@ -22,6 +22,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { handleAsyncOperation, getErrorMessage } from '../utils/errorHandler';
+import { PAGINATION } from '../constants/constants';
 
 /**
  * Create a new document in a Firestore collection
@@ -467,14 +468,99 @@ export const queryDocuments = async (collectionName, conditions = [], options = 
   });
 };
 
+const mapQuerySnapshotDocs = (querySnapshot) => querySnapshot.docs.map((docSnap) => {
+  const docData = docSnap.data();
+  return {
+    id: docSnap.id,
+    ...docData,
+    createdAt: docData.createdAt?.toDate?.()?.toISOString() || docData.createdAt || null,
+    updatedAt: docData.updatedAt?.toDate?.()?.toISOString() || docData.updatedAt || null,
+    uploadDate: docData.uploadDate?.toDate?.()?.toISOString() || docData.uploadDate || null,
+    dueDate: docData.dueDate?.toDate?.()?.toISOString() || docData.dueDate || null,
+    completedAt: docData.completedAt?.toDate?.()?.toISOString() || docData.completedAt || null,
+  };
+});
+
+/**
+ * One-shot documents page for same query shape as DocumentsScreen listener (userId + uploadDate desc).
+ * Use `startAfterSnapshot` from prior page for cursor pagination.
+ *
+ * @param {{ userId: string, pageSize?: number, startAfterSnapshot?: import('firebase/firestore').QueryDocumentSnapshot|null }} params
+ * @returns {Promise<{ data: Array, cursor: import('firebase/firestore').QueryDocumentSnapshot|null, hasMore: boolean, error: null|Object }>}
+ */
+export const fetchDocumentsPage = async ({
+  userId,
+  pageSize = PAGINATION.DEFAULT_PAGE_SIZE,
+  startAfterSnapshot = null,
+} = {}) => {
+  if (!userId) {
+    return {
+      data: [],
+      cursor: null,
+      hasMore: false,
+      error: { code: 'invalid-argument', message: 'userId is required.' },
+    };
+  }
+  if (!db) {
+    return {
+      data: [],
+      cursor: null,
+      hasMore: false,
+      error: { code: 'unavailable', message: 'Database is not available. Please check your connection.' },
+    };
+  }
+
+  return handleAsyncOperation(
+    async () => {
+      let q = query(
+        collection(db, 'documents'),
+        where('userId', '==', userId),
+        orderBy('uploadDate', 'desc'),
+        limit(pageSize),
+      );
+      if (startAfterSnapshot) {
+        q = query(q, startAfter(startAfterSnapshot));
+      }
+      const querySnapshot = await getDocs(q);
+      const documents = mapQuerySnapshotDocs(querySnapshot);
+      const lastDoc = querySnapshot.docs.length > 0
+        ? querySnapshot.docs[querySnapshot.docs.length - 1]
+        : null;
+      const hasMore = querySnapshot.docs.length === pageSize;
+      return { documents, lastDoc, hasMore };
+    },
+    { timeout: 30000, checkNetwork: true, defaultMessage: 'Could not load documents' },
+  ).then((result) => {
+    if (result.error) {
+      return {
+        data: [],
+        cursor: null,
+        hasMore: false,
+        error: {
+          code: result.error.code,
+          message: getErrorMessage(result.error, 'Could not load documents'),
+        },
+      };
+    }
+    const payload = result.data || {};
+    return {
+      data: payload.documents || [],
+      cursor: payload.lastDoc || null,
+      hasMore: Boolean(payload.hasMore),
+      error: null,
+    };
+  });
+};
+
 /**
  * Set up a real-time listener for a Firestore collection query
  * This function subscribes to changes and calls the callback whenever data changes
  * @param {string} collectionName - Name of the Firestore collection
  * @param {Array<Object>} [conditions] - Array of condition objects: { field, operator, value }
  * @param {Function} callback - Callback function with signature:
- *   - Success: callback(documents) - receives array of documents
- *   - Error: callback([], error) - receives empty array and error object
+ *   - Success: callback(documents, null, pagingMeta?)
+ *   - Error: callback([], error)
+ *   When `limit` + server-side `orderBy` apply, `pagingMeta` is `{ lastDocumentSnapshot, fullPage }` for cursor pagination.
  * @param {Object} [options] - Query options: { orderBy, limit }
  * @returns {Function} Unsubscribe function to stop listening
  */
@@ -548,8 +634,23 @@ export const setupRealtimeListener = (collectionName, conditions = [], callback,
             documents = documents.slice(0, options.limit);
           }
         }
-        
-        callback(documents);
+
+        const limitVal = options.limit;
+        const canPage = Boolean(
+          limitVal
+          && options.orderBy
+          && (!hasWhereConditions || orderByMatchesWhere),
+        );
+        const pagingMeta = canPage
+          ? {
+            lastDocumentSnapshot: querySnapshot.docs.length > 0
+              ? querySnapshot.docs[querySnapshot.docs.length - 1]
+              : null,
+            fullPage: querySnapshot.docs.length >= limitVal,
+          }
+          : undefined;
+
+        callback(documents, null, pagingMeta);
       },
       (error) => {
         // If error is about missing index, log it but don't fail completely

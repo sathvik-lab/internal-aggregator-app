@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import Header from '../components/common/Header';
@@ -6,14 +6,18 @@ import { useTheme } from '../context/ThemeContext';
 import LoadingSkeleton from '../components/common/LoadingSkeleton';
 import EmptyState from '../components/common/EmptyState';
 import { getIncidentById, updateIncident } from '../services/incidents';
+import { logAnalyticsEvent } from '../services/analytics';
+import { useEffectiveRole } from '../hooks/useEffectiveRole';
 
 const IncidentDetailScreen = () => {
   const route = useRoute();
   const { colors } = useTheme();
+  const { loading: roleLoading } = useEffectiveRole();
   const incidentId = route.params?.incidentId;
   const [loading, setLoading] = useState(true);
   const [incident, setIncident] = useState(null);
   const [error, setError] = useState('');
+  const loggedViewForIdRef = useRef(null);
 
   const loadIncident = useCallback(async () => {
     if (!incidentId) {
@@ -37,7 +41,20 @@ const IncidentDetailScreen = () => {
     loadIncident();
   }, [loadIncident]);
 
+  useEffect(() => {
+    if (!incidentId || !incident || error) return;
+    if (loggedViewForIdRef.current === incidentId) return;
+    loggedViewForIdRef.current = incidentId;
+    logAnalyticsEvent('incident_view', {
+      incident_id: incidentId,
+      severity: incident.severity || 'unknown',
+      type: incident.type || 'unknown',
+      source: 'incident_detail_screen',
+    });
+  }, [error, incident, incidentId]);
+
   const handleStatusUpdate = async (status) => {
+    if (roleLoading) return;
     const result = await updateIncident({ incidentId, updates: { status } });
     if (result.error) {
       Alert.alert('Update failed', result.error.message || 'Could not update incident.');
@@ -66,10 +83,18 @@ const IncidentDetailScreen = () => {
 
           <Text style={[styles.sectionTitle, { color: colors.text?.primary || colors.text }]}>Actions</Text>
           <View style={styles.actionsRow}>
-            <TouchableOpacity style={[styles.actionButton, { borderColor: colors.primary }]} onPress={() => handleStatusUpdate('in_progress')}>
+            <TouchableOpacity
+              style={[styles.actionButton, { borderColor: colors.primary }, roleLoading && styles.actionDisabled]}
+              onPress={() => handleStatusUpdate('in_progress')}
+              disabled={roleLoading}
+            >
               <Text style={[styles.actionText, { color: colors.primary }]}>Mark In Progress</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionButton, { borderColor: colors.success }]} onPress={() => handleStatusUpdate('resolved')}>
+            <TouchableOpacity
+              style={[styles.actionButton, { borderColor: colors.success }, roleLoading && styles.actionDisabled]}
+              onPress={() => handleStatusUpdate('resolved')}
+              disabled={roleLoading}
+            >
               <Text style={[styles.actionText, { color: colors.success }]}>Mark Resolved</Text>
             </TouchableOpacity>
           </View>
@@ -97,6 +122,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   actionText: { fontSize: 12, fontWeight: '700' },
+  actionDisabled: { opacity: 0.45 },
 });
 
 export default IncidentDetailScreen;

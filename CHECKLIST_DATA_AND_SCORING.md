@@ -1,6 +1,6 @@
 # Checklist Data Source & Compliance Scoring Logic
 
-This document matches the **current** Expo + Firebase implementation. For PRD coverage vs code, see [`docs/PRD_TRACEABILITY.md`](docs/PRD_TRACEABILITY.md).
+Matches **current** Expo + Firebase implementation. PRD vs code: [`docs/PRD_TRACEABILITY.md`](docs/PRD_TRACEABILITY.md).
 
 ---
 
@@ -8,16 +8,16 @@ This document matches the **current** Expo + Firebase implementation. For PRD co
 
 ### Where checklists come from
 
-1. **Templates** live in Firestore `checklistTemplates` (global catalog). The app matches templates to the user using business profile context via:
+1. **Templates** in Firestore `checklistTemplates` (catalog). Matched to the user via business profile context:
    - `src/services/checklistTemplateSync.js`
    - `src/services/checklistFiltering.js`
-2. **Instances** are user-scoped documents in Firestore **`checklistItems`**, created/updated through:
+2. **Instances** in Firestore **`checklistItems`**, created/updated through:
    - `src/services/checklistInstanceSync.js`
    - `src/services/checklistScheduling.js`
 
 ### Typical checklist item shape
 
-Fields vary by template and writes from the UI, but instances commonly align with:
+Fields vary by template and UI writes; instances often align with:
 
 ```javascript
 {
@@ -25,32 +25,32 @@ Fields vary by template and writes from the UI, but instances commonly align wit
   userId: "user-uid",
   title: "Checklist item title",
   description: "Optional description",
-  category: "FOOD_SAFETY", // or other category strings from templates/constants
-  status: "pending", // pending, in_progress, completed, overdue (keep in sync with completed)
+  category: "FOOD_SAFETY",
+  status: "pending",
   completed: false,
   dueDate: "2026-01-23T09:00:00.000Z",
   completedAt: null,
   createdAt: "2026-01-20T10:00:00.000Z",
   updatedAt: "2026-01-20T10:00:00.000Z",
-  priority: "high", // optional
+  priority: "high", // optional; v2 score treats priority === "critical" on overdue rows only
   notes: "Optional notes",
-  photos: [], // optional Storage URLs
+  photos: [],
 }
 ```
 
 ### Data flow
 
-1. **Owner completes onboarding** (minimum business profile) → template sync / instance generation can run (`userProfile.js`, onboarding screen).
-2. **Checklist screen** loads and updates items via Firestore helpers in `src/services/firestore.js` and checklist services.
-3. **Dashboard** loads a consolidated snapshot via `src/services/dashboard.js` (`fetchDashboardSnapshot`) plus score inputs from that snapshot.
+1. Owner completes onboarding → template sync / instance generation (`userProfile.js`, onboarding screen).
+2. **Checklist screen** loads/updates via `src/services/firestore.js` and checklist services.
+3. **Dashboard / readiness** load `fetchDashboardSnapshot` in `src/services/dashboard.js`; screens pass selected arrays into **`calculateComplianceScore`** (`src/utils/complianceScore.js`).
 
 ### Real-time updates
 
-Screens use listeners or refresh patterns built on `firestore.js` (for example `setupRealtimeListener` where used). Exact listener usage depends on the screen; favor unsubscribing on unmount per `Agents.md`.
+Screens use listeners or refresh patterns from `firestore.js` where applicable. Unsubscribe on unmount per `Agents.md`.
 
 ### Query examples
 
-Illustrative patterns (actual code may compose conditions differently):
+Illustrative patterns (code may compose differently):
 
 #### Today’s items
 
@@ -78,83 +78,111 @@ queryDocuments('checklistItems', conditions, options);
 ### Security
 
 - `firestore.rules` enforce auth-scoped access.
-- Queries should still filter by `userId` (or future `businessId`) so clients only request their data.
+- Queries should still filter by `userId` (or future `businessId`).
 
 ---
 
-## Compliance scoring (v2) — current implementation
+## Compliance scoring (v2) — `calculateComplianceScore`
 
 ### Source of truth
 
-**Numeric readiness score** is implemented in **`src/utils/complianceScore.js`**:
+**File:** `src/utils/complianceScore.js`
 
-- Exported **`calculateComplianceScore`**
-- Exported **`getScoreDescription`** (UI bands + copy)
+- **`calculateComplianceScore(params)`** — numeric 0–100 and breakdown.
+- **`getScoreDescription(score)`** — label, description, color for UI bands.
 
-### Formula (summary)
+### Inputs (as implemented)
 
-Let:
+All keys optional; default `[]`. Callers today are **`DashboardScreen.js`** and **`InspectionReadinessScreen.js`** after `fetchDashboardSnapshot`.
 
-- **Base** = checklist completion percentage (0–100): completed items ÷ total items (0 if no items).
-- **Overdue penalty** = min(40, 8 × overdue items) + min(18, 6 × critical overdue items).
-- **Expiry penalty** = min(30, 3 × expiring-within-30-days docs + 10 × expired docs).
-- **Incident penalty** = min(16, 4 × open severe incidents).
-- **Maintenance penalty** = min(14, 3 × overdue maintenance tasks).
-- **Media bonus** = 0, 5, or 10 based on media logs in the last 7 days (see file for thresholds).
+| Parameter | Meaning in code |
+|-----------|-----------------|
+| `checklistItems` | All checklist instances used for **completion %** = `completed` count ÷ length (0 if empty). |
+| `overdueItems` | **Open** items with `dueDate` before start of today (subset built in `dashboard.js`). Penalty: **8** points each, cap **40**, plus **critical** add-on below. |
+| `expiringDocuments` | Documents expiring within **30 days** from today (inclusive window in `dashboard.js`). **3** points each toward expiry penalty, cap **30** combined with expired. |
+| `expiredDocuments` | Documents with `expiryDate` before today. **10** points each toward same **30** cap. |
+| `mediaLogs` | Any array of logs with `createdAt` or `logDate`. **Bonus:** ≥1 log in last **7** days → +5; ≥3 → +10 (max 10). **`factors.recentMediaLogsCount`** counts logs in that window. **Note:** snapshot only passes **`recentMediaLogs`** (up to **four** newest logs) into this parameter from both screens — not the full `fetchMediaLogs` list. |
+| `incidents` | Incident records. **Penalty:** each **open** (`status` not `resolved` / `closed`, case-insensitive) with `severity === 'severe'` (case-insensitive) costs **4** points, cap **16**. |
+| `maintenanceTasks` | Maintenance tasks. **Penalty:** `dueDate` before today (midnight-normalized), **not** closed: `status` not `completed` / `resolved` / `closed` (case-insensitive). **3** points each, cap **14**. |
 
-Then:
+**Critical overdue:** On `overdueItems` only, items with **`priority === 'critical'`** add **6** points each to a **separate** critical bucket, cap **18**, on top of the per-item **8**/`40` base. Total overdue deduction = `min(40, 8×n) + min(18, 6×criticalCount)` (exposed split as `overdueBasePenalty` + `criticalOverduePenalty`; `overduePenalty` is their sum).
+
+### Formula (single line)
 
 ```text
-score = clamp(round(base - overduePenalty - expiryPenalty - incidentPenalty - maintenancePenalty + mediaBonus), 0, 100)
+score = clamp(round(
+  checklistCompletion
+  - overduePenalty
+  - expiryPenalty
+  - openHighSeverityIncidentPenalty
+  - overdueMaintenancePenalty
+  + mediaBonus
+), 0, 100)
 ```
 
-The function returns `score`, intermediate values, and a **`factors`** object (counts for UI and export).
+### Return value (`calculateComplianceScore`)
+
+Top-level (all numbers rounded/clamped as in source):
+
+| Field | Description |
+|-------|-------------|
+| `score` | 0–100 |
+| `checklistCompletion` | 0–100 completion % |
+| `overduePenalty` | Base + critical overdue (0–58) |
+| `overdueBasePenalty` | `min(40, 8 × overdueItems.length)` |
+| `criticalOverduePenalty` | `min(18, 6 × criticalOverdueCount)` where `criticalOverdueCount` = overdue items with `priority === 'critical'`. |
+| `expiryPenalty` | Document expiring/expired penalty (0–30) |
+| `openHighSeverityIncidentPenalty` | Open + severe incidents (0–16) |
+| `overdueMaintenancePenalty` | Overdue open maintenance (0–14) |
+| `mediaBonus` | 0, 5, or 10 |
+| `factors` | `{ totalChecklistItems, completedChecklistItems, overdueCount, criticalOverdueCount, expiringCount, expiredCount, openHighSeverityIncidentCount, overdueMaintenanceCount, recentMediaLogsCount }` |
 
 ### Consumers
 
-| Location | Use |
-|----------|-----|
-| `src/screens/DashboardScreen.js` | Passes checklist/doc/media/incident/maintenance arrays from `fetchDashboardSnapshot` into `calculateComplianceScore`; shows score and breakdown entry points. |
-| `src/screens/InspectionReadinessScreen.js` | Same score inputs for readiness + issue cards + share/export. |
-| `src/components/common/ScoreBreakdownModal.js` | Uses `getScoreDescription` for labels/copy. |
-| `src/utils/readinessExport.js` | Embeds score and factors in shared plaintext/HTML summaries. |
+| Location | Role |
+|----------|------|
+| `src/screens/DashboardScreen.js` | Loads `fetchDashboardSnapshot`, then `calculateComplianceScore` with `allChecklistItems`, `overdueItems`, document arrays, **`recentMediaLogs` as `mediaLogs`**, `incidents`, `maintenanceTasks`. |
+| `src/screens/InspectionReadinessScreen.js` | Same pattern with optional date range on snapshot. |
+| `src/components/common/ScoreBreakdownModal.js` | Uses `getScoreDescription` for bands/copy. |
+| `src/utils/readinessExport.js` | Embeds score + `factors` in share/export text. |
 
-### Status bands (UI)
+---
 
-`getScoreDescription` maps **numeric score** to:
+## Dashboard readiness narrative vs numeric score
+
+**Different code paths on purpose.**
+
+1. **`buildReadinessSummary`** — private helper in **`src/services/dashboard.js`** (~lines 88–144). Called inside **`fetchDashboardSnapshot`**. Inputs: `totalDocuments`, `dueTodayCount`, `overdueCount`, `expiringCount`, `mediaLogCount` (length of **`recentMediaLogs`**, not full log history). It computes its own internal **`score`**, **`tone`**, **`title`**, **`message`**, **`nextAction`** for the dashboard “readiness card” copy. That internal score is **not** `calculateComplianceScore` and does **not** use incidents, maintenance, or checklist completion %.
+
+2. **`calculateComplianceScore`** — `src/utils/complianceScore.js`. Used **only in screens** after snapshot load; **not** called inside `dashboard.js`.
+
+UI may show **both** the narrative card (`data.readiness`) and the v2 breakdown (`scoreData` from `calculateComplianceScore`).
+
+---
+
+## Status bands (UI)
+
+`getScoreDescription` maps numeric **score** to:
 
 | Range | Label |
 |-------|--------|
 | ≥ 80 | Excellent |
 | ≥ 60 | Good |
 | ≥ 40 | Fair |
-| &lt; 40 | Low |
+| < 40 | Low |
 
-### Constants
-
-`src/constants/constants.js` defines **`COMPLIANCE_SCORE_THRESHOLDS`** (GOOD / AT_RISK / NON_COMPLIANT). The **primary** user-facing bands for the v2 score are **`getScoreDescription`** above; keep constants aligned if you reuse them elsewhere.
+`src/constants/constants.js` defines **`COMPLIANCE_SCORE_THRESHOLDS`**. Primary v2 bands for the main score UI are **`getScoreDescription`**; keep constants aligned if reused elsewhere.
 
 ---
 
-## Dashboard readiness narrative (separate from numeric score)
+## Limitations vs PRD §6.5
 
-`src/services/dashboard.js` builds a **plain-language readiness summary** (`buildReadinessSummary`) inside `fetchDashboardSnapshot`: it uses counts (overdue, due today, expiring docs, document count, media presence) to produce **tone, title, message, and nextAction**. That narrative is **not** the same formula as `calculateComplianceScore`, but both are intentional: one for explanation, one for a single 0–100 number.
+Richer **certification** SKUs (beyond document expiry lists) are not separate in the formula. See [`docs/PRD_TRACEABILITY.md`](docs/PRD_TRACEABILITY.md) §6.5–6.7.
 
----
-
-## Limitations vs full PRD §6.5
-
-The PRD also mentions richer **certification** modeling. Incident severity and overdue maintenance backlog now contribute to score penalties, but certification-specific weighting is still not modeled. See [`docs/PRD_TRACEABILITY.md`](docs/PRD_TRACEABILITY.md) §6.4–6.5.
-
-Reasonable next enhancements (product-dependent):
-
-1. Weight **critical** checklist items higher (needs reliable item metadata).
-2. Deeper **certification** rules (required doc classes by state).
-3. Historical score trend (new storage or aggregates).
+Possible follow-ups: required-doc-type weights, historical score trend, pass **full** media log list into v2 if product wants bonus aligned with all evidence.
 
 ---
 
 ## Performance notes
 
-- Scoring is **O(n)** over lists passed in (checklists, overdue subset, documents, media logs).
-- Runs on the client after snapshot fetch; no dedicated server-side aggregation.
+Scoring is **O(n)** over arrays passed in. Runs on device after snapshot fetch; no server-side aggregation for v2.

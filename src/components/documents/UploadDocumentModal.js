@@ -118,10 +118,11 @@ const SuccessAnimation = ({ message, onAnimationComplete }) => {
  * 
  * @param {Object} props
  * @param {boolean} props.visible - Whether modal is visible
+ * @param {boolean} [props.uploadAllowed=true] - When false, uploads are blocked (matches owner-only Firestore rules for business documents)
  * @param {Function} props.onClose - Callback when modal is closed
  * @param {Function} props.onUploadSuccess - Callback when upload succeeds
  */
-const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
+const UploadDocumentModal = ({ visible, uploadAllowed = true, onClose, onUploadSuccess }) => {
     const { user, userProfile } = useAuth();
     const { colors } = useTheme();
     const useGlass = colors.glassBackground != null;
@@ -194,6 +195,10 @@ const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
 
     // Handle take photo
     const handleTakePhoto = async () => {
+        if (!uploadAllowed) {
+            Alert.alert('Owner only', 'Only the business owner can upload documents for this workspace.');
+            return;
+        }
         const hasPermission = await requestPermissions();
         if (!hasPermission) return;
 
@@ -224,6 +229,10 @@ const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
 
     // Handle choose from gallery
     const handleChooseFromGallery = async () => {
+        if (!uploadAllowed) {
+            Alert.alert('Owner only', 'Only the business owner can upload documents for this workspace.');
+            return;
+        }
         const hasPermission = await requestPermissions();
         if (!hasPermission) return;
 
@@ -254,6 +263,10 @@ const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
 
     // Handle select file
     const handleSelectFile = async () => {
+        if (!uploadAllowed) {
+            Alert.alert('Owner only', 'Only the business owner can upload documents for this workspace.');
+            return;
+        }
         try {
             const result = await DocumentPicker.getDocumentAsync({
                 type: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
@@ -311,6 +324,10 @@ const UploadDocumentModal = ({ visible, onClose, onUploadSuccess }) => {
 
     // Handle upload
     const handleUpload = async () => {
+        if (!uploadAllowed) {
+            Alert.alert('Owner only', 'Only the business owner can upload documents for this workspace.');
+            return;
+        }
         if (!validateForm()) return;
         if (!user?.uid) {
             Alert.alert('Error', 'You must be logged in to upload documents.');

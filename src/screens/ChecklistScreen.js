@@ -34,12 +34,20 @@ import { syncTemplates, getCachedTemplates } from '../services/checklistTemplate
 import { setupInstancesListener, syncInstances } from '../services/checklistInstanceSync';
 import { updateChecklistItemCompletion } from '../services/checklistItems';
 import { logAnalyticsEvent } from '../services/analytics';
+import { useEffectiveRole } from '../hooks/useEffectiveRole';
+import { getFirestoreLoadUserMessage } from '../utils/firestoreUiErrors';
+import { getErrorMessage } from '../utils/errorHandler';
 
 const TABS = {
     TODAY: 'today',
     UPCOMING: 'upcoming',
     COMPLETED: 'completed',
 };
+
+/** Row height varies when items expand; omit getItemLayout. Tune window/batch for scroll perf. */
+const CHECKLIST_LIST_WINDOW_SIZE = 8;
+const CHECKLIST_LIST_INITIAL_RENDER = 12;
+const CHECKLIST_LIST_MAX_BATCH = 12;
 
 /**
  * Get start and end of today
@@ -99,6 +107,7 @@ const ChecklistScreen = () => {
     const route = useRoute();
     const { user } = useAuth();
     const { colors } = useTheme();
+    const { loading: roleLoading } = useEffectiveRole();
     const [activeTab, setActiveTab] = useState(TABS.TODAY);
     const [refreshing, setRefreshing] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -113,6 +122,9 @@ const ChecklistScreen = () => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [showFilters, setShowFilters] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [activeItemsError, setActiveItemsError] = useState('');
+    const [completedItemsError, setCompletedItemsError] = useState('');
+    const [checklistListenerKey, setChecklistListenerKey] = useState(0);
 
     // Template sync states
     const [syncingTemplates, setSyncingTemplates] = useState(false);
@@ -134,7 +146,8 @@ const ChecklistScreen = () => {
     const fetchCompletedItems = useCallback(() => {
         if (!user?.uid) {
             setCompletedItems([]);
-            return;
+            setCompletedItemsError('');
+            return () => {};
         }
 
         // Real Firestore query:
@@ -161,7 +174,9 @@ const ChecklistScreen = () => {
                 if (error) {
                     console.error('Error fetching completed items:', error);
                     setCompletedItems([]);
+                    setCompletedItemsError(getFirestoreLoadUserMessage(error));
                 } else {
+                    setCompletedItemsError('');
                     setCompletedItems(data);
                 }
             },
@@ -224,29 +239,44 @@ const ChecklistScreen = () => {
         }
     }, [route.params?.focusKey, route.params?.initialTab]);
 
-    /**
-     * Set up all real-time listeners
-     */
+    const handleRetryChecklistFirestore = useCallback(() => {
+        setActiveItemsError('');
+        setCompletedItemsError('');
+        setLoading(true);
+        setChecklistListenerKey((k) => k + 1);
+        if (user?.uid) {
+            syncTemplatesAndInstances(true);
+        }
+    }, [user?.uid, syncTemplatesAndInstances]);
+
+    /** Real-time listeners: active instances + completed items */
     useEffect(() => {
         const unsubscribes = [];
 
         if (user?.uid) {
             // Set up real-time listener for active checklist items (replaces fetchTodayItems and fetchUpcomingItems)
-            const instancesUnsubscribe = setupInstancesListener(user.uid, (items) => {
-                // Filter items by date for today/upcoming
-                const { todayStart, todayEnd } = getTodayRange();
-                const today = items.filter(item => {
-                    if (!item.dueDate) return false;
-                    const dueDate = new Date(item.dueDate);
-                    return dueDate >= todayStart && dueDate <= todayEnd;
-                });
-                const upcoming = items.filter(item => {
-                    if (!item.dueDate) return false;
-                    const dueDate = new Date(item.dueDate);
-                    return dueDate > todayEnd;
-                });
-                setTodayItems(today);
-                setUpcomingItems(upcoming);
+            const instancesUnsubscribe = setupInstancesListener(user.uid, (items, listenerError) => {
+                if (listenerError) {
+                    console.error('Error loading active checklist items:', listenerError);
+                    setActiveItemsError(getFirestoreLoadUserMessage(listenerError));
+                    setTodayItems([]);
+                    setUpcomingItems([]);
+                } else {
+                    setActiveItemsError('');
+                    const { todayStart, todayEnd } = getTodayRange();
+                    const today = items.filter((item) => {
+                        if (!item.dueDate) return false;
+                        const dueDate = new Date(item.dueDate);
+                        return dueDate >= todayStart && dueDate <= todayEnd;
+                    });
+                    const upcoming = items.filter((item) => {
+                        if (!item.dueDate) return false;
+                        const dueDate = new Date(item.dueDate);
+                        return dueDate > todayEnd;
+                    });
+                    setTodayItems(today);
+                    setUpcomingItems(upcoming);
+                }
                 setLoading(false);
                 setRefreshing(false);
             });
@@ -258,6 +288,11 @@ const ChecklistScreen = () => {
             unsubscribes.push(fetchCompletedItems());
         } else {
             setLoading(false);
+            setActiveItemsError('');
+            setCompletedItemsError('');
+            setTodayItems([]);
+            setUpcomingItems([]);
+            setCompletedItems([]);
         }
 
         return () => {
@@ -265,7 +300,7 @@ const ChecklistScreen = () => {
                 if (unsubscribe) unsubscribe();
             });
         };
-    }, [user, fetchCompletedItems]);
+    }, [user, fetchCompletedItems, checklistListenerKey]);
 
     /**
      * Handle pull to refresh
@@ -300,6 +335,9 @@ const ChecklistScreen = () => {
      */
     const handleToggleComplete = useCallback(
         async (item) => {
+            if (roleLoading) {
+                return;
+            }
             try {
                 const result = await updateChecklistItemCompletion({
                     itemId: item.id,
@@ -309,7 +347,10 @@ const ChecklistScreen = () => {
                 });
 
                 if (result.error) {
-                    Alert.alert('Error', 'Failed to update checklist item. Please try again.');
+                    Alert.alert(
+                        'Error',
+                        getErrorMessage(result.error, 'Failed to update checklist item. Please try again.'),
+                    );
                 } else if (!item.completed) {
                     logAnalyticsEvent('checklist_item_completed', {
                         item_id: item.id,
@@ -322,7 +363,7 @@ const ChecklistScreen = () => {
                 Alert.alert('Error', 'An unexpected error occurred.');
             }
         },
-        [user?.uid]
+        [user?.uid, roleLoading]
     );
 
     /**
@@ -330,6 +371,9 @@ const ChecklistScreen = () => {
      */
     const handleSnooze = useCallback(
         async (item) => {
+            if (roleLoading) {
+                return;
+            }
             // Snooze for 1 day
             const newDueDate = new Date(item.dueDate);
             newDueDate.setDate(newDueDate.getDate() + 1);
@@ -350,7 +394,7 @@ const ChecklistScreen = () => {
                 Alert.alert('Error', 'An unexpected error occurred.');
             }
         },
-        []
+        [roleLoading]
     );
 
     /**
@@ -452,6 +496,8 @@ const ChecklistScreen = () => {
                     name={icon}
                     size={20}
                     color={isActive ? colors.primary : colors.textSecondary || colors.text?.secondary || COLORS.textSecondary}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
                 />
                 <Text
                     style={[
@@ -593,7 +639,13 @@ const ChecklistScreen = () => {
     // Memoize section header render function
     const renderSectionHeader = useCallback(({ section: { title } }) => (
         <View style={styles.sectionHeader}>
-            <Text style={styles.sectionHeaderText}>{title}</Text>
+            <Text
+                style={styles.sectionHeaderText}
+                accessibilityRole="header"
+                accessibilityLevel={3}
+            >
+                {title}
+            </Text>
         </View>
     ), []);
 
@@ -618,18 +670,17 @@ const ChecklistScreen = () => {
         return (
             <FlatList
                 data={currentItems}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item, index) => (item?.id != null ? String(item.id) : `today-${index}`)}
                 renderItem={renderChecklistItem}
                 contentContainerStyle={styles.listContent}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
                 }
-                // Performance optimizations
-                windowSize={10}
-                initialNumToRender={10}
-                maxToRenderPerBatch={10}
+                windowSize={CHECKLIST_LIST_WINDOW_SIZE}
+                initialNumToRender={CHECKLIST_LIST_INITIAL_RENDER}
+                maxToRenderPerBatch={CHECKLIST_LIST_MAX_BATCH}
                 updateCellsBatchingPeriod={50}
-                removeClippedSubviews={true}
+                removeClippedSubviews={Platform.OS === 'android'}
             />
         );
     }, [loading, currentItems, refreshing, handleRefresh, renderChecklistItem]);
@@ -655,19 +706,19 @@ const ChecklistScreen = () => {
         return (
             <SectionList
                 sections={groupedUpcomingItems}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item, index) => (item?.id != null ? String(item.id) : `upcoming-${index}`)}
                 renderItem={renderChecklistItem}
                 renderSectionHeader={renderSectionHeader}
                 contentContainerStyle={styles.listContent}
+                stickySectionHeadersEnabled
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
                 }
-                // Performance optimizations
-                windowSize={10}
-                initialNumToRender={10}
-                maxToRenderPerBatch={10}
+                windowSize={CHECKLIST_LIST_WINDOW_SIZE}
+                initialNumToRender={CHECKLIST_LIST_INITIAL_RENDER}
+                maxToRenderPerBatch={CHECKLIST_LIST_MAX_BATCH}
                 updateCellsBatchingPeriod={50}
-                removeClippedSubviews={true}
+                removeClippedSubviews={Platform.OS === 'android'}
             />
         );
     }, [loading, groupedUpcomingItems, refreshing, handleRefresh, renderChecklistItem, renderSectionHeader]);
@@ -689,6 +740,19 @@ const ChecklistScreen = () => {
             return <LoadingSkeleton type="list" count={3} />;
         }
 
+        if (completedItemsError) {
+            return (
+                <EmptyState
+                    icon="alert-circle-outline"
+                    title="Could not load completed items"
+                    message={completedItemsError}
+                    showAction
+                    actionLabel="Retry"
+                    onAction={handleRetryChecklistFirestore}
+                />
+            );
+        }
+
         if (currentItems.length === 0) {
             return (
                 <EmptyState
@@ -702,21 +766,20 @@ const ChecklistScreen = () => {
         return (
             <FlatList
                 data={currentItems}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item, index) => (item?.id != null ? String(item.id) : `completed-${index}`)}
                 renderItem={renderCompletedItem}
                 contentContainerStyle={styles.listContent}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
                 }
-                // Performance optimizations
-                windowSize={10}
-                initialNumToRender={10}
-                maxToRenderPerBatch={10}
+                windowSize={CHECKLIST_LIST_WINDOW_SIZE}
+                initialNumToRender={CHECKLIST_LIST_INITIAL_RENDER}
+                maxToRenderPerBatch={CHECKLIST_LIST_MAX_BATCH}
                 updateCellsBatchingPeriod={50}
-                removeClippedSubviews={true}
+                removeClippedSubviews={Platform.OS === 'android'}
             />
         );
-    }, [loading, currentItems, refreshing, handleRefresh, renderCompletedItem]);
+    }, [loading, completedItemsError, currentItems, refreshing, handleRefresh, renderCompletedItem, handleRetryChecklistFirestore]);
 
     /**
      * Render current tab content
@@ -740,19 +803,38 @@ const ChecklistScreen = () => {
     return (
         <View style={[styles.container, { backgroundColor }]}>
             {/* Header with Progress Bar (Today tab only) */}
-            {activeTab === TABS.TODAY && (
+            {activeTab === TABS.TODAY && !activeItemsError && (
                 <View style={styles.progressContainer}>
                     <View style={styles.progressHeader}>
-                        <Text style={styles.progressLabel}>Today&apos;s Progress</Text>
+                        <Text
+                            style={styles.progressLabel}
+                            accessibilityRole="header"
+                            accessibilityLevel={2}
+                        >
+                            Today&apos;s Progress
+                        </Text>
                         <Text style={styles.progressPercentage}>
                             {Math.round(todayCompletionPercentage)}%
                         </Text>
                     </View>
-                    <ProgressBar
-                        progress={todayCompletionPercentage / 100}
-                        color={COLORS.success}
-                        style={styles.progressBar}
-                    />
+                    <View
+                        accessible
+                        accessibilityRole="progressbar"
+                        accessibilityValue={{
+                            min: 0,
+                            max: 100,
+                            now: Math.round(todayCompletionPercentage),
+                        }}
+                        accessibilityLabel={`Today's checklist progress, ${Math.round(todayCompletionPercentage)} percent complete`}
+                    >
+                        <ProgressBar
+                            progress={todayCompletionPercentage / 100}
+                            color={COLORS.success}
+                            style={styles.progressBar}
+                            accessibilityElementsHidden
+                            importantForAccessibility="no-hide-descendants"
+                        />
+                    </View>
                     <Text style={styles.progressSubtext}>
                         {todayItems.filter((item) => item.completed).length} of {todayItems.length}{' '}
                         tasks completed
@@ -777,21 +859,25 @@ const ChecklistScreen = () => {
                         name={showFilters ? 'filter' : 'filter-outline'}
                         size={20}
                         color={showFilters ? colors.primary : colors.textSecondary || colors.text?.secondary || COLORS.textSecondary}
+                        accessibilityElementsHidden
+                        importantForAccessibility="no-hide-descendants"
                     />
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={styles.syncButton}
                     onPress={handleSyncTemplates}
                     activeOpacity={0.7}
-                    disabled={syncingTemplates}
+                    disabled={syncingTemplates || roleLoading}
                     accessibilityRole="button"
                     accessibilityLabel={syncingTemplates ? 'Syncing checklist templates' : 'Sync checklist templates'}
-                    accessibilityState={{ disabled: syncingTemplates, busy: syncingTemplates }}
+                    accessibilityState={{ disabled: syncingTemplates || roleLoading, busy: syncingTemplates }}
                 >
                     <MaterialCommunityIcons
                         name={syncingTemplates ? 'sync' : 'sync-outline'}
                         size={20}
                         color={syncingTemplates ? colors.primary : colors.textSecondary || colors.text?.secondary || COLORS.textSecondary}
+                        accessibilityElementsHidden
+                        importantForAccessibility="no-hide-descendants"
                     />
                 </TouchableOpacity>
             </View>
@@ -800,16 +886,31 @@ const ChecklistScreen = () => {
             {renderFilterChips()}
 
             {/* Tab Content */}
-            <View style={styles.content}>{renderTabContent()}</View>
+            <View style={styles.content}>
+                {activeItemsError ? (
+                    <EmptyState
+                        icon="alert-circle-outline"
+                        title="Could not load checklist"
+                        message={activeItemsError}
+                        showAction
+                        actionLabel="Retry"
+                        onAction={handleRetryChecklistFirestore}
+                    />
+                ) : (
+                    renderTabContent()
+                )}
+            </View>
 
             {/* Floating Action Button */}
-            {activeTab !== TABS.COMPLETED && (
+            {activeTab !== TABS.COMPLETED && !activeItemsError && (
                 <FAB
                     style={styles.fab}
                     icon="plus"
                     label="Add Item"
                     onPress={handleAddItem}
                     color={COLORS.textInverse}
+                    accessibilityLabel="Add checklist item"
+                    accessibilityHint="Opens the form to add a new checklist item"
                 />
             )}
 

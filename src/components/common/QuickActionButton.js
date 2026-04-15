@@ -47,12 +47,14 @@ const getTranslucentColor = (color, opacity) => {
  * @param {string} props.label - Button label text
  * @param {Function} props.onPress - Callback when button is pressed
  * @param {string} props.color - Optional color for icon (default: primary)
+ * @param {boolean} props.disabled - When true, button is non-interactive and de-emphasized
  */
 const QuickActionButton = ({
     icon,
     label,
     onPress,
     color,
+    disabled = false,
 }) => {
     // Use default value inside function body to avoid module load-time evaluation
     const iconColor = color || COLORS.primary;
@@ -83,23 +85,25 @@ const QuickActionButton = ({
             }}
         >
             <TouchableOpacity
-                style={styles.button}
-                onPress={onPress}
-                onPressIn={handlePressIn}
-                onPressOut={handlePressOut}
+                style={[styles.button, disabled && styles.buttonDisabled]}
+                onPress={disabled ? undefined : onPress}
+                onPressIn={disabled ? undefined : handlePressIn}
+                onPressOut={disabled ? undefined : handlePressOut}
                 activeOpacity={1}
+                disabled={disabled}
                 accessibilityLabel={label}
-                accessibilityHint={`Double tap to ${label.toLowerCase()}`}
+                accessibilityHint={disabled ? 'Action unavailable for your role' : `Double tap to ${label.toLowerCase()}`}
                 accessibilityRole="button"
+                accessibilityState={{ disabled }}
             >
             <View style={[styles.iconContainer, { backgroundColor: getTranslucentColor(iconColor, 0.08) }]}>
                 <MaterialCommunityIcons
                     name={icon}
                     size={isTablet ? ICON_SIZES.MD : ICON_SIZES.SM}
-                    color={iconColor}
+                    color={disabled ? COLORS.textLight : iconColor}
                 />
             </View>
-            <Text style={styles.label} numberOfLines={2}>
+            <Text style={[styles.label, disabled && styles.labelDisabled]} numberOfLines={2}>
                 {label}
             </Text>
         </TouchableOpacity>
@@ -141,6 +145,12 @@ const styles = StyleSheet.create({
         color: COLORS.text,
         textAlign: 'center',
         fontWeight: '500',
+    },
+    buttonDisabled: {
+        opacity: 0.45,
+    },
+    labelDisabled: {
+        color: COLORS.textLight,
     },
 });
 
