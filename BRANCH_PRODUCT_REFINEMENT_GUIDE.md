@@ -2,7 +2,7 @@
 
 **Branch reviewed:** `sathvik/IAA-01`  
 **Review date:** `2026-04-02`  
-**Basis:** Root `PRD.md`, architecture and checklist markdown, `AGENTS.md` / `Agents.md`, `WARP.md`, implementation under `src/`, Firebase rules, `package.json`, and navigation configuration.
+**Basis:** Root `PRD.md`, architecture and checklist markdown, `AGENTS.md` / `Agents.md`, `README.md`, implementation under `src/`, Firebase rules, `package.json`, and navigation configuration.
 
 ---
 
@@ -86,7 +86,7 @@ The main problem is **drift** between product narrative, legacy PRD, helper docs
 | File | Problem |
 |------|---------|
 | `PRD.md` | Supabase/Vercel, offline-first, MVP scope ≠ Firebase implementation. |
-| `WARP.md` | States no application code / no `package.json` — **false** on this branch. |
+| `README.md` | Canonical quick orientation: entrypoint, `src/`, Firebase, npm scripts. |
 | `ui.md` | Web/Tailwind/shadcn oriented — not RN execution path. |
 | `PHASE2_NAVIGATION_SUMMARY.md` | Likely stale vs current tab + stack structure. |
 
@@ -106,7 +106,7 @@ Suggested doc hygiene (execution, not philosophy):
 
 1. Add a short **`ARCHITECTURE.md`** at repo root: Expo, Firebase Auth/Firestore/Storage, no Supabase—single page.
 2. Update **`PRD.md`** with a top banner: “Superseded sections: see `BRANCH_PRODUCT_REFINEMENT_GUIDE.md` §8” OR fork into `PRD_FIREBASE_MVP.md` (only if team agrees).
-3. Rewrite **`WARP.md`** “Project overview” and “Commands” to match `package.json` and `src/`.
+3. Keep **`README.md`** project overview and scripts aligned with `package.json` and `src/`.
 4. Update **`AGENTS.md`**: reflect actual priorities (onboarding, readiness, score v2) and “Firebase-first MVP; Express optional later.”
 
 ---
@@ -245,7 +245,7 @@ Invite → accept → assign tasks → staff completes → owner reviews. **Bloc
 - `App.js` missing `View` import.  
 - `mediaLogs.js` firebase auth import.  
 - Signup default role.  
-- Align `WARP.md` and PRD stack statements with reality.  
+- Align `README.md` and PRD stack statements with reality.  
 - Add minimal **quality gate**: ESLint + Prettier or `expo doctor` in CI (script in `package.json`).
 
 ### P1 — MVP completeness
@@ -456,7 +456,7 @@ flowchart LR
 ### P0
 
 - Fix `View` import, `mediaLogs` auth, signup `owner` default.  
-- Update `WARP.md`; add architecture blurb; PRD banner or Firebase PRD section.  
+- Update `README.md` or `ARCHITECTURE.md` as needed; PRD banner or Firebase PRD section.  
 - `npm` scripts: `lint`, `test` (even smoke), CI stub.
 
 ### P1
@@ -486,12 +486,12 @@ Copy each block into your AI agent as a single task. Adjust paths if your worktr
 
 ### 13.1 Repository hygiene & documentation
 
-**Prompt DOC-01 — WARP and root README**
+**Prompt DOC-01 — Root README**
 
 ```text
 Repository: internal-aggregator-app (Expo React Native, Firebase).
 
-Update WARP.md and README.md so they match the current branch: package.json exists, src/ contains the app, Firebase is the backend. Replace any statement that the repo has no code. Document actual npm scripts (start, android, ios, web) and that lint/test are TODO if missing. Keep WARP.md concise.
+Update README.md so it matches the current branch: package.json exists, src/ contains the app, Firebase is the backend. Document actual npm scripts (start, android, ios, web, lint, test, convert:osha). Keep README concise; use ARCHITECTURE.md for deeper stack detail.
 ```
 
 **Prompt DOC-02 — PRD alignment banner**

@@ -29,7 +29,6 @@ This document provides a comprehensive accessibility checklist for Food Truck Co
 
 #### Implementation Status
 - ✅ Button: Has `accessibilityLabel` with icon context
-- ✅ StatCard: Has descriptive label with value and subtitle
 - ✅ QuickActionButton: Has label and hint
 - ✅ DocumentCard: Has comprehensive label with metadata
 - ✅ ChecklistItem: Has label with status and due date
@@ -45,7 +44,6 @@ This document provides a comprehensive accessibility checklist for Food Truck Co
 
 #### Implementation Status
 - ✅ Button: Provides hint for disabled/loading states
-- ✅ StatCard: Provides hint for tappable cards
 - ✅ QuickActionButton: Provides action hint
 - ✅ DocumentCard: Provides view details hint
 - ✅ ChecklistItem: Provides expand/collapse and action hints
@@ -63,7 +61,6 @@ This document provides a comprehensive accessibility checklist for Food Truck Co
 
 #### Implementation Status
 - ✅ Button: `accessibilityRole="button"`
-- ✅ StatCard: `accessibilityRole="button"` or `"text"` based on interactivity
 - ✅ ChecklistItem checkbox: `accessibilityRole="checkbox"`
 - ✅ SearchBar: `accessibilityRole="searchbox"`
 - ✅ Section headers: `accessibilityRole="header"` with `accessibilityLevel={2}`
@@ -335,11 +332,6 @@ This document provides a comprehensive accessibility checklist for Food Truck Co
 - ✅ Has `accessibilityHint` for disabled/loading states
 - ✅ Has `accessibilityRole="button"`
 - ✅ Has `accessibilityState={{ disabled }}`
-
-### StatCard Component
-- ✅ Has descriptive label with value and subtitle
-- ✅ Has hint for tappable cards
-- ✅ Role changes based on interactivity
 
 ### ChecklistItem Component
 - ✅ Has comprehensive label with status

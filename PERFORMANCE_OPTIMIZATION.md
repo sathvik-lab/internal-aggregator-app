@@ -11,7 +11,6 @@ This document outlines the performance optimizations implemented in Food Truck C
 - ✅ **DocumentCard** - Memoized with custom comparison function
 - ✅ **DocumentItem** - Memoized with custom comparison function
 - ✅ **ChecklistItem** - Memoized with custom comparison function
-- ✅ **StatCard** - Memoized (simple props comparison)
 - ✅ **QuickActionButton** - Memoized (simple props comparison)
 - ✅ **FilterChip** - Memoized (simple props comparison)
 
@@ -65,7 +64,6 @@ export default memo(Component);
 - ✅ **DocumentCard**: File icon and color calculations
 - ✅ **DocumentCard**: Accessibility label generation
 - ✅ **ChecklistItem**: Due date color, priority color, regulatory reference
-- ✅ **StatCard**: Accessibility label generation
 - ✅ **DocumentsScreen**: Filtered and sorted documents list
 
 #### Pattern
@@ -243,9 +241,8 @@ useEffect(() => {
 1. **DocumentCard** - Custom comparison function checking document properties
 2. **DocumentItem** - Custom comparison function checking document properties
 3. **ChecklistItem** - Custom comparison function checking item properties
-4. **StatCard** - Simple memoization
-5. **QuickActionButton** - Simple memoization
-6. **FilterChip** - Simple memoization
+4. **QuickActionButton** - Simple memoization
+5. **FilterChip** - Simple memoization
 
 ### FlatList optimizations
 1. **DocumentsScreen** — `windowSize` 8, `initialNumToRender` 10, `maxToRenderPerBatch` 12, `getItemLayout` height 228, `removeClippedSubviews` Android-only; horizontal category chips: smaller window; Firestore paging via `fetchDocumentsPage` + listener `pagingMeta`.
@@ -256,9 +253,8 @@ useEffect(() => {
 1. **DocumentCard**: File icon/color, accessibility label
 2. **DocumentItem**: File icon
 3. **ChecklistItem**: Due date color, priority color, regulatory reference
-4. **StatCard**: Accessibility label
-5. **DocumentsScreen**: Filtered and sorted documents list
-6. **ChecklistScreen**: Current items, grouped upcoming items
+4. **DocumentsScreen**: Filtered and sorted documents list
+5. **ChecklistScreen**: Current items, grouped upcoming items
 
 ### useCallback Implementations
 1. **DocumentCard**: handleCardPress, handleMenuPress

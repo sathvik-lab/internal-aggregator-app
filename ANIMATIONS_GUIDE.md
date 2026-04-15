@@ -16,7 +16,6 @@ This document outlines all animations and micro-interactions implemented through
 #### Components with Press Animations
 - ✅ **Button** (`src/components/common/Button.js`)
 - ✅ **QuickActionButton** (`src/components/common/QuickActionButton.js`)
-- ✅ **StatCard** (`src/components/common/StatCard.js`)
 
 #### Implementation
 - **Scale Animation**: Buttons scale down to 0.95 on press, then spring back to 1.0
