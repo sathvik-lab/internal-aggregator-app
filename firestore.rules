@@ -13,7 +13,11 @@ service cloud.firestore {
     
     // Users collection - users can only access their own document
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read: if isOwner(userId);
+      // Users can only create their own profile with 'staff' role
+      allow create: if isOwner(userId) && request.resource.data.role == 'staff';
+      // Users cannot modify their own security role
+      allow update: if isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']);
     }
     
     // Documents collection - users can only access their own documents
