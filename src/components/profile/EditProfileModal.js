@@ -56,7 +56,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
     const [email, setEmail] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [company, setCompany] = useState('');
-    const [role, setRole] = useState('');
+    const [jobTitle, setJobTitle] = useState('');
 
     // Profile picture state
     const [profilePicture, setProfilePicture] = useState(null);
@@ -76,7 +76,8 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
             setEmail(user.email || '');
             setPhoneNumber(user.phoneNumber || '');
             setCompany(user.company || '');
-            setRole(user.role || '');
+            // Fallback to role if jobTitle is not set (for existing users)
+            setJobTitle(user.jobTitle || user.role || '');
             setProfilePicture(user.photoURL ? { uri: user.photoURL } : null);
             setProfilePictureChanged(false);
             setNameError('');
@@ -315,11 +316,13 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
             }
 
             // Update Firestore user document
+            // NOTE: We use 'jobTitle' for display purposes.
+            // The 'role' field is for security and can only be modified by admins.
             const firestoreUpdateData = {
                 displayName: updatedDisplayName,
                 phoneNumber: phoneNumber.trim() || null,
                 company: company.trim() || null,
-                role: role.trim() || null,
+                jobTitle: jobTitle.trim() || null,
                 updatedAt: new Date().toISOString(), // Mock serverTimestamp
             };
 
@@ -369,7 +372,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
             displayName !== (user?.displayName || '') ||
             phoneNumber !== (user?.phoneNumber || '') ||
             company !== (user?.company || '') ||
-            role !== (user?.role || '') ||
+            jobTitle !== (user?.jobTitle || '') ||
             profilePictureChanged;
 
         if (hasChanges) {
@@ -524,15 +527,15 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
                                 placeholder="Your company name"
                             />
 
-                            {/* Role/Title */}
+                            {/* Job Title */}
                             <TextInput
-                                label="Role/Title"
-                                value={role}
-                                onChangeText={setRole}
+                                label="Job Title"
+                                value={jobTitle}
+                                onChangeText={setJobTitle}
                                 mode="outlined"
                                 style={styles.input}
                                 autoCapitalize="words"
-                                placeholder="Your job title"
+                                placeholder="Your job title (e.g. Manager, Chef)"
                             />
                         </ScrollView>
 

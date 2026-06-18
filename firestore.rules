@@ -13,7 +13,9 @@ service cloud.firestore {
     
     // Users collection - users can only access their own document
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.role == 'staff';
+      allow update: if isOwner(userId) && request.resource.data.role == resource.data.role;
     }
     
     // Documents collection - users can only access their own documents
