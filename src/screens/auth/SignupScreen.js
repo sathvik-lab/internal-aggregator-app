@@ -316,6 +316,7 @@ const SignupScreen = ({ navigation }) => {
         displayName: fullName.trim(),
         email: email.trim(),
         role: USER_ROLES.STAFF, // Default role
+        jobTitle: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
