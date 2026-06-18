@@ -56,7 +56,6 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
     const [email, setEmail] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [company, setCompany] = useState('');
-    const [role, setRole] = useState('');
 
     // Profile picture state
     const [profilePicture, setProfilePicture] = useState(null);
@@ -76,7 +75,6 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
             setEmail(user.email || '');
             setPhoneNumber(user.phoneNumber || '');
             setCompany(user.company || '');
-            setRole(user.role || '');
             setProfilePicture(user.photoURL ? { uri: user.photoURL } : null);
             setProfilePictureChanged(false);
             setNameError('');
@@ -319,7 +317,6 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
                 displayName: updatedDisplayName,
                 phoneNumber: phoneNumber.trim() || null,
                 company: company.trim() || null,
-                role: role.trim() || null,
                 updatedAt: new Date().toISOString(), // Mock serverTimestamp
             };
 
@@ -369,7 +366,6 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
             displayName !== (user?.displayName || '') ||
             phoneNumber !== (user?.phoneNumber || '') ||
             company !== (user?.company || '') ||
-            role !== (user?.role || '') ||
             profilePictureChanged;
 
         if (hasChanges) {
@@ -524,16 +520,6 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
                                 placeholder="Your company name"
                             />
 
-                            {/* Role/Title */}
-                            <TextInput
-                                label="Role/Title"
-                                value={role}
-                                onChangeText={setRole}
-                                mode="outlined"
-                                style={styles.input}
-                                autoCapitalize="words"
-                                placeholder="Your job title"
-                            />
                         </ScrollView>
 
                         {/* Actions */}
