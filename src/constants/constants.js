@@ -118,6 +118,7 @@ export const ERROR_MESSAGES = {
   PERMISSION_DENIED: 'You do not have permission to perform this action.',
   FILE_TOO_LARGE: `File size exceeds ${FILE_LIMITS.MAX_SIZE_MB}MB limit.`,
   INVALID_FILE_TYPE: 'Invalid file type. Please select a supported file.',
+  INVALID_CREDENTIALS: 'Invalid email or password.',
   GENERIC_ERROR: 'An error occurred. Please try again.',
 };
 
