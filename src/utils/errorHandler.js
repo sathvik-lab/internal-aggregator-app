@@ -258,7 +258,6 @@ export const handleAsyncOperation = async (asyncFn, options = {}) => {
       error: {
         code: error.code || 'unknown-error',
         message: getErrorMessage(error, defaultMessage),
-        originalError: error,
       },
     };
   }
