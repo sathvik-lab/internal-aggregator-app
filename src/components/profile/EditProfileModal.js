@@ -56,7 +56,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
     const [email, setEmail] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [company, setCompany] = useState('');
-    const [role, setRole] = useState('');
+    const [jobTitle, setJobTitle] = useState('');
 
     // Profile picture state
     const [profilePicture, setProfilePicture] = useState(null);
@@ -76,7 +76,8 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
             setEmail(user.email || '');
             setPhoneNumber(user.phoneNumber || '');
             setCompany(user.company || '');
-            setRole(user.role || '');
+            // Fallback to role for display if jobTitle is not set
+            setJobTitle(user.jobTitle || user.role || '');
             setProfilePicture(user.photoURL ? { uri: user.photoURL } : null);
             setProfilePictureChanged(false);
             setNameError('');
@@ -319,7 +320,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
                 displayName: updatedDisplayName,
                 phoneNumber: phoneNumber.trim() || null,
                 company: company.trim() || null,
-                role: role.trim() || null,
+                jobTitle: jobTitle.trim() || null,
                 updatedAt: new Date().toISOString(), // Mock serverTimestamp
             };
 
@@ -369,7 +370,7 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
             displayName !== (user?.displayName || '') ||
             phoneNumber !== (user?.phoneNumber || '') ||
             company !== (user?.company || '') ||
-            role !== (user?.role || '') ||
+            jobTitle !== (user?.jobTitle || user?.role || '') ||
             profilePictureChanged;
 
         if (hasChanges) {
@@ -526,9 +527,9 @@ const EditProfileModal = ({ visible, onClose, onSuccess }) => {
 
                             {/* Role/Title */}
                             <TextInput
-                                label="Role/Title"
-                                value={role}
-                                onChangeText={setRole}
+                                label="Job Title"
+                                value={jobTitle}
+                                onChangeText={setJobTitle}
                                 mode="outlined"
                                 style={styles.input}
                                 autoCapitalize="words"
