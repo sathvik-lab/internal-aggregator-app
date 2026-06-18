@@ -125,6 +125,7 @@ const ProfileScreen = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showBusinessProfileModal, setShowBusinessProfileModal] = useState(false);
     const [businessProfile, setBusinessProfile] = useState(null);
+    const [jobTitle, setJobTitle] = useState('');
 
     /**
      * Fetch user preferences from Firestore
@@ -187,7 +188,7 @@ const ProfileScreen = () => {
     }, [user]);
 
     /**
-     * Fetch business profile from Firestore
+     * Fetch business profile and other user data from Firestore
      */
     const fetchBusinessProfile = useCallback(async () => {
         if (!user?.uid) {
@@ -196,10 +197,17 @@ const ProfileScreen = () => {
 
         try {
             const result = await getDocument('users', user.uid);
-            if (result.data && result.data.businessProfile) {
-                setBusinessProfile(result.data.businessProfile);
-            } else {
-                setBusinessProfile(null);
+            if (result.data) {
+                if (result.data.businessProfile) {
+                    setBusinessProfile(result.data.businessProfile);
+                } else {
+                    setBusinessProfile(null);
+                }
+                if (result.data.jobTitle) {
+                    setJobTitle(result.data.jobTitle);
+                } else {
+                    setJobTitle('');
+                }
             }
         } catch (error) {
             console.error('Error fetching business profile:', error);
@@ -302,8 +310,8 @@ const ProfileScreen = () => {
      */
     const handleAccountSettings = (type) => {
         Alert.alert(
-            type === 'name' ? 'Edit Name' : type === 'email' ? 'Change Email' : 'Change Password',
-            `${type === 'name' ? 'Name' : type === 'email' ? 'Email' : 'Password'} editing will be implemented in a future update.`,
+            type === 'name' ? 'Edit Name' : type === 'email' ? 'Change Email' : type === 'jobTitle' ? 'Edit Job Title' : 'Change Password',
+            `${type === 'name' ? 'Name' : type === 'email' ? 'Email' : type === 'jobTitle' ? 'Job Title' : 'Password'} editing will be implemented in a future update.`,
             [{ text: 'OK' }]
         );
     };
@@ -479,6 +487,14 @@ const ProfileScreen = () => {
                     title="Email"
                     subtitle={user?.email || 'Not set'}
                     onPress={() => handleAccountSettings('email')}
+                    colors={colors}
+                />
+                <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
+                <SettingsRow
+                    icon="briefcase-outline"
+                    title="Job Title"
+                    subtitle={jobTitle || 'Not set'}
+                    onPress={() => handleAccountSettings('jobTitle')}
                     colors={colors}
                 />
                 <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
