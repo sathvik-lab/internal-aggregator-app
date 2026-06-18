@@ -119,6 +119,7 @@ export const ERROR_MESSAGES = {
   FILE_TOO_LARGE: `File size exceeds ${FILE_LIMITS.MAX_SIZE_MB}MB limit.`,
   INVALID_FILE_TYPE: 'Invalid file type. Please select a supported file.',
   GENERIC_ERROR: 'An error occurred. Please try again.',
+  INVALID_CREDENTIALS: 'Invalid email or password.',
 };
 
 // Success messages
