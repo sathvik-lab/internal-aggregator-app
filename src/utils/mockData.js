@@ -18,6 +18,7 @@ import { DOCUMENT_TYPES, CHECKLIST_STATUS, USER_ROLES } from '../constants/const
  * @property {string} displayName - User's display name
  * @property {string|null} photoURL - URL to user's profile photo (or null)
  * @property {string} role - User role (owner or staff)
+ * @property {string} jobTitle - User's job title for display
  * @property {string} createdAt - ISO timestamp of account creation
  */
 
@@ -27,6 +28,7 @@ export const MOCK_USER = {
   displayName: 'John Doe',
   photoURL: null,
   role: USER_ROLES.OWNER,
+  jobTitle: 'Fleet Manager',
   createdAt: '2024-01-15T10:30:00.000Z',
 };
 
